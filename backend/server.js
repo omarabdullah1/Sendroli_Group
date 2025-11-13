@@ -7,6 +7,12 @@ const errorHandler = require('./middleware/errorHandler');
 // Load environment variables
 dotenv.config();
 
+// Check JWT secret
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET is not defined.');
+  process.exit(1);
+}
+
 // Connect to database
 connectDB();
 
@@ -20,11 +26,12 @@ app.use(express.urlencoded({ extended: true }));
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL // make sure FRONTEND_URL is set in Vercel env vars
+  process.env.FRONTEND_URL, // Must be set in Vercel environment variables
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or Postman)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -60,7 +67,7 @@ app.get('/api/health', (req, res) => {
 // Error handler middleware
 app.use(errorHandler);
 
-// Start server only if not running on Vercel serverless
+// Only start server if running locally (not on Vercel serverless functions)
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
