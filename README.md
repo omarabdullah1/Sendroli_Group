@@ -1,79 +1,93 @@
-# Factory Management System
+# Sendroli Group Factory Management System
 
-A full-stack MERN (MongoDB, Express, React, Node.js) application for managing factory operations with role-based access control.
+A comprehensive MERN stack application for managing factory operations with role-based access control.
 
-## Features
+## 🚀 Features
 
-### User Roles & Access Control
-- **Admin**: Full access to all features including user management
-- **Financial**: Access to financial data, can delete orders
-- **Designer**: Access to orders and clients
-- **Receptionist**: Basic access to clients and orders
+- **Multi-Role Access Control:** Receptionist, Designer, Financial, and Admin roles
+- **Client Management:** Complete CRUD operations for client records
+- **Order Management:** Track orders with detailed information and status updates
+- **Financial Tracking:** Monitor payments, deposits, and remaining balances
+- **JWT Authentication:** Secure token-based authentication
+- **Role-Based Authorization:** Middleware protection for API routes
 
-### Core Functionality
-- **User Authentication**: JWT-based authentication system
-- **Client Management**: Add, edit, view, and delete clients with factory information
-- **Order Management**: Create and manage orders with status tracking (pending, active, done, delivered)
-- **Dashboard**: Overview of orders, revenue, and statistics
-- **Role-Based Access**: Different permissions for different user roles
+## 📋 System Roles
 
-## Technology Stack
+### Receptionist
+- Manage client records (create, view, update, delete)
+
+### Designer
+- View and update orders related to designs
+- View client information (read-only)
+
+### Financial
+- Manage payments and deposits
+- View financial summaries and reports
+
+### Admin
+- Full system access
+- User management
+- Complete control over all entities
+
+## 🛠️ Technology Stack
 
 ### Backend
-- Node.js
-- Express.js
-- MongoDB with Mongoose
-- JWT for authentication
-- bcryptjs for password hashing
+- **Node.js** - Runtime environment
+- **Express.js** - Web framework
+- **MongoDB** - Database
+- **Mongoose** - ODM
+- **JWT** - Authentication
+- **bcrypt** - Password hashing
 
 ### Frontend
-- React 18
-- React Router for navigation
-- Axios for API calls
-- Context API for state management
-- CSS3 for styling
+- **React.js** - UI library
+- **React Router** - Navigation
+- **Context API** - State management
+- **Axios** - HTTP client
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 Mostafa_Sys/
-├── backend/
-│   ├── src/
-│   │   ├── config/         # Database configuration
-│   │   ├── controllers/    # Route controllers
-│   │   ├── middleware/     # Authentication & error handling
-│   │   ├── models/         # Mongoose models
-│   │   ├── routes/         # API routes
-│   │   └── server.js       # Express server setup
+├── backend/                 # Node.js backend
+│   ├── config/             # Configuration files
+│   ├── controllers/        # Route controllers
+│   ├── middleware/         # Custom middleware
+│   ├── models/             # Mongoose models
+│   ├── routes/             # API routes
+│   ├── utils/              # Utility functions
+│   ├── scripts/            # Seed and utility scripts
 │   ├── .env.example        # Environment variables template
-│   └── package.json
+│   ├── package.json        # Backend dependencies
+│   └── server.js           # Application entry point
 │
-└── frontend/
-    ├── src/
-    │   ├── components/     # React components
-    │   │   ├── Auth/       # Login & Register
-    │   │   ├── Clients/    # Client management
-    │   │   ├── Dashboard/  # Dashboard view
-    │   │   ├── Layout/     # App layout
-    │   │   └── Orders/     # Order management
-    │   ├── context/        # React Context (Auth)
-    │   ├── services/       # API services
-    │   ├── utils/          # Utility functions
-    │   └── App.jsx         # Main app component
-    ├── .env.example        # Environment variables template
-    └── package.json
+├── frontend/               # React frontend
+│   ├── public/             # Static files
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── contexts/       # Context providers
+│   │   ├── pages/          # Page components
+│   │   ├── services/       # API services
+│   │   ├── utils/          # Utility functions
+│   │   ├── App.js          # Main app component
+│   │   └── index.js        # Application entry
+│   ├── .env.example        # Environment variables template
+│   └── package.json        # Frontend dependencies
+│
+├── docs/                   # Documentation
+└── PROJECT_OVERVIEW.md     # Detailed project overview
 ```
 
-## Installation & Setup
+## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js (v14 or higher)
-- MongoDB (local or Atlas)
+- MongoDB (v4.4 or higher)
 - npm or yarn
 
 ### Backend Setup
 
-1. Navigate to the backend directory:
+1. Navigate to backend directory:
 ```bash
 cd backend
 ```
@@ -83,30 +97,37 @@ cd backend
 npm install
 ```
 
-3. Create `.env` file from `.env.example`:
+3. Create environment file:
 ```bash
 cp .env.example .env
 ```
 
-4. Update `.env` with your configuration:
+4. Configure your `.env` file:
 ```env
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/factory_management
-JWT_SECRET=your_secure_jwt_secret_here
+JWT_SECRET=your_jwt_secret_key_here
 JWT_EXPIRE=7d
 NODE_ENV=development
 ```
 
-5. Start the backend server:
+5. Seed the database (optional):
 ```bash
+npm run seed
+```
+
+6. Start the backend server:
+```bash
+npm start
+# or for development with auto-reload
 npm run dev
 ```
 
-The backend will run on `http://localhost:5000`
+Backend will run on `http://localhost:5000`
 
 ### Frontend Setup
 
-1. Navigate to the frontend directory:
+1. Navigate to frontend directory:
 ```bash
 cd frontend
 ```
@@ -116,93 +137,89 @@ cd frontend
 npm install
 ```
 
-3. Create `.env` file from `.env.example`:
+3. Create environment file:
 ```bash
 cp .env.example .env
 ```
 
-4. Update `.env` with your backend URL:
+4. Configure your `.env` file:
 ```env
-VITE_API_URL=http://localhost:5000/api
+REACT_APP_API_URL=http://localhost:5000/api
 ```
 
-5. Start the frontend development server:
+5. Start the frontend:
 ```bash
-npm run dev
+npm start
 ```
 
-The frontend will run on `http://localhost:5173`
+Frontend will run on `http://localhost:3000`
 
-## API Endpoints
+## 🔐 Default Users (After Seeding)
+
+After running the seed script, you can login with these default accounts:
+
+| Username | Password | Role |
+|----------|----------|------|
+| admin | admin123 | Admin |
+| receptionist | recep123 | Receptionist |
+| designer | design123 | Designer |
+| financial | finance123 | Financial |
+
+**⚠️ Important:** Change these passwords in production!
+
+## 📚 API Documentation
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
+- `POST /api/auth/login` - User login
+- `POST /api/auth/register` - Register user (admin only)
 - `GET /api/auth/me` - Get current user
-- `GET /api/auth/users` - Get all users (Admin only)
-- `PUT /api/auth/users/:id` - Update user (Admin only)
-- `DELETE /api/auth/users/:id` - Delete user (Admin only)
 
 ### Clients
-- `GET /api/clients` - Get all clients
-- `GET /api/clients/:id` - Get single client
+- `GET /api/clients` - List all clients
+- `GET /api/clients/:id` - Get client by ID
 - `POST /api/clients` - Create new client
 - `PUT /api/clients/:id` - Update client
-- `DELETE /api/clients/:id` - Delete client (Admin only)
+- `DELETE /api/clients/:id` - Delete client
 
 ### Orders
-- `GET /api/orders` - Get all orders
-- `GET /api/orders/stats` - Get order statistics
-- `GET /api/orders/:id` - Get single order
+- `GET /api/orders` - List orders (role-filtered)
+- `GET /api/orders/:id` - Get order by ID
 - `POST /api/orders` - Create new order
 - `PUT /api/orders/:id` - Update order
-- `DELETE /api/orders/:id` - Delete order (Admin/Financial only)
+- `DELETE /api/orders/:id` - Delete order (admin only)
 
-## Default User
+### Users (Admin only)
+- `GET /api/users` - List all users
+- `POST /api/users` - Create new user
+- `PUT /api/users/:id` - Update user
+- `DELETE /api/users/:id` - Delete user
 
-After setting up, you'll need to register the first admin user through the registration endpoint or UI.
+## 🧪 Testing
 
-## Security Features
-
-- JWT-based authentication
-- Password hashing with bcryptjs
-- Role-based access control
-- Input validation and sanitization with express-validator
-- Protected routes on both frontend and backend
-- HTTP-only considerations for production
-
-### Production Recommendations
-
-For production deployment, consider adding:
-- Rate limiting middleware (e.g., `express-rate-limit`)
-- Helmet.js for security headers
-- CORS configuration specific to your domain
-- MongoDB connection with SSL/TLS
-- Environment-specific configurations
-
-## Development
-
-### Backend Development
+### Backend Tests
 ```bash
 cd backend
-npm run dev  # Uses nodemon for auto-restart
+npm test
 ```
 
-### Frontend Development
+### Frontend Tests
 ```bash
 cd frontend
-npm run dev  # Uses Vite's HMR
+npm test
 ```
 
-### Production Build
+## 📦 Deployment
 
-Frontend:
-```bash
-cd frontend
-npm run build
-```
+### Backend Deployment
+1. Set environment variables on your hosting platform
+2. Run `npm install --production`
+3. Start with `npm start`
 
-## Contributing
+### Frontend Deployment
+1. Build the production bundle: `npm run build`
+2. Deploy the `build` folder to your hosting service
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -210,10 +227,15 @@ npm run build
 4. Push to the branch
 5. Open a Pull Request
 
-## License
+## 📄 License
 
-ISC
+This project is licensed under the MIT License.
 
-## Author
+## 👥 Authors
 
-Factory Management System Development Team
+- Factory Management System Team
+
+## 📞 Support
+
+For issues and questions, please open an issue on GitHub.
+
