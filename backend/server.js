@@ -26,6 +26,8 @@ app.use(express.urlencoded({ extended: true }));
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:3000',
+  'https://sendroli-group.vercel.app',      // your actual frontend URL
+  'https://sendroli-group-git-main-oos-projects-e7124c64.vercel.app/',
   process.env.FRONTEND_URL, // Must be set in Vercel environment variables
 ];
 
