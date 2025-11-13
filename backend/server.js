@@ -4,7 +4,6 @@ const cors = require('cors');
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 
-// Load environment variables
 dotenv.config();
 
 // Check JWT secret
@@ -13,75 +12,61 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
-// Connect to MongoDB
+// Connect to database
 connectDB();
 
-// Initialize Express app
+// Initialize app
 const app = express();
 
-// Body parser middleware
+// Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Dynamic CORS configuration
-// You can set FRONTEND_URL in your Vercel backend environment variables
-// CORS configuration
+// Dynamic CORS
 const allowedOrigins = [
-  'http://localhost:3000',
-  'https://sendroli-group.vercel.app',
-  process.env.FRONTEND_URL, // production frontend
+  'http://localhost:3000',             // local dev
+  'https://sendroli-group.vercel.app', // production frontend
+  process.env.FRONTEND_URL,            // optional env var
 ];
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    // allow requests with no origin (Postman, mobile, server-side)
+app.use(cors({
+  origin: (origin, callback) => {
+    // allow requests with no origin (like Postman, mobile apps)
     if (!origin) return callback(null, true);
 
-    // Allow any Vercel preview URLs dynamically
+    // Allow Vercel previews dynamically
     if (origin.includes('.vercel.app') || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    callback(new Error(`Not allowed by CORS: ${origin}`));
+    callback(new Error(`CORS not allowed for origin: ${origin}`));
   },
   credentials: true,
-};
+}));
 
-app.use(cors(corsOptions));
-
-// Enable preflight for all routes (important for POST, PUT, DELETE)
-app.options('*', cors(corsOptions));
-
-// Import routes
+// Routes
 const authRoutes = require('./routes/authRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const userRoutes = require('./routes/userRoutes');
 
-// Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 
-// Health check route
+// Health check
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-  });
+  res.status(200).json({ success: true, message: 'Server is running' });
 });
 
-// Error handler middleware (must be last)
+// Error handler
 app.use(errorHandler);
 
-// Start server only if running locally (Vercel uses serverless functions)
+// Start server locally only
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  });
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
 module.exports = app;
