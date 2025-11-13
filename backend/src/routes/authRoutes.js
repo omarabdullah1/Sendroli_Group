@@ -9,12 +9,17 @@ const {
   deleteUser,
 } = require('../controllers/authController');
 const { protect, authorize } = require('../middleware/auth');
+const {
+  registerValidation,
+  loginValidation,
+  idValidation,
+} = require('../middleware/validation');
 
-router.post('/register', register);
-router.post('/login', login);
+router.post('/register', registerValidation, register);
+router.post('/login', loginValidation, login);
 router.get('/me', protect, getMe);
 router.get('/users', protect, authorize('Admin'), getUsers);
-router.put('/users/:id', protect, authorize('Admin'), updateUser);
-router.delete('/users/:id', protect, authorize('Admin'), deleteUser);
+router.put('/users/:id', protect, authorize('Admin'), idValidation, updateUser);
+router.delete('/users/:id', protect, authorize('Admin'), idValidation, deleteUser);
 
 module.exports = router;

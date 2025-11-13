@@ -167,8 +167,18 @@ After setting up, you'll need to register the first admin user through the regis
 - JWT-based authentication
 - Password hashing with bcryptjs
 - Role-based access control
+- Input validation and sanitization with express-validator
 - Protected routes on both frontend and backend
 - HTTP-only considerations for production
+
+### Production Recommendations
+
+For production deployment, consider adding:
+- Rate limiting middleware (e.g., `express-rate-limit`)
+- Helmet.js for security headers
+- CORS configuration specific to your domain
+- MongoDB connection with SSL/TLS
+- Environment-specific configurations
 
 ## Development
 

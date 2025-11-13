@@ -8,11 +8,14 @@ exports.getOrders = async (req, res) => {
     const { status, clientId } = req.query;
     let filter = {};
 
-    if (status) {
+    // Validate status against allowed values
+    const allowedStatuses = ['pending', 'active', 'done', 'delivered'];
+    if (status && allowedStatuses.includes(status)) {
       filter.status = status;
     }
 
-    if (clientId) {
+    // Validate clientId is a valid MongoDB ObjectId
+    if (clientId && /^[0-9a-fA-F]{24}$/.test(clientId)) {
       filter.client = clientId;
     }
 
