@@ -15,10 +15,10 @@ if (!process.env.JWT_SECRET) {
 // Connect to database
 connectDB();
 
-// Initialize app
+// Initialize express app
 const app = express();
 
-// Body parser
+// Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -31,10 +31,9 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // allow requests with no origin (like Postman, mobile apps)
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // allow Postman, mobile apps, etc.
 
-    // Allow Vercel previews dynamically
+    // Allow all Vercel preview URLs dynamically
     if (origin.includes('.vercel.app') || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -63,7 +62,7 @@ app.get('/api/health', (req, res) => {
 // Error handler
 app.use(errorHandler);
 
-// Start server locally only
+// Start server only locally
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
