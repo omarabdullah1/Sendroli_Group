@@ -17,8 +17,8 @@ const Clients = () => {
   });
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+  fetchClients();
+}, [fetchClients]); // add fetchClients
 
   const fetchClients = async () => {
     try {
