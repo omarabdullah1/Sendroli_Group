@@ -33,20 +33,17 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // allow requests with no origin (Postman, mobile apps)
+    // allow requests with no origin (like Postman or mobile apps)
     if (!origin) return callback(null, true);
 
-    // Allow all Vercel preview URLs (they end with `.vercel.app`)
-    if (
-      allowedOrigins.includes(origin) ||
-      origin.endsWith('.vercel.app')
-    ) {
+    // allow all vercel.app preview deployments
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
 
     callback(new Error(`Not allowed by CORS: ${origin}`));
   },
-  credentials: true,
+  credentials: true, // allow cookies if needed
 };
 
 // Apply CORS middleware
