@@ -13,23 +13,23 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
-// Connect to database
+// Connect to MongoDB
 connectDB();
 
-// Initialize express app
+// Initialize Express app
 const app = express();
 
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS configuration
+// Dynamic CORS configuration
+// You can set FRONTEND_URL in your Vercel backend environment variables
 const allowedOrigins = [
-  'http://localhost:3000',
-  'https://sendroli-group.vercel.app',      // your actual frontend URL
-  'https://sendroli-group-git-main-oos-projects-e7124c64.vercel.app/',
-  process.env.FRONTEND_URL, // Must be set in Vercel environment variables
-];
+  'http://localhost:3000', // local dev
+  'https://sendroli-group.vercel.app', // your production frontend
+  process.env.FRONTEND_URL, // current frontend deployment URL
+].filter(Boolean); // remove undefined if FRONTEND_URL is not set
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -43,7 +43,10 @@ const corsOptions = {
   credentials: true,
 };
 
+// Apply CORS middleware
 app.use(cors(corsOptions));
+// Enable preflight for all routes (important for POST, PUT, DELETE)
+app.options('*', cors(corsOptions));
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -66,10 +69,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Error handler middleware
+// Error handler middleware (must be last)
 app.use(errorHandler);
 
-// Only start server if running locally (not on Vercel serverless functions)
+// Start server only if running locally (Vercel uses serverless functions)
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
