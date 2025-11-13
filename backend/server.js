@@ -25,30 +25,30 @@ app.use(express.urlencoded({ extended: true }));
 
 // Dynamic CORS configuration
 // You can set FRONTEND_URL in your Vercel backend environment variables
+// CORS configuration
 const allowedOrigins = [
   'http://localhost:3000',
   'https://sendroli-group.vercel.app',
-  'https://sendroli-group-git-main-oos-projects-e7124c64.vercel.app/',
-  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL, // production frontend
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // allow requests with no origin (like Postman or mobile apps)
+    // allow requests with no origin (Postman, mobile, server-side)
     if (!origin) return callback(null, true);
 
-    // allow all vercel.app preview deployments
-    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    // Allow any Vercel preview URLs dynamically
+    if (origin.includes('.vercel.app') || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
     callback(new Error(`Not allowed by CORS: ${origin}`));
   },
-  credentials: true, // allow cookies if needed
+  credentials: true,
 };
 
-// Apply CORS middleware
 app.use(cors(corsOptions));
+
 // Enable preflight for all routes (important for POST, PUT, DELETE)
 app.options('*', cors(corsOptions));
 
