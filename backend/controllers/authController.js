@@ -53,10 +53,17 @@ exports.register = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
   try {
+    console.log('=== LOGIN REQUEST RECEIVED ===');
+    console.log('Request body:', req.body);
+    console.log('Request headers:', req.headers);
+    
     const { username, password } = req.body;
+    console.log('Extracted username:', username);
+    console.log('Extracted password length:', password ? password.length : 'undefined');
 
     // Validate input
     if (!username || !password) {
+      console.log('❌ Validation failed - missing username or password');
       return res.status(400).json({
         success: false,
         message: 'Please provide username and password',
@@ -64,9 +71,12 @@ exports.login = async (req, res) => {
     }
 
     // Check for user (include password)
+    console.log('🔍 Searching for user with username:', username);
     const user = await User.findOne({ username }).select('+password');
+    console.log('User found:', user ? 'Yes' : 'No');
 
     if (!user) {
+      console.log('❌ User not found in database');
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
@@ -74,7 +84,9 @@ exports.login = async (req, res) => {
     }
 
     // Check if user is active
+    console.log('User active status:', user.isActive);
     if (!user.isActive) {
+      console.log('❌ User account is inactive');
       return res.status(401).json({
         success: false,
         message: 'User account is inactive',
@@ -82,15 +94,19 @@ exports.login = async (req, res) => {
     }
 
     // Check if password matches
+    console.log('🔐 Checking password match...');
     const isMatch = await user.matchPassword(password);
+    console.log('Password match result:', isMatch);
 
     if (!isMatch) {
+      console.log('❌ Password does not match');
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
       });
     }
 
+    console.log('✅ Login successful for user:', user.username);
     res.status(200).json({
       success: true,
       data: {
@@ -103,6 +119,7 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
+    console.log('💥 Login error:', error.message);
     res.status(500).json({
       success: false,
       message: error.message,
