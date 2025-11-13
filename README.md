@@ -1,4 +1,4 @@
-# Mostafa Factory Management System
+# Sendroli Group Factory Management System
 
 A comprehensive MERN stack application for managing factory operations with role-based access control.
 
