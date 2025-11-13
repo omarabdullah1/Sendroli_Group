@@ -5,20 +5,29 @@ const authService = {
   login: async (username, password) => {
     console.log('🚀 Frontend: Attempting login with:', { username, password: '***' });
     console.log('🌐 API URL:', process.env.REACT_APP_API_URL || 'http://localhost:5000/api');
-    
+
     try {
+      // Send login request
       const response = await api.post('/auth/login', { username, password });
       console.log('✅ Frontend: Login response received:', response.data);
-      
+
       if (response.data.success) {
-        localStorage.setItem('token', response.data.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.data));
+        const { token, ...userData } = response.data.data;
+
+        // Store token and user data
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
         console.log('💾 Frontend: User data stored in localStorage');
       }
+
       return response.data;
     } catch (error) {
-      console.log('❌ Frontend: Login error:', error);
-      console.log('Error response:', error.response?.data);
+      // Handle network or server errors
+      if (!error.response) {
+        console.error('❌ Frontend: Network or CORS error', error);
+      } else {
+        console.error('❌ Frontend: Login error', error.response.data);
+      }
       throw error;
     }
   },
@@ -27,9 +36,10 @@ const authService = {
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    console.log('🔓 Frontend: User logged out');
   },
 
-  // Get current user
+  // Get current user from localStorage
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
@@ -40,8 +50,13 @@ const authService = {
 
   // Get current user from server
   getMe: async () => {
-    const response = await api.get('/auth/me');
-    return response.data;
+    try {
+      const response = await api.get('/auth/me');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Frontend: Error fetching current user', error.response?.data || error);
+      throw error;
+    }
   },
 };
 
