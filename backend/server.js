@@ -26,10 +26,11 @@ app.use(express.urlencoded({ extended: true }));
 // Dynamic CORS configuration
 // You can set FRONTEND_URL in your Vercel backend environment variables
 const allowedOrigins = [
-  'http://localhost:3000', // local dev
-  'https://sendroli-group.vercel.app', // your production frontend
-  process.env.FRONTEND_URL, // current frontend deployment URL
-].filter(Boolean); // remove undefined if FRONTEND_URL is not set
+  'http://localhost:3000',
+  'https://sendroli-group.vercel.app',
+  'https://sendroli-group-git-main-oos-projects-e7124c64.vercel.app/',
+  process.env.FRONTEND_URL,
+];
 
 const corsOptions = {
   origin: function (origin, callback) {
