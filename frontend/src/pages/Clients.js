@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import clientService from '../services/clientService';
 
 const Clients = () => {
+  const { user } = useAuth();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,9 +18,10 @@ const Clients = () => {
     notes: '',
   });
 
-  useEffect(() => {
-  fetchClients();
-}, [fetchClients]); // add fetchClients
+  // Role-based permissions
+  const canEdit = user?.role === 'admin' || user?.role === 'receptionist';
+  const canDelete = user?.role === 'admin';
+  const canAdd = user?.role === 'admin' || user?.role === 'receptionist';
 
   const fetchClients = async () => {
     try {
@@ -33,12 +36,19 @@ const Clients = () => {
     }
   };
 
+  useEffect(() => {
+    fetchClients();
+  }, [searchTerm]); // Changed dependency to searchTerm since that's what affects the fetch
+
   const handleSearch = () => {
     fetchClients();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canAdd && !editingClient) return;
+    if (!canEdit && editingClient) return;
+    
     try {
       if (editingClient) {
         await clientService.updateClient(editingClient._id, formData);
@@ -55,6 +65,7 @@ const Clients = () => {
   };
 
   const handleEdit = (client) => {
+    if (!canEdit) return;
     setEditingClient(client);
     setFormData({
       name: client.name,
@@ -67,6 +78,7 @@ const Clients = () => {
   };
 
   const handleDelete = async (id) => {
+    if (!canDelete) return;
     if (window.confirm('Are you sure you want to delete this client?')) {
       try {
         await clientService.deleteClient(id);
@@ -88,9 +100,11 @@ const Clients = () => {
       <div style={styles.content}>
         <div style={styles.header}>
           <h1 style={styles.title}>Client Management</h1>
-          <button onClick={() => setShowForm(true)} style={styles.addButton}>
-            Add New Client
-          </button>
+          {canAdd && (
+            <button onClick={() => setShowForm(true)} style={styles.addButton}>
+              Add New Client
+            </button>
+          )}
         </div>
 
         <div style={styles.searchBar}>
@@ -210,12 +224,19 @@ const Clients = () => {
                       <td style={styles.td}>{client.factoryName || '-'}</td>
                       <td style={styles.td}>{client.address || '-'}</td>
                       <td style={styles.td}>
-                        <button onClick={() => handleEdit(client)} style={styles.editButton}>
-                          Edit
-                        </button>
-                        <button onClick={() => handleDelete(client._id)} style={styles.deleteButton}>
-                          Delete
-                        </button>
+                        {canEdit && (
+                          <button onClick={() => handleEdit(client)} style={styles.editButton}>
+                            Edit
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => handleDelete(client._id)} style={styles.deleteButton}>
+                            Delete
+                          </button>
+                        )}
+                        {!canEdit && !canDelete && (
+                          <span style={{color: '#7f8c8d', fontStyle: 'italic'}}>View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))

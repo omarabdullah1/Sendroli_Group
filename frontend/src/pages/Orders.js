@@ -1,16 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import clientService from '../services/clientService';
 import orderService from '../services/orderService';
-import { useAuth } from '../contexts/AuthContext';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [formData, setFormData] = useState({
+    client: '',
+    type: '',
+    repeats: 0,
+    sheetSize: '',
+    totalPrice: 0,
+    deposit: 0,
+    orderState: 'pending',
+    notes: '',
+  });
   const { user } = useAuth();
+
+  // Role-based permissions
+  const canEdit = user?.role === 'admin' || user?.role === 'receptionist' || user?.role === 'designer';
+  const canDelete = user?.role === 'admin';
+  const canAdd = user?.role === 'admin' || user?.role === 'receptionist';
+  const canEditStatus = user?.role === 'designer' || user?.role === 'admin';
+  const canEditPayment = user?.role === 'financial' || user?.role === 'admin';
 
   useEffect(() => {
     fetchOrders();
+    fetchClients();
   }, []);
+
+  const fetchClients = async () => {
+    try {
+      const response = await clientService.getClients();
+      // Ensure we always set an array
+      setClients(Array.isArray(response) ? response : response?.data || []);
+    } catch (err) {
+      console.error('Failed to fetch clients:', err);
+      setClients([]); // Set empty array on error
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -26,6 +59,7 @@ const Orders = () => {
   };
 
   const handleStatusUpdate = async (orderId, newStatus) => {
+    if (!canEditStatus) return;
     try {
       await orderService.updateOrder(orderId, { orderState: newStatus });
       fetchOrders();
@@ -34,13 +68,208 @@ const Orders = () => {
     }
   };
 
-  const canEditStatus = user.role === 'designer' || user.role === 'admin';
-  const canEditPayment = user.role === 'financial' || user.role === 'admin';
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!canAdd && !editingOrder) return;
+    if (!canEdit && editingOrder) return;
+
+    try {
+      if (editingOrder) {
+        await orderService.updateOrder(editingOrder._id, formData);
+      } else {
+        await orderService.createOrder(formData);
+      }
+      setShowForm(false);
+      setEditingOrder(null);
+      setFormData({
+        client: '',
+        type: '',
+        repeats: 0,
+        sheetSize: '',
+        totalPrice: 0,
+        deposit: 0,
+        orderState: 'pending',
+        notes: '',
+      });
+      fetchOrders();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Operation failed');
+    }
+  };
+
+  const handleEdit = (order) => {
+    if (!canEdit) return;
+    setEditingOrder(order);
+    setFormData({
+      client: order.client?._id || order.client || '',
+      type: order.type || '',
+      repeats: order.repeats || 0,
+      sheetSize: order.sheetSize || '',
+      totalPrice: order.totalPrice || 0,
+      deposit: order.deposit || 0,
+      orderState: order.orderState || 'pending',
+      notes: order.notes || '',
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (orderId) => {
+    if (!canDelete) return;
+    if (window.confirm('Are you sure you want to delete this order?')) {
+      try {
+        await orderService.deleteOrder(orderId);
+        fetchOrders();
+      } catch (err) {
+        alert(err.response?.data?.message || 'Failed to delete order');
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingOrder(null);
+    setFormData({
+      client: '',
+      type: '',
+      repeats: 0,
+      sheetSize: '',
+      totalPrice: 0,
+      deposit: 0,
+      orderState: 'pending',
+      notes: '',
+    });
+  };
 
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        <h1 style={styles.title}>Order Management</h1>
+        <div style={styles.header}>
+          <h1 style={styles.title}>Order Management</h1>
+          {canAdd && (
+            <button onClick={() => setShowForm(true)} style={styles.addButton}>
+              Add New Order
+            </button>
+          )}
+        </div>
+
+        {showForm && (
+          <div style={styles.formOverlay}>
+            <div style={styles.formContainer}>
+              <h2 style={styles.formTitle}>
+                {editingOrder ? 'Edit Order' : 'Add New Order'}
+              </h2>
+              <form onSubmit={handleSubmit} style={styles.form}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Client *</label>
+                  <select
+                    value={formData.client}
+                    onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                    required
+                    style={styles.input}
+                  >
+                    <option value="">Select a client</option>
+                    {Array.isArray(clients) && clients.map((client) => (
+                      <option key={client._id} value={client._id}>
+                        {client.name} - {client.factoryName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Type *</label>
+                  <input
+                    type="text"
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    required
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Repeats</label>
+                  <input
+                    type="number"
+                    value={formData.repeats}
+                    onChange={(e) => setFormData({ ...formData, repeats: parseInt(e.target.value) })}
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Sheet Size</label>
+                  <select
+                    value={formData.sheetSize}
+                    onChange={(e) => setFormData({ ...formData, sheetSize: e.target.value })}
+                    style={styles.input}
+                  >
+                    <option value="">Select Size</option>
+                    <option value="A4">A4</option>
+                    <option value="A3">A3</option>
+                    <option value="A2">A2</option>
+                    <option value="A1">A1</option>
+                    <option value="A0">A0</option>
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Total Price *</label>
+                  <input
+                    type="number"
+                    value={formData.totalPrice}
+                    onChange={(e) => setFormData({ ...formData, totalPrice: parseFloat(e.target.value) })}
+                    required
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Deposit</label>
+                  <input
+                    type="number"
+                    value={formData.deposit}
+                    onChange={(e) => setFormData({ ...formData, deposit: parseFloat(e.target.value) })}
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Order State</label>
+                  <select
+                    value={formData.orderState}
+                    onChange={(e) => setFormData({ ...formData, orderState: e.target.value })}
+                    style={styles.input}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="done">Done</option>
+                    <option value="delivered">Delivered</option>
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Notes</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    style={styles.textarea}
+                    rows="3"
+                  />
+                </div>
+
+                <div style={styles.formButtons}>
+                  <button type="submit" style={styles.submitButton}>
+                    {editingOrder ? 'Update' : 'Create'}
+                  </button>
+                  <button type="button" onClick={handleCancel} style={styles.cancelButton}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {error && <div style={styles.error}>{error}</div>}
 
@@ -95,6 +324,19 @@ const Orders = () => {
                             <option value="delivered">Delivered</option>
                           </select>
                         )}
+                        {canEdit && (
+                          <button onClick={() => handleEdit(order)} style={styles.editButton}>
+                            Edit
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => handleDelete(order._id)} style={styles.deleteButton}>
+                            Delete
+                          </button>
+                        )}
+                        {!canEditStatus && !canEdit && !canDelete && (
+                          <span style={{color: '#7f8c8d', fontStyle: 'italic'}}>View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -137,10 +379,102 @@ const styles = {
     maxWidth: '1200px',
     margin: '0 auto',
   },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '2rem',
+  },
   title: {
     fontSize: '2rem',
     color: '#2c3e50',
-    marginBottom: '2rem',
+  },
+  addButton: {
+    backgroundColor: '#27ae60',
+    color: '#fff',
+    padding: '0.75rem 1.5rem',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '1rem',
+  },
+  formOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  formContainer: {
+    backgroundColor: '#fff',
+    padding: '2rem',
+    borderRadius: '8px',
+    width: '90%',
+    maxWidth: '500px',
+    maxHeight: '90vh',
+    overflow: 'auto',
+  },
+  formTitle: {
+    fontSize: '1.5rem',
+    color: '#2c3e50',
+    marginBottom: '1.5rem',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+  },
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  label: {
+    marginBottom: '0.5rem',
+    color: '#2c3e50',
+    fontWeight: '500',
+  },
+  input: {
+    padding: '0.75rem',
+    border: '1px solid #bdc3c7',
+    borderRadius: '4px',
+    fontSize: '1rem',
+  },
+  textarea: {
+    padding: '0.75rem',
+    border: '1px solid #bdc3c7',
+    borderRadius: '4px',
+    fontSize: '1rem',
+    resize: 'vertical',
+  },
+  formButtons: {
+    display: 'flex',
+    gap: '1rem',
+    marginTop: '1rem',
+  },
+  submitButton: {
+    flex: 1,
+    backgroundColor: '#27ae60',
+    color: '#fff',
+    padding: '0.75rem',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '1rem',
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#95a5a6',
+    color: '#fff',
+    padding: '0.75rem',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '1rem',
   },
   error: {
     backgroundColor: '#e74c3c',
@@ -186,6 +520,24 @@ const styles = {
     border: '1px solid #bdc3c7',
     borderRadius: '4px',
     fontSize: '0.9rem',
+    marginRight: '0.5rem',
+  },
+  editButton: {
+    backgroundColor: '#3498db',
+    color: '#fff',
+    padding: '0.5rem 1rem',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginRight: '0.5rem',
+  },
+  deleteButton: {
+    backgroundColor: '#e74c3c',
+    color: '#fff',
+    padding: '0.5rem 1rem',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
   },
 };
 
