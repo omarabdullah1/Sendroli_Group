@@ -1,130 +1,93 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import ProtectedRoute from './utils/ProtectedRoute';
-import Layout from './components/Layout/Layout';
-import Login from './components/Auth/Login';
-import Register from './components/Auth/Register';
-import Dashboard from './components/Dashboard/Dashboard';
-import ClientList from './components/Clients/ClientList';
-import ClientForm from './components/Clients/ClientForm';
-import ClientDetail from './components/Clients/ClientDetail';
-import OrderList from './components/Orders/OrderList';
-import OrderForm from './components/Orders/OrderForm';
-import OrderDetail from './components/Orders/OrderDetail';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
+import Login from './components/Auth/Login';
+import Navbar from './components/Navbar';
+import PrivateRoute from './components/PrivateRoute';
+import { AuthProvider } from './context/AuthContext';
+import Clients from './pages/Clients';
+import FinancialStats from './pages/FinancialStats';
+import Home from './pages/Home';
+import Orders from './pages/Orders';
+import Unauthorized from './pages/Unauthorized';
+import Users from './pages/Users';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+        <div style={styles.app}>
+          <Navbar />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+            
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <Home />
+                </PrivateRoute>
+              }
+            />
 
-          <Route
-            path="/clients"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ClientList />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Home />
+                </PrivateRoute>
+              }
+            />
 
-          <Route
-            path="/clients/new"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ClientForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/clients"
+              element={
+                <PrivateRoute roles={['receptionist', 'admin']}>
+                  <Clients />
+                </PrivateRoute>
+              }
+            />
 
-          <Route
-            path="/clients/edit/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ClientForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/orders"
+              element={
+                <PrivateRoute roles={['designer', 'financial', 'admin']}>
+                  <Orders />
+                </PrivateRoute>
+              }
+            />
 
-          <Route
-            path="/clients/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ClientDetail />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/financial-stats"
+              element={
+                <PrivateRoute roles={['financial', 'admin']}>
+                  <FinancialStats />
+                </PrivateRoute>
+              }
+            />
 
-          <Route
-            path="/orders"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <OrderList />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/users"
+              element={
+                <PrivateRoute roles={['admin']}>
+                  <Users />
+                </PrivateRoute>
+              }
+            />
 
-          <Route
-            path="/orders/new"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <OrderForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/orders/edit/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <OrderForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/orders/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <OrderDetail />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
       </Router>
     </AuthProvider>
   );
 }
+
+const styles = {
+  app: {
+    minHeight: '100vh',
+    backgroundColor: '#ecf0f1',
+  },
+};
 
 export default App;

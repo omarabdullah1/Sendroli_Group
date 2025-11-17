@@ -1,15 +1,14 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import PrivateRoute from './components/PrivateRoute';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import Navbar from './components/Navbar';
-import Login from './pages/Login';
-import Home from './pages/Home';
+import PrivateRoute from './components/PrivateRoute';
+import { AuthProvider } from './context/AuthContext';
 import Clients from './pages/Clients';
-import Orders from './pages/Orders';
 import FinancialStats from './pages/FinancialStats';
-import Users from './pages/Users';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Orders from './pages/Orders';
 import Unauthorized from './pages/Unauthorized';
+import Users from './pages/Users';
 
 function App() {
   return (
