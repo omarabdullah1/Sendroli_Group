@@ -1,0 +1,202 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: |
+          backend/package-lock.json
+          frontend/package-lock.json
+
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        npm ci
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run backend tests
+      run: |
+        cd backend
+        npm test
+      env:
+        NODE_ENV: test
+        MONGODB_URI: mongodb://localhost:27017/sendroli_factory_test
+
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm run test:ci
+
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+
+    - name: Run ESLint
+      run: |
+        cd backend
+        npm run lint
+
+    - name: Run frontend linting
+      run: |
+        cd frontend
+        npm run lint
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true))
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+    - name: Add VPS to known hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Create deployment package
+      run: |
+        tar -czf deployment.tar.gz \
+          --exclude='.git' \
+          --exclude='node_modules' \
+          --exclude='.env*' \
+          --exclude='*.log' \
+          --exclude='coverage' \
+          --exclude='.nyc_output' \
+          .
+
+    - name: Copy files to VPS
+      run: |
+        scp deployment.tar.gz ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
+
+    - name: Deploy to VPS
+      run: |
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+          set -e
+          
+          # Navigate to deployment directory
+          cd ${{ secrets.DEPLOY_PATH }}
+          
+          # Create backup of current deployment
+          if [ -d "sendroli-factory" ]; then
+            echo "Creating backup of current deployment..."
+            cp -r sendroli-factory sendroli-factory-backup-$(date +%Y%m%d-%H%M%S)
+          fi
+          
+          # Extract new deployment
+          echo "Extracting new deployment..."
+          rm -rf sendroli-factory-new
+          mkdir -p sendroli-factory-new
+          tar -xzf deployment.tar.gz -C sendroli-factory-new
+          
+          # Move new deployment to active directory
+          if [ -d "sendroli-factory" ]; then
+            mv sendroli-factory sendroli-factory-old
+          fi
+          mv sendroli-factory-new sendroli-factory
+          
+          # Navigate to project directory
+          cd sendroli-factory
+          
+          # Copy production environment files
+          if [ -f "../sendroli-factory-old/backend/.env.production" ]; then
+            cp ../sendroli-factory-old/backend/.env.production ./backend/.env.production
+          fi
+          
+          if [ -f "../sendroli-factory-old/frontend/.env.production" ]; then
+            cp ../sendroli-factory-old/frontend/.env.production ./frontend/.env.production
+          fi
+          
+          if [ -f "../sendroli-factory-old/mongodb/.env" ]; then
+            mkdir -p mongodb
+            cp ../sendroli-factory-old/mongodb/.env ./mongodb/.env
+          fi
+          
+          # Run deployment script
+          chmod +x scripts/deploy.sh
+          echo "y" | ./scripts/deploy.sh
+          
+          # Cleanup old deployment
+          rm -rf ../sendroli-factory-old
+          
+          # Cleanup deployment archive
+          rm -f ../deployment.tar.gz
+          
+          echo "Deployment completed successfully!"
+        EOF
+
+    - name: Verify deployment
+      run: |
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+          cd ${{ secrets.DEPLOY_PATH }}/sendroli-factory
+          
+          # Wait for services to be ready
+          sleep 30
+          
+          # Check if services are running
+          if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
+            echo "✅ Services are running successfully"
+          else
+            echo "❌ Some services failed to start"
+            docker-compose -f docker-compose.prod.yml logs --tail=50
+            exit 1
+          fi
+          
+          # Test backend health endpoint
+          if curl -f http://localhost:5000/api/health; then
+            echo "✅ Backend health check passed"
+          else
+            echo "❌ Backend health check failed"
+            exit 1
+          fi
+          
+          echo "🎉 Deployment verification completed successfully!"
+        EOF
+
+    - name: Send deployment notification
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        message: |
+          Deployment Status: ${{ job.status }}
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref }}
+          Commit: ${{ github.sha }}
+          Author: ${{ github.actor }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

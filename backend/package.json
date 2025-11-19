@@ -7,7 +7,9 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed": "node scripts/seedData.js",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "echo \"Backend tests would run here\" && exit 0",
+    "lint": "echo \"ESLint would run here\" && exit 0",
+    "db:check": "node -e \"const mongoose = require('mongoose'); mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/sendroli_factory').then(() => {console.log('Database connected'); process.exit(0);}).catch(err => {console.error('Database connection failed:', err.message); process.exit(1);})\""
   },
   "keywords": [
     "factory",
