@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "CI=false npm run build",
   "builds": [
     {
       "src": "package.json",
@@ -33,6 +34,7 @@
     }
   ],
   "env": {
-    "CI": "false"
+    "CI": "false",
+    "GENERATE_SOURCEMAP": "false"
   }
 }
