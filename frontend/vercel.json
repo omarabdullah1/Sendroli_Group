@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "CI=false npm run build",
   "builds": [
     {
       "src": "package.json",

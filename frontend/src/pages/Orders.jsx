@@ -28,17 +28,6 @@ const Orders = () => {
   });
   const { user, loading: authLoading } = useAuth();
 
-  // Show loading if user is not loaded yet
-  if (authLoading || !user) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.loading}>
-          {authLoading ? 'Loading user information...' : 'Please log in to access orders'}
-        </div>
-      </div>
-    );
-  }
-
   // Role-based permissions
   const canEdit = user?.role === 'admin' || user?.role === 'receptionist' || user?.role === 'designer';
   const canDelete = user?.role === 'admin';
@@ -49,6 +38,17 @@ const Orders = () => {
     fetchOrders();
     fetchClients();
   }, []);
+
+  // Show loading if user is not loaded yet (moved after hooks)
+  if (authLoading || !user) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loading}>
+          {authLoading ? 'Loading user information...' : 'Please log in to access orders'}
+        </div>
+      </div>
+    );
+  }
 
   const fetchClients = async () => {
     try {
