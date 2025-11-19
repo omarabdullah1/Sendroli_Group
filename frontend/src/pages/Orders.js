@@ -27,7 +27,6 @@ const Orders = () => {
   const canDelete = user?.role === 'admin';
   const canAdd = user?.role === 'admin' || user?.role === 'receptionist';
   const canEditStatus = user?.role === 'designer' || user?.role === 'admin';
-  const canEditPayment = user?.role === 'financial' || user?.role === 'admin';
 
   useEffect(() => {
     fetchOrders();
