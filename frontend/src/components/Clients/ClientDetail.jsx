@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { clientService } from '../../services/clientService';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import clientService from '../../services/clientService';
 import { orderService } from '../../services/orderService';
 import './Clients.css';
 

@@ -39,3 +39,70 @@
   padding-bottom: 10px;
   border-bottom: 2px solid #667eea;
 }
+
+/* Form helper text */
+.form-help {
+  display: block;
+  margin-top: 4px;
+  color: #666;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Design button styles */
+.btn-design {
+  background-color: #9b59b6;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
+  margin-left: 4px;
+  display: inline-block;
+  transition: background-color 0.2s;
+}
+
+.btn-design:hover {
+  background-color: #8e44ad;
+  color: white;
+  text-decoration: none;
+}
+
+.btn-design.disabled {
+  background-color: #95a5a6;
+  color: #ecf0f1;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-design.disabled:hover {
+  background-color: #95a5a6;
+}
+
+/* Actions column styling */
+.actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .actions {
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .actions .btn-view,
+  .actions .btn-edit,
+  .actions .btn-design,
+  .actions .btn-delete {
+    width: 100%;
+    text-align: center;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}

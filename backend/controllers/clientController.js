@@ -55,6 +55,19 @@ exports.getClient = async (req, res) => {
       });
     }
 
+    // Check ownership or admin role for read access
+    const userRole = req.user.role;
+    const isOwner = client.createdBy._id.toString() === req.user._id.toString();
+    const isAdmin = userRole === 'admin';
+    
+    // Only owner, admin, or users with client access can view
+    if (!isOwner && !isAdmin && !['receptionist'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access this client',
+      });
+    }
+
     res.status(200).json({
       success: true,
       data: client,
@@ -111,9 +124,34 @@ exports.updateClient = async (req, res) => {
       });
     }
 
+    // Check ownership or admin role for update access
+    const userRole = req.user.role;
+    const isOwner = client.createdBy.toString() === req.user._id.toString();
+    const isAdmin = userRole === 'admin';
+    const isReceptionist = userRole === 'receptionist';
+    
+    // Only owner (if receptionist/admin), admin, or receptionist can modify
+    if (!isAdmin && !isReceptionist && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this client',
+      });
+    }
+
+    // Log the modification for audit trail
+    console.log(`Client ${req.params.id} updated by user ${req.user._id} (${req.user.username})`);
+
     client = await Client.findByIdAndUpdate(
       req.params.id,
-      { name, phone, factoryName, address, notes },
+      { 
+        name, 
+        phone, 
+        factoryName, 
+        address, 
+        notes,
+        updatedBy: req.user._id,
+        updatedAt: new Date()
+      },
       {
         new: true,
         runValidators: true,
@@ -145,6 +183,34 @@ exports.deleteClient = async (req, res) => {
         message: 'Client not found',
       });
     }
+
+    // Check ownership or admin role for delete access
+    const userRole = req.user.role;
+    const isOwner = client.createdBy.toString() === req.user._id.toString();
+    const isAdmin = userRole === 'admin';
+    const isReceptionist = userRole === 'receptionist';
+    
+    // Only admin or receptionist who created the client can delete
+    if (!isAdmin && !(isReceptionist && isOwner)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this client',
+      });
+    }
+
+    // Check if client has associated orders before deletion
+    const Order = require('../models/Order');
+    const associatedOrders = await Order.countDocuments({ client: req.params.id });
+    
+    if (associatedOrders > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete client. ${associatedOrders} order(s) are associated with this client.`,
+      });
+    }
+
+    // Log the deletion for audit trail
+    console.log(`Client ${req.params.id} (${client.name}) deleted by user ${req.user._id} (${req.user.username})`);
 
     await client.deleteOne();
 

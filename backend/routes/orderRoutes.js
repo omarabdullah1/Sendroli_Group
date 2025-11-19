@@ -19,13 +19,13 @@ router.get('/stats/financial', authorize('financial', 'admin'), getFinancialStat
 // Main order routes
 router
   .route('/')
-  .get(authorize('designer', 'financial', 'admin'), getOrders)
+  .get(authorize('designer', 'worker', 'financial', 'admin'), getOrders)
   .post(authorize('admin'), createOrder);
 
 router
   .route('/:id')
-  .get(authorize('designer', 'financial', 'admin'), getOrder)
-  .put(authorize('designer', 'financial', 'admin'), updateOrder)
+  .get(authorize('designer', 'worker', 'financial', 'admin'), getOrder)
+  .put(authorize('designer', 'worker', 'financial', 'admin'), updateOrder)
   .delete(authorize('admin'), deleteOrder);
 
 module.exports = router;

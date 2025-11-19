@@ -13,6 +13,12 @@ const orderService = {
     return response.data;
   },
 
+  // Get single order (alias for consistency)
+  getOrderById: async (id) => {
+    const response = await api.get(`/orders/${id}`);
+    return response.data;
+  },
+
   // Create order
   createOrder: async (orderData) => {
     const response = await api.post('/orders', orderData);
@@ -33,6 +39,12 @@ const orderService = {
 
   // Get financial statistics
   getFinancialStats: async () => {
+    const response = await api.get('/orders/stats/financial');
+    return response.data;
+  },
+
+  // Get order stats (alias for getFinancialStats)
+  getOrderStats: async () => {
     const response = await api.get('/orders/stats/financial');
     return response.data;
   },

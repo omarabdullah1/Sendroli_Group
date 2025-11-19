@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -34,6 +34,14 @@ const Navbar = () => {
           )}
 
           {user.role === 'designer' && (
+            <>
+              <Link to="/orders" style={styles.link}>
+                Orders
+              </Link>
+            </>
+          )}
+
+          {user.role === 'worker' && (
             <>
               <Link to="/orders" style={styles.link}>
                 Orders

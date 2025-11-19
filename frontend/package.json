@@ -4,11 +4,12 @@
   "description": "Frontend for Factory Management System",
   "private": true,
   "dependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "axios": "^1.5.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.15.0",
-    "axios": "^1.5.0",
-    "react-scripts": "5.0.1"
+    "vite": "^7.2.2"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -32,5 +33,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "terser": "^5.44.1"
   }
 }

@@ -49,6 +49,14 @@ const seedData = async () => {
         isActive: true,
       },
       {
+        username: 'worker',
+        password: 'worker123',
+        role: 'worker',
+        fullName: 'Worker User',
+        email: 'worker@factory.com',
+        isActive: true,
+      },
+      {
         username: 'financial',
         password: 'finance123',
         role: 'financial',
@@ -121,6 +129,7 @@ const seedData = async () => {
         deposit: 2000,
         orderState: 'active',
         notes: 'Rush order',
+        designLink: 'https://example.com/design/business-cards-v1',
         createdBy: users[0]._id,
       },
       {
@@ -137,6 +146,7 @@ const seedData = async () => {
         deposit: 5000,
         orderState: 'pending',
         notes: 'Awaiting design approval',
+        designLink: 'https://example.com/design/brochure-draft',
         createdBy: users[0]._id,
       },
       {
@@ -153,6 +163,7 @@ const seedData = async () => {
         deposit: 25000,
         orderState: 'done',
         notes: 'Ready for pickup',
+        designLink: 'https://example.com/design/poster-final',
         createdBy: users[0]._id,
       },
       {
@@ -185,6 +196,7 @@ const seedData = async () => {
         deposit: 4000,
         orderState: 'active',
         notes: 'Color matching required',
+        designLink: 'https://example.com/design/catalog-layout',
         createdBy: users[0]._id,
       },
     ]);
@@ -198,6 +210,7 @@ const seedData = async () => {
     console.log('Admin: username=admin, password=admin123');
     console.log('Receptionist: username=receptionist, password=recep123');
     console.log('Designer: username=designer, password=design123');
+    console.log('Worker: username=worker, password=worker123');
     console.log('Financial: username=financial, password=finance123');
     console.log('\n⚠️  Remember to change these passwords in production!');
 

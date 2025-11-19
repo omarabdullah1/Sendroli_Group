@@ -14,6 +14,10 @@ const Home = () => {
         return [
           { title: 'Order Management', description: 'View and update order status', link: '/orders' },
         ];
+      case 'worker':
+        return [
+          { title: 'Order Management', description: 'View and update order status', link: '/orders' },
+        ];
       case 'financial':
         return [
           { title: 'Order Management', description: 'Manage payments and deposits', link: '/orders' },

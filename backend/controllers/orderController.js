@@ -71,6 +71,20 @@ exports.getOrder = async (req, res) => {
       });
     }
 
+    // Check ownership or appropriate role for access
+    const userRole = req.user.role;
+    const isOwner = order.createdBy._id.toString() === req.user._id.toString();
+    const isAdmin = userRole === 'admin';
+    const hasOrderAccess = ['designer', 'worker', 'financial'].includes(userRole);
+    
+    // Only owner, admin, or users with order access can view
+    if (!isOwner && !isAdmin && !hasOrderAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access this order',
+      });
+    }
+
     res.status(200).json({
       success: true,
       data: order,
@@ -158,32 +172,94 @@ exports.updateOrder = async (req, res) => {
       });
     }
 
+    // Check ownership or appropriate role for modification
+    const userRole = req.user.role;
+    const isOwner = order.createdBy.toString() === req.user._id.toString();
+    const isAdmin = userRole === 'admin';
+    const isDesigner = userRole === 'designer';
+    const isWorker = userRole === 'worker';
+    const isFinancial = userRole === 'financial';
+    
+    // Only admin, owner (if admin), or users with specific roles can modify
+    if (!isAdmin && !isDesigner && !isWorker && !isFinancial && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this order',
+      });
+    }
+
     // Role-based update restrictions
-    const { role } = req.user;
     const updateData = { ...req.body };
 
-    // Designer can only update orderState
-    if (role === 'designer') {
-      const allowedFields = ['orderState', 'notes'];
+    // Designer can only update orderState and designLink
+    if (isDesigner) {
+      const allowedFields = ['orderState', 'designLink'];
       Object.keys(updateData).forEach((key) => {
         if (!allowedFields.includes(key)) {
           delete updateData[key];
         }
       });
+      
+      // Validate orderState transitions
+      const validStates = ['pending', 'active', 'done', 'delivered'];
+      if (updateData.orderState && !validStates.includes(updateData.orderState)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid order state',
+        });
+      }
     }
 
-    // Financial can only update payment-related fields
-    if (role === 'financial') {
+    // Worker can only update orderState (same restrictions as designer for state updates)
+    if (isWorker) {
+      const allowedFields = ['orderState'];
+      Object.keys(updateData).forEach((key) => {
+        if (!allowedFields.includes(key)) {
+          delete updateData[key];
+        }
+      });
+      
+      // Validate orderState transitions
+      const validStates = ['pending', 'active', 'done', 'delivered'];
+      if (updateData.orderState && !validStates.includes(updateData.orderState)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid order state',
+        });
+      }
+    }
+
+    // Financial can only update payment-related fields and notes
+    if (isFinancial) {
       const allowedFields = ['deposit', 'totalPrice', 'notes'];
       Object.keys(updateData).forEach((key) => {
         if (!allowedFields.includes(key)) {
           delete updateData[key];
         }
       });
+      
+      // Validate payment amounts
+      if (updateData.deposit && updateData.deposit < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Deposit cannot be negative',
+        });
+      }
+      
+      if (updateData.totalPrice && updateData.totalPrice < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Total price cannot be negative',
+        });
+      }
     }
 
-    // Add updatedBy
+    // Add updatedBy and timestamp
     updateData.updatedBy = req.user._id;
+    updateData.updatedAt = new Date();
+
+    // Log the modification for audit trail
+    console.log(`Order ${req.params.id} updated by user ${req.user._id} (${req.user.username}) - Role: ${userRole}`);
 
     order = await Order.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
@@ -218,6 +294,30 @@ exports.deleteOrder = async (req, res) => {
         message: 'Order not found',
       });
     }
+
+    // Check ownership or admin role for deletion
+    const userRole = req.user.role;
+    const isOwner = order.createdBy.toString() === req.user._id.toString();
+    const isAdmin = userRole === 'admin';
+    
+    // Only admin or owner (if admin) can delete
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this order',
+      });
+    }
+
+    // Additional check: Only admin can delete orders that are in progress or completed
+    if (order.orderState !== 'pending' && userRole !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot delete orders that are in progress or completed. Only admin can perform this action.',
+      });
+    }
+
+    // Log the deletion for audit trail
+    console.log(`Order ${req.params.id} deleted by user ${req.user._id} (${req.user.username}) - Order state was: ${order.orderState}`);
 
     await order.deleteOne();
 

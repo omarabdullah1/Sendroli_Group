@@ -10,6 +10,12 @@ const Orders = () => {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
+  const [showDesignModal, setShowDesignModal] = useState(false);
+  const [designOrder, setDesignOrder] = useState(null);
+  const [designFormData, setDesignFormData] = useState({
+    orderState: 'pending',
+    designLink: '',
+  });
   const [formData, setFormData] = useState({
     client: '',
     type: '',
@@ -20,13 +26,24 @@ const Orders = () => {
     orderState: 'pending',
     notes: '',
   });
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+
+  // Show loading if user is not loaded yet
+  if (authLoading || !user) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loading}>
+          {authLoading ? 'Loading user information...' : 'Please log in to access orders'}
+        </div>
+      </div>
+    );
+  }
 
   // Role-based permissions
   const canEdit = user?.role === 'admin' || user?.role === 'receptionist' || user?.role === 'designer';
   const canDelete = user?.role === 'admin';
   const canAdd = user?.role === 'admin' || user?.role === 'receptionist';
-  const canEditStatus = user?.role === 'designer' || user?.role === 'admin';
+  const canEditStatus = user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin';
   const canEditPayment = user?.role === 'financial' || user?.role === 'admin';
 
   useEffect(() => {
@@ -37,8 +54,8 @@ const Orders = () => {
   const fetchClients = async () => {
     try {
       const response = await clientService.getClients();
-      // Ensure we always set an array
-      setClients(Array.isArray(response) ? response : response?.data || []);
+      // response is { success, data: [...clients], totalPages, etc }
+      setClients(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Failed to fetch clients:', err);
       setClients([]); // Set empty array on error
@@ -49,10 +66,13 @@ const Orders = () => {
     try {
       setLoading(true);
       const response = await orderService.getOrders();
-      setOrders(response.data);
+      // response is already the data object from backend: { success, data: [...orders], totalPages, etc }
+      setOrders(response.data || []);
       setError('');
     } catch (err) {
+      console.error('Failed to fetch orders:', err);
       setError(err.response?.data?.message || 'Failed to fetch orders');
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -123,6 +143,39 @@ const Orders = () => {
         alert(err.response?.data?.message || 'Failed to delete order');
       }
     }
+  };
+
+  const handleDesignUpdate = (order) => {
+    if (user?.role !== 'designer') return;
+    setDesignOrder(order);
+    setDesignFormData({
+      orderState: order.orderState || 'pending',
+      designLink: order.designLink || '',
+    });
+    setShowDesignModal(true);
+  };
+
+  const handleDesignSubmit = async (e) => {
+    e.preventDefault();
+    if (!designOrder) return;
+
+    try {
+      await orderService.updateOrder(designOrder._id, designFormData);
+      setShowDesignModal(false);
+      setDesignOrder(null);
+      fetchOrders();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update design information');
+    }
+  };
+
+  const handleDesignCancel = () => {
+    setShowDesignModal(false);
+    setDesignOrder(null);
+    setDesignFormData({
+      orderState: 'pending',
+      designLink: '',
+    });
   };
 
   const handleCancel = () => {
@@ -271,6 +324,50 @@ const Orders = () => {
           </div>
         )}
 
+        {showDesignModal && (
+          <div style={styles.formOverlay}>
+            <div style={styles.formContainer}>
+              <h2 style={styles.formTitle}>Update Design Information</h2>
+              <form onSubmit={handleDesignSubmit} style={styles.form}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Order Status *</label>
+                  <select
+                    value={designFormData.orderState}
+                    onChange={(e) => setDesignFormData({ ...designFormData, orderState: e.target.value })}
+                    required
+                    style={styles.input}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="done">Done</option>
+                    <option value="delivered">Delivered</option>
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Design Link</label>
+                  <input
+                    type="url"
+                    value={designFormData.designLink}
+                    onChange={(e) => setDesignFormData({ ...designFormData, designLink: e.target.value })}
+                    placeholder="https://example.com/design-link"
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.formButtons}>
+                  <button type="submit" style={styles.submitButton}>
+                    Update Design
+                  </button>
+                  <button type="button" onClick={handleDesignCancel} style={styles.cancelButton}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {error && <div style={styles.error}>{error}</div>}
 
         {loading ? (
@@ -282,17 +379,23 @@ const Orders = () => {
                 <tr>
                   <th style={styles.th}>Client</th>
                   <th style={styles.th}>Type</th>
+                  <th style={styles.th}>Sheet Size</th>
+                  <th style={styles.th}>Repeats</th>
                   <th style={styles.th}>Total Price</th>
                   <th style={styles.th}>Deposit</th>
                   <th style={styles.th}>Remaining</th>
                   <th style={styles.th}>Status</th>
+                  <th style={styles.th}>Notes</th>
+                  {(user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin') && (
+                    <th style={styles.th}>Design Link</th>
+                  )}
                   <th style={styles.th}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.length === 0 ? (
                   <tr>
-                    <td colSpan="7" style={styles.noData}>
+                    <td colSpan={user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin' ? "11" : "10"} style={styles.noData}>
                       No orders found
                     </td>
                   </tr>
@@ -303,14 +406,43 @@ const Orders = () => {
                         {order.client?.name || order.clientSnapshot?.name}
                       </td>
                       <td style={styles.td}>{order.type || '-'}</td>
+                      <td style={styles.td}>{order.sheetSize || '-'}</td>
+                      <td style={styles.td}>{order.repeats || 0}</td>
                       <td style={styles.td}>${order.totalPrice}</td>
                       <td style={styles.td}>${order.deposit}</td>
                       <td style={styles.td}>${order.remainingAmount}</td>
                       <td style={styles.td}>
-                        <span style={getStatusStyle(order.orderState)}>
-                          {order.orderState}
+                        <span style={getStatusStyle(order.orderState || 'pending')}>
+                          {order.orderState || 'pending'}
                         </span>
                       </td>
+                      <td style={styles.td}>
+                        <div style={styles.notesCell}>
+                          {order.notes ? (
+                            <span title={order.notes}>
+                              {order.notes.length > 30 ? `${order.notes.substring(0, 30)}...` : order.notes}
+                            </span>
+                          ) : (
+                            <span style={{color: '#95a5a6', fontStyle: 'italic'}}>No notes</span>
+                          )}
+                        </div>
+                      </td>
+                      {(user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin') && (
+                        <td style={styles.td}>
+                          {order.designLink ? (
+                            <a 
+                              href={order.designLink} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              style={styles.designLinkButton}
+                            >
+                              View Design
+                            </a>
+                          ) : (
+                            <span style={{color: '#95a5a6', fontStyle: 'italic'}}>No link</span>
+                          )}
+                        </td>
+                      )}
                       <td style={styles.td}>
                         {canEditStatus && (
                           <select
@@ -324,7 +456,12 @@ const Orders = () => {
                             <option value="delivered">Delivered</option>
                           </select>
                         )}
-                        {canEdit && (
+                        {user?.role === 'designer' && (
+                          <button onClick={() => handleDesignUpdate(order)} style={styles.designButton}>
+                            Design
+                          </button>
+                        )}
+                        {canEdit && user?.role !== 'designer' && (
                           <button onClick={() => handleEdit(order)} style={styles.editButton}>
                             Edit
                           </button>
@@ -334,7 +471,7 @@ const Orders = () => {
                             Delete
                           </button>
                         )}
-                        {!canEditStatus && !canEdit && !canDelete && (
+                        {!canEditStatus && !canEdit && !canDelete && user?.role !== 'designer' && (
                           <span style={{color: '#7f8c8d', fontStyle: 'italic'}}>View Only</span>
                         )}
                       </td>
@@ -522,6 +659,25 @@ const styles = {
     fontSize: '0.9rem',
     marginRight: '0.5rem',
   },
+  designButton: {
+    backgroundColor: '#9b59b6',
+    color: '#fff',
+    padding: '0.5rem 1rem',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginRight: '0.5rem',
+  },
+  designLinkButton: {
+    backgroundColor: '#8e44ad',
+    color: '#fff',
+    padding: '0.4rem 0.8rem',
+    borderRadius: '4px',
+    textDecoration: 'none',
+    fontSize: '0.9rem',
+    display: 'inline-block',
+    transition: 'background-color 0.2s',
+  },
   editButton: {
     backgroundColor: '#3498db',
     color: '#fff',
@@ -538,6 +694,12 @@ const styles = {
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
+  },
+  notesCell: {
+    maxWidth: '200px',
+    wordWrap: 'break-word',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
 };
 

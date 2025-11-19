@@ -1,48 +1,99 @@
-# Factory Management System - API Documentation
+# 📚 Sendroli Factory Management System - API Documentation
 
-## Base URL
+<div align="center">
+
+![API](https://img.shields.io/badge/API-RESTful-blue)
+![Auth](https://img.shields.io/badge/Auth-JWT-green)
+![Status](https://img.shields.io/badge/Status-Production%20Ready-success)
+
+**Complete API reference for the Sendroli Factory Management System**
+
+[🏠 Back to Main Docs](../README.md) | [🚀 Getting Started](../GETTING_STARTED.md) | [🔧 Backend Guide](../backend/README.md)
+
+</div>
+
+---
+
+## 📋 Overview
+
+This document provides comprehensive documentation for all API endpoints in the Sendroli Factory Management System. The API is built with Node.js and Express.js, featuring JWT authentication and role-based access control.
+
+### 🔐 Authentication & Authorization
+
+The API implements a 4-tier role system with specific permissions:
+- **Admin:** Full access to all endpoints
+- **Receptionist:** Client management only  
+- **Designer:** Order viewing and status updates
+- **Financial:** Payment management and financial reports
+
+## 🌐 Base URL
 
 ```
-http://localhost:5000/api
+Development: http://localhost:5000/api
+Production: https://your-api-domain.com/api
 ```
 
-## Authentication
+## 🔑 Authentication
 
 Most endpoints require authentication using JWT tokens. Include the token in the Authorization header:
 
-```
+```http
 Authorization: Bearer <your_jwt_token>
 ```
 
-## Response Format
+### Token Lifecycle
+- **Expiration:** 7 days (configurable)
+- **Refresh:** Login again to get new token
+- **Storage:** Client-side localStorage recommended for web apps
 
-All API responses follow this format:
+## 📊 Response Format
 
-### Success Response
+All API responses follow this consistent format:
+
+### ✅ Success Response
 ```json
 {
   "success": true,
-  "data": { ... }
+  "data": { ... },
+  "message": "Optional success message"
 }
 ```
 
-### Error Response
+### ❌ Error Response
 ```json
 {
   "success": false,
-  "message": "Error description"
+  "message": "Error description",
+  "errors": [...] // Optional validation errors
+}
+```
+
+### 📄 Paginated Response
+```json
+{
+  "success": true,
+  "data": {
+    "items": [...],
+    "pagination": {
+      "current": 1,
+      "pages": 10,
+      "total": 95
+    }
+  }
 }
 ```
 
 ---
 
-## Authentication Endpoints
+## 🔐 Authentication Endpoints
 
-### Login
+### Login User
 
 **POST** `/auth/login`
 
 Authenticate a user and receive a JWT token.
+
+**Access:** Public
 
 **Request Body:**
 ```json
@@ -515,22 +566,108 @@ Delete a user (cannot delete yourself).
 
 ---
 
-## Error Codes
+## 🚨 Error Codes & Status Responses
 
-| Code | Description |
-|------|-------------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request |
-| 401 | Unauthorized |
-| 403 | Forbidden |
-| 404 | Not Found |
-| 500 | Internal Server Error |
+| Status Code | Description | Common Scenarios |
+|-------------|-------------|------------------|
+| **200** | Success | Successful GET, PUT requests |
+| **201** | Created | Successful POST requests |
+| **400** | Bad Request | Invalid input, validation errors |
+| **401** | Unauthorized | Missing/invalid token, expired session |
+| **403** | Forbidden | Insufficient role permissions |
+| **404** | Not Found | Resource doesn't exist |
+| **422** | Unprocessable Entity | Validation errors |
+| **500** | Internal Server Error | Database errors, server issues |
 
-## Rate Limiting
+### 🛡️ Security Headers
 
-Currently, there is no rate limiting implemented. Consider adding rate limiting in production.
+All API responses include security headers:
 
-## CORS
+```http
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+```
 
-CORS is configured to accept requests from the frontend URL specified in the environment variables.
+## 🌐 CORS Configuration
+
+CORS is configured for:
+
+- **Development:** `http://localhost:3000`
+- **Production:** Environment-specific frontend URL
+- **Methods:** GET, POST, PUT, DELETE, OPTIONS
+- **Headers:** Authorization, Content-Type
+
+## 🔄 Rate Limiting
+
+**Current Status:** Not implemented
+
+**Recommended Implementation:**
+```javascript
+// Suggested rate limits for production
+const rateLimit = require('express-rate-limit');
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests, please try again later.'
+});
+```
+
+## 📝 Example API Testing
+
+### Using cURL
+
+```bash
+# Login and get token
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+
+# Use token for authenticated request
+curl -X GET http://localhost:5000/api/clients \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Using Postman
+
+1. **Set Base URL:** `http://localhost:5000/api`
+2. **Add Authorization:** Type "Bearer Token" with your JWT
+3. **Test Endpoints:** Use the documented request/response examples
+
+## 🔗 Related Documentation
+
+- [🏠 **Main Documentation**](../README.md) - Project overview and setup
+- [🚀 **Getting Started**](../GETTING_STARTED.md) - Quick start guide
+- [🔧 **Backend Guide**](../backend/README.md) - Server architecture and development
+- [🎨 **Frontend Guide**](../frontend/README.md) - React app development
+- [📋 **Setup Guide**](SETUP_GUIDE.md) - Detailed installation instructions
+
+## 🤝 Contributing
+
+When adding new API endpoints:
+
+1. Follow the existing naming conventions
+2. Implement proper role-based authorization
+3. Add input validation
+4. Update this documentation
+5. Include proper error handling
+6. Write tests for new endpoints
+
+## 📞 Support
+
+For API questions or issues:
+
+- Check the [troubleshooting guide](../README.md#troubleshooting) 
+- Review the [backend documentation](../backend/README.md)
+- Create an issue with API request/response examples
+
+---
+
+<div align="center">
+
+**Sendroli Factory Management System API Documentation**
+
+[🔙 Back to Top](#-sendroli-factory-management-system---api-documentation) | [📚 All Docs](../README.md)
+
+</div>
