@@ -1,3 +1,4 @@
+// Sendroli Factory Management System - Main App Component
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import Navbar from './components/Navbar.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
