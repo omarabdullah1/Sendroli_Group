@@ -12,11 +12,11 @@ const { protect, authorize } = require('../middleware/auth');
 // All routes require authentication
 router.use(protect);
 
-// Routes accessible by receptionist and admin
+// Routes accessible by different roles
 router
   .route('/')
-  .get(authorize('receptionist', 'admin'), getClients)
-  .post(authorize('receptionist', 'admin'), createClient);
+  .get(authorize('receptionist', 'designer', 'financial', 'admin'), getClients) // All roles can view clients list for orders
+  .post(authorize('receptionist', 'admin'), createClient); // Only receptionist and admin can create
 
 router
   .route('/:id')

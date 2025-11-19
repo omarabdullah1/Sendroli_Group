@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['receptionist', 'designer', 'financial', 'admin'],
+      enum: ['receptionist', 'designer', 'worker', 'financial', 'admin'],
       required: [true, 'Role is required'],
       default: 'receptionist',
     },
@@ -36,6 +36,14 @@ const userSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {

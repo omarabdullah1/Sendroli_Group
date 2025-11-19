@@ -106,11 +106,39 @@ exports.updateUser = async (req, res) => {
       });
     }
 
+    // Prevent modifying your own role or active status
+    if (user._id.toString() === req.user._id.toString()) {
+      if (req.body.role && req.body.role !== user.role) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot modify your own role',
+        });
+      }
+      
+      if (req.body.hasOwnProperty('isActive') && req.body.isActive === false) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot deactivate your own account',
+        });
+      }
+    }
+
     const { username, role, fullName, email, isActive } = req.body;
+
+    // Log the modification for audit trail
+    console.log(`User ${req.params.id} (${user.username}) updated by admin ${req.user._id} (${req.user.username})`);
 
     user = await User.findByIdAndUpdate(
       req.params.id,
-      { username, role, fullName, email, isActive },
+      { 
+        username, 
+        role, 
+        fullName, 
+        email, 
+        isActive,
+        updatedBy: req.user._id,
+        updatedAt: new Date()
+      },
       {
         new: true,
         runValidators: true,
@@ -150,6 +178,37 @@ exports.deleteUser = async (req, res) => {
         message: 'Cannot delete your own account',
       });
     }
+
+    // Check if user has created any clients or orders before deletion
+    const Client = require('../models/Client');
+    const Order = require('../models/Order');
+    
+    const clientCount = await Client.countDocuments({ createdBy: req.params.id });
+    const orderCount = await Order.countDocuments({ createdBy: req.params.id });
+    
+    if (clientCount > 0 || orderCount > 0) {
+      // Instead of preventing deletion, we could deactivate the user
+      const deactivatedUser = await User.findByIdAndUpdate(
+        req.params.id,
+        { 
+          isActive: false,
+          deactivatedBy: req.user._id,
+          deactivatedAt: new Date()
+        },
+        { new: true }
+      );
+      
+      console.log(`User ${req.params.id} (${user.username}) deactivated by admin ${req.user._id} (${req.user.username}) due to associated records`);
+      
+      return res.status(200).json({
+        success: true,
+        message: `User deactivated instead of deleted due to ${clientCount} clients and ${orderCount} orders`,
+        data: deactivatedUser
+      });
+    }
+
+    // Log the deletion for audit trail
+    console.log(`User ${req.params.id} (${user.username}) deleted by admin ${req.user._id} (${req.user.username})`);
 
     await user.deleteOne();
 

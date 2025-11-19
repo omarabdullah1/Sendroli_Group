@@ -71,6 +71,7 @@ const Login = () => {
           <p>Receptionist: receptionist / recep123</p>
           <p>Designer: designer / design123</p>
           <p>Financial: financial / finance123</p>
+          <p>Worker: worker / worker123</p>
         </div>
       </div>
     </div>

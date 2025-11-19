@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { clientService } from '../../services/clientService';
+import clientService from '../../services/clientService';
 import './Clients.css';
 
 const ClientForm = () => {

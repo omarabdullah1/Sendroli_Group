@@ -27,7 +27,8 @@ const Clients = () => {
     try {
       setLoading(true);
       const response = await clientService.getClients({ search: searchTerm });
-      setClients(response.data);
+      // response is { success, data: [...clients], totalPages, etc }
+      setClients(response.data || []);
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch clients');

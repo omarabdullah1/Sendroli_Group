@@ -1,15 +1,14 @@
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
-import './App.css';
-import Login from './components/Auth/Login';
-import Navbar from './components/Navbar';
-import PrivateRoute from './components/PrivateRoute';
-import { AuthProvider } from './context/AuthContext';
-import Clients from './pages/Clients';
-import FinancialStats from './pages/FinancialStats';
-import Home from './pages/Home';
-import Orders from './pages/Orders';
-import Unauthorized from './pages/Unauthorized';
-import Users from './pages/Users';
+import Navbar from './components/Navbar.jsx';
+import PrivateRoute from './components/PrivateRoute.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
+import Clients from './pages/Clients.jsx';
+import FinancialStats from './pages/FinancialStats.jsx';
+import Home from './pages/Home.jsx';
+import Login from './pages/Login.jsx';
+import Orders from './pages/Orders.jsx';
+import Unauthorized from './pages/Unauthorized.jsx';
+import Users from './pages/Users.jsx';
 
 function App() {
   return (
@@ -31,15 +30,6 @@ function App() {
             />
 
             <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Home />
-                </PrivateRoute>
-              }
-            />
-
-            <Route
               path="/clients"
               element={
                 <PrivateRoute roles={['receptionist', 'admin']}>
@@ -51,7 +41,7 @@ function App() {
             <Route
               path="/orders"
               element={
-                <PrivateRoute roles={['designer', 'financial', 'admin']}>
+                <PrivateRoute roles={['designer', 'worker', 'financial', 'admin']}>
                   <Orders />
                 </PrivateRoute>
               }
