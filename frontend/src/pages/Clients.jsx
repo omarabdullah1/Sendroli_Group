@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import clientService from '../services/clientService';
 
@@ -23,7 +23,7 @@ const Clients = () => {
   const canDelete = user?.role === 'admin';
   const canAdd = user?.role === 'admin' || user?.role === 'receptionist';
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
       setLoading(true);
       const response = await clientService.getClients({ search: searchTerm });
@@ -35,11 +35,11 @@ const Clients = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchClients();
-  }, [searchTerm]); // Changed dependency to searchTerm since that's what affects the fetch
+  }, [fetchClients]);
 
   const handleSearch = () => {
     fetchClients();
