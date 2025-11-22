@@ -1,0 +1,210 @@
+.material-list {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table th {
+  background-color: #f8fafc;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.data-table tr:hover {
+  background-color: #f9fafb;
+}
+
+.material-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.category-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.category-paper {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.category-ink {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.category-chemicals {
+  background-color: #fecaca;
+  color: #b91c1c;
+}
+
+.category-packaging {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.category-tools {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.category-other {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.stock-amount, .min-level {
+  font-weight: 500;
+  text-align: right;
+}
+
+.unit {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.cost {
+  font-weight: 500;
+  color: #059669;
+  text-align: right;
+}
+
+.stock-status {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  display: inline-block;
+  min-width: 80px;
+}
+
+.status-good {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-low {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-out {
+  background-color: #fecaca;
+  color: #b91c1c;
+}
+
+.actions {
+  text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.btn-secondary {
+  background-color: #6b7280;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #4b5563;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px 0;
+  color: #374151;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .data-table {
+    font-size: 12px;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 8px 12px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .btn-sm {
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+}

@@ -48,35 +48,28 @@ exports.register = async (req, res) => {
   }
 };
 
-// @desc    Login user
+// @desc    Login user with single device restriction
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    console.log('=== LOGIN REQUEST RECEIVED ===');
+    console.log('=== SINGLE LOGIN REQUEST RECEIVED ===');
     console.log('Request body:', req.body);
-    console.log('Request headers:', req.headers);
     
     const { username, password } = req.body;
-    console.log('Extracted username:', username);
-    console.log('Extracted password length:', password ? password.length : 'undefined');
 
     // Validate input
     if (!username || !password) {
-      console.log('❌ Validation failed - missing username or password');
       return res.status(400).json({
         success: false,
         message: 'Please provide username and password',
       });
     }
 
-    // Check for user (include password)
-    console.log('🔍 Searching for user with username:', username);
-    const user = await User.findOne({ username }).select('+password');
-    console.log('User found:', user ? 'Yes' : 'No');
+    // Check for user (include password and activeToken)
+    const user = await User.findOne({ username }).select('+password +activeToken');
 
     if (!user) {
-      console.log('❌ User not found in database');
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
@@ -84,9 +77,7 @@ exports.login = async (req, res) => {
     }
 
     // Check if user is active
-    console.log('User active status:', user.isActive);
     if (!user.isActive) {
-      console.log('❌ User account is inactive');
       return res.status(401).json({
         success: false,
         message: 'User account is inactive',
@@ -94,32 +85,69 @@ exports.login = async (req, res) => {
     }
 
     // Check if password matches
-    console.log('🔐 Checking password match...');
     const isMatch = await user.matchPassword(password);
-    console.log('Password match result:', isMatch);
 
     if (!isMatch) {
-      console.log('❌ Password does not match');
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
       });
     }
 
-    console.log('✅ Login successful for user:', user.username);
+    // Generate new token (this will invalidate any previous sessions)
+    const token = generateToken(user._id);
+
+    // Extract device information from request
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+    const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown IP';
+    
+    // Determine device name from user agent
+    let deviceName = 'Unknown Device';
+    if (userAgent.includes('Mobile')) {
+      deviceName = 'Mobile Device';
+    } else if (userAgent.includes('Chrome')) {
+      deviceName = 'Chrome Browser';
+    } else if (userAgent.includes('Firefox')) {
+      deviceName = 'Firefox Browser';
+    } else if (userAgent.includes('Safari')) {
+      deviceName = 'Safari Browser';
+    } else if (userAgent.includes('Edge')) {
+      deviceName = 'Edge Browser';
+    }
+
+    // Update user with new active token and device info
+    // This will automatically invalidate any previous sessions
+    await User.findByIdAndUpdate(user._id, {
+      activeToken: token,
+      deviceInfo: {
+        userAgent: userAgent,
+        deviceName: deviceName,
+        loginTime: new Date(),
+        ipAddress: ipAddress,
+      }
+    });
+
+    console.log('✅ Single login successful for user:', user.username);
+    console.log('Device Info:', { deviceName, ipAddress });
+
     res.status(200).json({
       success: true,
+      message: 'Login successful',
       data: {
         _id: user._id,
         username: user.username,
         role: user.role,
         fullName: user.fullName,
         email: user.email,
-        token: generateToken(user._id),
+        token: token,
+        deviceInfo: {
+          deviceName: deviceName,
+          loginTime: new Date(),
+        }
       },
     });
   } catch (error) {
-    console.log('💥 Login error:', error.message);
+    console.log('💥 Single login error:', error.message);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -127,7 +155,41 @@ exports.login = async (req, res) => {
   }
 };
 
-// @desc    Get current logged in user
+// @desc    Logout user and clear active token
+// @route   POST /api/auth/logout
+// @access  Private
+exports.logout = async (req, res) => {
+  try {
+    console.log('=== LOGOUT REQUEST RECEIVED ===');
+    console.log('User ID:', req.user.id);
+
+    // Clear the active token from the user document
+    await User.findByIdAndUpdate(req.user.id, {
+      activeToken: null,
+      deviceInfo: {
+        userAgent: null,
+        deviceName: null,
+        loginTime: null,
+        ipAddress: null,
+      }
+    });
+
+    console.log('✅ Logout successful for user:', req.user.username);
+
+    res.status(200).json({
+      success: true,
+      message: 'Logout successful. You can now login from another device.',
+    });
+  } catch (error) {
+    console.log('💥 Logout error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get current logged in user with device info
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = async (req, res) => {
@@ -137,6 +199,33 @@ exports.getMe = async (req, res) => {
     res.status(200).json({
       success: true,
       data: user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get user profile with session info
+// @route   GET /api/auth/profile
+// @access  Private
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: user,
+        currentSession: {
+          deviceInfo: req.user.deviceInfo,
+          loginTime: user.deviceInfo?.loginTime,
+          sessionActive: true
+        }
+      },
+      message: 'Profile retrieved successfully with single login validation'
     });
   } catch (error) {
     res.status(500).json({

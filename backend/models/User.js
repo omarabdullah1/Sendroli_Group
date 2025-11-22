@@ -37,6 +37,28 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    activeToken: {
+      type: String,
+      default: null,
+    },
+    deviceInfo: {
+      userAgent: {
+        type: String,
+        default: null,
+      },
+      deviceName: {
+        type: String,
+        default: null,
+      },
+      loginTime: {
+        type: Date,
+        default: null,
+      },
+      ipAddress: {
+        type: String,
+        default: null,
+      },
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -65,10 +87,11 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Remove password from JSON response
+// Remove password and activeToken from JSON response
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.activeToken;
   return obj;
 };
 

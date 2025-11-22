@@ -68,6 +68,18 @@ const Navbar = () => {
               <Link to="/orders" style={styles.link}>
                 Orders
               </Link>
+              <Link to="/materials" style={styles.link}>
+                Materials
+              </Link>
+              <Link to="/suppliers" style={styles.link}>
+                Suppliers
+              </Link>
+              <Link to="/purchases" style={styles.link}>
+                Purchases
+              </Link>
+              <Link to="/inventory" style={styles.link}>
+                Inventory
+              </Link>
               <Link to="/users" style={styles.link}>
                 Users
               </Link>

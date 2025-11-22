@@ -103,3 +103,59 @@
 .auth-link a:hover {
   text-decoration: underline;
 }
+
+/* Single Login Specific Styles */
+.device-info {
+  text-align: center;
+  margin-bottom: 15px;
+  padding: 8px;
+  background: #f0f7ff;
+  border: 1px solid #e1f0ff;
+  border-radius: 5px;
+}
+
+.device-info small {
+  color: #4a90a4;
+  font-weight: 500;
+}
+
+.device-conflict-alert {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.device-conflict-alert strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #d4700a;
+}
+
+.device-conflict-alert p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.error-message.device-warning {
+  background: #fff8e1;
+  color: #f57c00;
+  border: 1px solid #ffcc02;
+}
+
+.security-notice {
+  margin-top: 15px;
+  padding: 10px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 5px;
+  text-align: center;
+}
+
+.security-notice small {
+  color: #6c757d;
+  line-height: 1.4;
+}
