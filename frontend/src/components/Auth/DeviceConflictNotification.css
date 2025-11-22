@@ -48,6 +48,45 @@
   color: #d32f2f;
 }
 
+.device-conflict-details-section {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  text-align: left;
+}
+
+.device-conflict-details-section h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.conflict-details p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #495057;
+}
+
+.conflict-details strong {
+  color: #343a40;
+}
+
+.device-conflict-info {
+  padding: 0 24px 20px;
+  text-align: center;
+  border-top: 1px solid #e9ecef;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.device-conflict-info small {
+  color: #6c757d;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .device-conflict-actions {
   padding: 0 24px 24px;
   display: flex;

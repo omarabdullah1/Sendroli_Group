@@ -24,10 +24,18 @@ export const AuthProvider = ({ children }) => {
     try {
       await authService.getProfile();
     } catch (error) {
-      if (error.response?.data?.code === 'DEVICE_CONFLICT') {
-        setDeviceConflictError(error.response.data.message);
-        handleForceLogout('Another device logged in');
-      } else if (error.response?.data?.code === 'TOKEN_EXPIRED') {
+      const errorCode = error.response?.data?.code;
+      const errorMessage = error.response?.data?.message;
+      
+      if (errorCode === 'DEVICE_CONFLICT' || errorCode === 'SESSION_TERMINATED' || 
+          errorCode === 'DEVICE_MISMATCH' || errorCode === 'INVALID_SESSION') {
+        setDeviceConflictError({
+          message: errorMessage,
+          code: errorCode,
+          conflictInfo: error.response?.data?.conflictInfo || null
+        });
+        handleForceLogout('Session terminated due to device conflict');
+      } else if (errorCode === 'TOKEN_EXPIRED') {
         handleForceLogout('Session expired');
       } else if (error.response?.status === 401) {
         handleForceLogout('Authentication failed');
@@ -101,6 +109,17 @@ export const AuthProvider = ({ children }) => {
       startSessionMonitoring();
       return userData;
     } catch (error) {
+      // Handle device conflict errors during login
+      const errorCode = error.response?.data?.code;
+      const errorMessage = error.response?.data?.message;
+      
+      if (errorCode === 'DEVICE_CONFLICT') {
+        setDeviceConflictError({
+          message: errorMessage,
+          code: errorCode,
+          conflictInfo: error.response?.data?.conflictInfo || null
+        });
+      }
       throw error;
     }
   };

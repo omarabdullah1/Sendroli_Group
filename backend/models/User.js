@@ -40,6 +40,33 @@ const userSchema = new mongoose.Schema(
     activeToken: {
       type: String,
       default: null,
+      select: false, // Don't include in normal queries for security
+    },
+    sessionInfo: {
+      ipAddress: {
+        type: String,
+        default: null,
+      },
+      userAgent: {
+        type: String,
+        default: null,
+      },
+      deviceFingerprint: {
+        type: String,
+        default: null,
+      },
+      loginTime: {
+        type: Date,
+        default: null,
+      },
+      lastActivity: {
+        type: Date,
+        default: null,
+      },
+      isValid: {
+        type: Boolean,
+        default: false,
+      },
     },
     deviceInfo: {
       userAgent: {

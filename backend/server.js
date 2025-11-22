@@ -21,6 +21,9 @@ connectDB();
 // Initialize express app
 const app = express();
 
+// Trust proxy for proper IP detection (for Heroku, Vercel, etc.)
+app.set('trust proxy', true);
+
 // Security headers with helmet
 app.use(helmet({
   contentSecurityPolicy: {

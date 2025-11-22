@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { generateDeviceFingerprint, getClientIP } = require('../utils/deviceFingerprint');
 
-// Single login authentication middleware
+// Strict single login authentication middleware with IP and device validation
 const singleLoginAuth = async (req, res, next) => {
   try {
     let token;
@@ -23,8 +24,8 @@ const singleLoginAuth = async (req, res, next) => {
       // Verify JWT token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
-      // Find user and check if account is active
-      const user = await User.findById(decoded.id).select('+activeToken');
+      // Find user and include session info for validation
+      const user = await User.findById(decoded.id).select('+activeToken +sessionInfo');
       
       if (!user) {
         return res.status(401).json({
@@ -46,10 +47,52 @@ const singleLoginAuth = async (req, res, next) => {
       if (!user.activeToken || user.activeToken !== token) {
         return res.status(401).json({
           success: false,
-          message: 'Another device is already logged in. Please logout from the other device first.',
-          code: 'DEVICE_CONFLICT'
+          message: 'Your session has been terminated. Another device may have logged in.',
+          code: 'SESSION_TERMINATED'
         });
       }
+
+      // Validate session information for extra security
+      if (!user.sessionInfo || !user.sessionInfo.isValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session is no longer valid. Please login again.',
+          code: 'INVALID_SESSION'
+        });
+      }
+
+      // Extract current request information
+      const currentIP = getClientIP(req);
+      const currentUserAgent = req.headers['user-agent'] || 'Unknown Device';
+      const currentFingerprint = generateDeviceFingerprint(currentIP, currentUserAgent);
+
+      // Strict validation: IP and device fingerprint must match
+      const sessionIP = user.sessionInfo.ipAddress;
+      const sessionFingerprint = user.sessionInfo.deviceFingerprint;
+
+      if (sessionIP !== currentIP || sessionFingerprint !== currentFingerprint) {
+        // Invalidate the session immediately
+        await User.findByIdAndUpdate(user._id, {
+          activeToken: null,
+          'sessionInfo.isValid': false
+        });
+
+        return res.status(401).json({
+          success: false,
+          message: 'Device or location mismatch detected. Session terminated for security.',
+          code: 'DEVICE_MISMATCH',
+          details: {
+            expectedIP: sessionIP,
+            currentIP: currentIP,
+            sessionValid: false
+          }
+        });
+      }
+
+      // Update last activity
+      await User.findByIdAndUpdate(user._id, {
+        'sessionInfo.lastActivity': new Date()
+      });
 
       // Attach user to request (excluding sensitive fields)
       req.user = {
@@ -59,7 +102,11 @@ const singleLoginAuth = async (req, res, next) => {
         role: user.role,
         fullName: user.fullName,
         isActive: user.isActive,
-        deviceInfo: user.deviceInfo
+        sessionInfo: {
+          ipAddress: currentIP,
+          lastActivity: new Date(),
+          loginTime: user.sessionInfo.loginTime
+        }
       };
 
       next();
