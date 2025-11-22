@@ -17,6 +17,7 @@ A comprehensive MERN stack application for managing factory operations with role
 </div>
 
 ---
+---
 
 ## 📋 Table of Contents
 
