@@ -20,6 +20,14 @@ const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
     }).format(amount);
   };
 
+  const formatEGP = (amount) => {
+    if (!amount || amount === 0) return '-';
+    return new Intl.NumberFormat('en-EG', {
+      style: 'currency',
+      currency: 'EGP'
+    }).format(amount);
+  };
+
   return (
     <div className="material-list">
       <div className="table-container">
@@ -32,6 +40,8 @@ const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
               <th>Min Level</th>
               <th>Unit</th>
               <th>Cost/Unit</th>
+              <th>Selling Price</th>
+              <th>Order Type</th>
               <th>Status</th>
               <th>Supplier</th>
               {userRole === 'admin' && <th>Actions</th>}
@@ -50,6 +60,14 @@ const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
                 <td className="min-level">{material.minStockLevel}</td>
                 <td className="unit">{material.unit}</td>
                 <td className="cost">{formatCurrency(material.costPerUnit)}</td>
+                <td className="selling-price">{formatEGP(material.sellingPrice)}</td>
+                <td className="order-type">
+                  {material.isOrderType ? (
+                    <span className="badge badge-success">Yes</span>
+                  ) : (
+                    <span className="badge badge-secondary">No</span>
+                  )}
+                </td>
                 <td>
                   <span className={`stock-status ${getStockStatusClass(material)}`}>
                     {getStockStatusText(material)}

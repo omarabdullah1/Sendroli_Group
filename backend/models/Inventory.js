@@ -18,6 +18,12 @@ const inventorySchema = new mongoose.Schema({
     required: true
   },
   
+  // System-calculated stock (theoretical stock based on purchases and orders)
+  systemStock: {
+    type: Number,
+    default: 0
+  },
+  
   actualStock: {
     type: Number,
     required: [true, 'Actual stock count is required'],
@@ -28,6 +34,14 @@ const inventorySchema = new mongoose.Schema({
     type: Number,
     default: function() {
       return this.actualStock - this.previousStock;
+    }
+  },
+  
+  // Wastage: difference between system stock and actual stock
+  wastage: {
+    type: Number,
+    default: function() {
+      return this.systemStock - this.actualStock;
     }
   },
   

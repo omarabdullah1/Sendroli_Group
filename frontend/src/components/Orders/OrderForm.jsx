@@ -121,7 +121,20 @@ const OrderForm = () => {
       }
       navigate('/orders');
     } catch (err) {
-      setError(err.response?.data?.message || 'Operation failed');
+      // Enhanced error message with material stock details if available
+      let errorMessage = err.response?.data?.message || 'Operation failed';
+      
+      if (err.response?.data?.materialInfo) {
+        const info = err.response.data.materialInfo;
+        errorMessage += `\n\nMaterial Stock Details:\n`;
+        errorMessage += `• Material: ${info.name}\n`;
+        errorMessage += `• Required: ${info.required.toFixed(2)} ${info.unit}\n`;
+        errorMessage += `• Available: ${info.available.toFixed(2)} ${info.unit}\n`;
+        errorMessage += `• Shortage: ${info.shortage.toFixed(2)} ${info.unit}\n`;
+        errorMessage += `• Stock Status: ${info.status}`;
+      }
+      
+      setError(errorMessage);
       console.error(err);
     } finally {
       setLoading(false);
@@ -237,7 +250,7 @@ const OrderForm = () => {
               <label>Balance</label>
               <input
                 type="text"
-                value={`$${(formData.price - formData.deposit || 0).toFixed(2)}`}
+                value={`${(formData.price - formData.deposit || 0).toFixed(2)} EGP`}
                 disabled
               />
             </div>

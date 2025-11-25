@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Client = require('../models/Client');
+const Material = require('../models/Material');
 
 // @desc    Get all orders
 // @route   GET /api/orders
@@ -104,46 +105,148 @@ exports.createOrder = async (req, res) => {
   try {
     const {
       client,
+      clientName,
       clientSnapshot,
       repeats,
       sheetSize,
+      sheetWidth,
+      sheetHeight,
       type,
+      material,
       totalPrice,
       deposit,
       orderState,
       notes,
+      designLink,
+      invoice,
     } = req.body;
 
-    // Verify client exists
-    const clientExists = await Client.findById(client);
-    if (!clientExists) {
-      return res.status(404).json({
+    // For invoice orders, client field is optional (clientName is used instead)
+    // For regular orders, client is required
+    if (!invoice && !client) {
+      return res.status(400).json({
         success: false,
-        message: 'Client not found',
+        message: 'Client is required for non-invoice orders',
       });
     }
 
-    // Create order with client snapshot
-    const order = await Order.create({
-      client,
-      clientSnapshot: clientSnapshot || {
+    // Calculate order size if dimensions are provided (same calculation as frontend)
+    // Ensure values are numbers
+    const numRepeats = parseFloat(repeats) || 0;
+    const numSheetWidth = parseFloat(sheetWidth) || 0;
+    const numSheetHeight = parseFloat(sheetHeight) || 0;
+    
+    let calculatedOrderSize = 0;
+    if (numRepeats > 0 && numSheetWidth > 0 && numSheetHeight > 0) {
+      calculatedOrderSize = numRepeats * numSheetWidth * numSheetHeight;
+      console.log('Order size calculation:', {
+        repeats: numRepeats,
+        width: numSheetWidth,
+        height: numSheetHeight,
+        orderSize: calculatedOrderSize
+      });
+    }
+
+    let orderData = {
+      clientName: clientName || null,
+      repeats: numRepeats,
+      sheetSize,
+      sheetWidth: numSheetWidth,
+      sheetHeight: numSheetHeight,
+      type,
+      material: material || null,
+      deposit: parseFloat(deposit) || 0,
+      orderState: orderState || 'pending',
+      notes,
+      designLink,
+      invoice: invoice || null,
+      createdBy: req.user._id,
+    };
+    
+    // If material is selected, calculate total price as selling price per cm * order size
+    if (material) {
+      const materialDoc = await Material.findById(material);
+      if (materialDoc) {
+        // Set type from material name
+        orderData.type = materialDoc.name;
+        
+        if (materialDoc.sellingPrice) {
+          // Calculate total price as selling price per cm² * order size (cm²)
+          // This matches the frontend calculation: sellingPrice * (repeats * sheetWidth * sheetHeight)
+          if (calculatedOrderSize > 0) {
+            orderData.totalPrice = parseFloat(materialDoc.sellingPrice) * calculatedOrderSize;
+            console.log('🔧 BACKEND PRICE CALCULATION DEBUG:', {
+              materialId: material,
+              materialName: materialDoc.name,
+              sellingPrice: materialDoc.sellingPrice,
+              sellingPriceType: typeof materialDoc.sellingPrice,
+              sellingPriceParsed: parseFloat(materialDoc.sellingPrice),
+              repeats: numRepeats,
+              sheetWidth: numSheetWidth,
+              sheetHeight: numSheetHeight,
+              calculatedOrderSize: calculatedOrderSize,
+              totalPrice: orderData.totalPrice,
+              calculation: `${parseFloat(materialDoc.sellingPrice)} * ${calculatedOrderSize} = ${orderData.totalPrice}`
+            });
+          } else {
+            // If order size is not available, use selling price directly (will be recalculated when size is set)
+            orderData.totalPrice = parseFloat(materialDoc.sellingPrice);
+            console.log('🔧 BACKEND PRICE DEBUG (no size):', {
+              sellingPrice: materialDoc.sellingPrice,
+              totalPrice: orderData.totalPrice
+            });
+          }
+        } else {
+          // If no material price, use provided totalPrice or require it
+          if (!totalPrice) {
+            return res.status(400).json({
+              success: false,
+              message: 'Material has no selling price. Please set price manually or select a different material.',
+            });
+          }
+          orderData.totalPrice = totalPrice;
+        }
+      }
+    } else {
+      // No material selected, use provided price and type
+      if (!totalPrice) {
+        return res.status(400).json({
+          success: false,
+          message: 'Total price is required when no material is selected',
+        });
+      }
+      orderData.totalPrice = totalPrice;
+      // Type can be set manually if no material
+      if (type) {
+        orderData.type = type;
+      }
+    }
+
+    // If client ID provided, verify and add snapshot
+    if (client) {
+      const clientExists = await Client.findById(client);
+      if (!clientExists) {
+        return res.status(404).json({
+          success: false,
+          message: 'Client not found',
+        });
+      }
+      orderData.client = client;
+      orderData.clientSnapshot = clientSnapshot || {
         name: clientExists.name,
         phone: clientExists.phone,
         factoryName: clientExists.factoryName,
-      },
-      repeats,
-      sheetSize,
-      type,
-      totalPrice,
-      deposit: deposit || 0,
-      orderState: orderState || 'pending',
-      notes,
-      createdBy: req.user._id,
-    });
+      };
+    }
+
+    // Create order
+    const order = await Order.create(orderData);
 
     // Populate and return
     const populatedOrder = await Order.findById(order._id)
       .populate('client', 'name phone factoryName')
+      .populate('material', 'name sellingPrice')
+      .populate('invoice')
       .populate('createdBy', 'username fullName');
 
     res.status(201).json({
@@ -191,14 +294,66 @@ exports.updateOrder = async (req, res) => {
     // Role-based update restrictions
     const updateData = { ...req.body };
 
-    // Designer can only update orderState and designLink
+    // Designer can update order details but NOT financial fields
     if (isDesigner) {
-      const allowedFields = ['orderState', 'designLink'];
+      // Remove all financial fields
+      delete updateData.totalPrice;
+      delete updateData.deposit;
+      delete updateData.remainingAmount;
+      delete updateData.client; // Can't change client
+      delete updateData.invoice; // Can't change invoice
+      
+      // Allowed fields for designers: size, repeats, status, designLink, notes, material
+      const allowedFields = [
+        'orderState', 
+        'designLink', 
+        'material', // Can change material (price will auto-update)
+        'sheetWidth', 
+        'sheetHeight', 
+        'repeats', 
+        'notes',
+        'clientName' // Can update client name display
+      ];
+      
       Object.keys(updateData).forEach((key) => {
         if (!allowedFields.includes(key)) {
           delete updateData[key];
         }
       });
+      
+      // If material is changed or size changed, recalculate price from material selling price * order size
+      if (updateData.material || updateData.repeats !== undefined || updateData.sheetWidth !== undefined || updateData.sheetHeight !== undefined) {
+        const materialId = updateData.material || order.material;
+        if (materialId) {
+          const Material = require('../models/Material');
+          const materialDoc = await Material.findById(materialId);
+          if (materialDoc) {
+            // Set type from material name
+            updateData.type = materialDoc.name;
+            
+            if (materialDoc.sellingPrice) {
+              // Calculate order size
+              const r = updateData.repeats !== undefined ? updateData.repeats : order.repeats;
+              const w = updateData.sheetWidth !== undefined ? updateData.sheetWidth : order.sheetWidth;
+              const h = updateData.sheetHeight !== undefined ? updateData.sheetHeight : order.sheetHeight;
+              
+              let calculatedOrderSize = 0;
+              if (r && w && h) {
+                calculatedOrderSize = r * (w * h);
+              }
+              
+              // Calculate total price as selling price per cm * order size
+              if (calculatedOrderSize > 0) {
+                updateData.totalPrice = materialDoc.sellingPrice * calculatedOrderSize;
+              } else {
+                updateData.totalPrice = materialDoc.sellingPrice;
+              }
+              
+              updateData.remainingAmount = updateData.totalPrice - (order.deposit || 0);
+            }
+          }
+        }
+      }
       
       // Validate orderState transitions
       const validStates = ['pending', 'active', 'done', 'delivered'];
@@ -258,6 +413,33 @@ exports.updateOrder = async (req, res) => {
     updateData.updatedBy = req.user._id;
     updateData.updatedAt = new Date();
 
+    // Check material stock before changing status to 'done'
+    if (updateData.orderState === 'done' && order.orderState !== 'done') {
+      if (order.material && order.orderSize) {
+        const material = await Material.findById(order.material);
+        
+        if (material) {
+          const requiredStock = order.orderSize;
+          const availableStock = material.currentStock;
+          
+          if (availableStock < requiredStock) {
+            return res.status(400).json({
+              success: false,
+              message: `Insufficient material stock. Required: ${requiredStock.toFixed(2)} ${material.unit}, Available: ${availableStock.toFixed(2)} ${material.unit}`,
+              materialInfo: {
+                name: material.name,
+                required: requiredStock,
+                available: availableStock,
+                shortage: requiredStock - availableStock,
+                unit: material.unit,
+                status: availableStock <= material.minStockLevel ? 'Low Stock' : 'Normal'
+              }
+            });
+          }
+        }
+      }
+    }
+
     // Log the modification for audit trail
     console.log(`Order ${req.params.id} updated by user ${req.user._id} (${req.user.username}) - Role: ${userRole}`);
 
@@ -266,6 +448,7 @@ exports.updateOrder = async (req, res) => {
       runValidators: true,
     })
       .populate('client', 'name phone factoryName')
+      .populate('material', 'name sellingPrice')
       .populate('createdBy', 'username fullName')
       .populate('updatedBy', 'username fullName');
 

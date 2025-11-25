@@ -93,8 +93,8 @@ const ClientDetail = () => {
                     <td>{order.type}</td>
                     <td>{order.size}</td>
                     <td>{order.repeats}</td>
-                    <td>${order.price}</td>
-                    <td>${order.balance}</td>
+                    <td>{order.price} EGP</td>
+                    <td>{order.balance} EGP</td>
                     <td>
                       <span className={`status-badge status-${order.status}`}>
                         {order.status}

@@ -40,6 +40,19 @@ const materialSchema = new mongoose.Schema({
     min: [0, 'Cost cannot be negative']
   },
   
+  // Selling price for order types (DTF, DTFUV, etc.)
+  sellingPrice: {
+    type: Number,
+    min: [0, 'Selling price cannot be negative'],
+    default: 0
+  },
+  
+  // Indicates if this material is used for order pricing
+  isOrderType: {
+    type: Boolean,
+    default: false
+  },
+  
   supplier: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Supplier'

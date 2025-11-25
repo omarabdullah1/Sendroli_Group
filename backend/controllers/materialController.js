@@ -10,6 +10,11 @@ exports.getAllMaterials = async (req, res, next) => {
     
     let query = { isActive: true };
     
+    // Filter by order type
+    if (req.query.isOrderType !== undefined) {
+      query.isOrderType = req.query.isOrderType === 'true';
+    }
+    
     // Search functionality
     if (req.query.search) {
       query.name = { $regex: req.query.search, $options: 'i' };
@@ -33,7 +38,7 @@ exports.getAllMaterials = async (req, res, next) => {
       .populate('createdBy', 'fullName')
       .sort({ name: 1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit || 1000); // Increase limit for order type materials
     
     res.status(200).json({
       success: true,
@@ -66,6 +71,9 @@ exports.getMaterial = async (req, res, next) => {
       });
     }
     
+    console.log('Fetched single material:', material);
+    console.log('Material sellingPrice:', material.sellingPrice);
+    
     res.status(200).json({
       success: true,
       data: material
@@ -78,12 +86,35 @@ exports.getMaterial = async (req, res, next) => {
 // Create new material
 exports.createMaterial = async (req, res, next) => {
   try {
+    console.log('Creating material with data:', req.body);
+    
+    // Prepare material data
     const materialData = {
       ...req.body,
       createdBy: req.user.id
     };
     
+    // Ensure sellingPrice is properly handled
+    if (materialData.sellingPrice !== undefined && materialData.sellingPrice !== null && materialData.sellingPrice !== '') {
+      materialData.sellingPrice = parseFloat(materialData.sellingPrice);
+      // Check if conversion resulted in NaN
+      if (isNaN(materialData.sellingPrice)) {
+        materialData.sellingPrice = 0;
+      }
+    } else {
+      materialData.sellingPrice = 0;
+    }
+    
+    // Ensure isOrderType is boolean
+    materialData.isOrderType = Boolean(materialData.isOrderType);
+    
+    console.log('Processed material data:', materialData);
+    console.log('Selling price to save:', materialData.sellingPrice, 'Type:', typeof materialData.sellingPrice);
+    
     const material = await Material.create(materialData);
+    
+    console.log('Created material:', material);
+    console.log('Saved selling price:', material.sellingPrice);
     
     res.status(201).json({
       success: true,
@@ -91,6 +122,7 @@ exports.createMaterial = async (req, res, next) => {
       message: 'Material created successfully'
     });
   } catch (error) {
+    console.error('Error creating material:', error);
     next(error);
   }
 };
@@ -98,10 +130,33 @@ exports.createMaterial = async (req, res, next) => {
 // Update material
 exports.updateMaterial = async (req, res, next) => {
   try {
+    console.log('Updating material with data:', req.body);
+    console.log('Selling price in request:', req.body.sellingPrice, 'Type:', typeof req.body.sellingPrice);
+    
+    // Prepare update data
     const updateData = {
       ...req.body,
       updatedBy: req.user.id
     };
+    
+    // Ensure sellingPrice is properly handled
+    if (updateData.sellingPrice !== undefined && updateData.sellingPrice !== null && updateData.sellingPrice !== '') {
+      updateData.sellingPrice = parseFloat(updateData.sellingPrice);
+      // Check if conversion resulted in NaN
+      if (isNaN(updateData.sellingPrice)) {
+        updateData.sellingPrice = 0;
+      }
+    } else if (updateData.sellingPrice === '' || updateData.sellingPrice === null) {
+      updateData.sellingPrice = 0;
+    }
+    
+    // Ensure isOrderType is boolean
+    if (updateData.isOrderType !== undefined) {
+      updateData.isOrderType = Boolean(updateData.isOrderType);
+    }
+    
+    console.log('Processed update data:', updateData);
+    console.log('Selling price to update:', updateData.sellingPrice, 'Type:', typeof updateData.sellingPrice);
     
     const material = await Material.findByIdAndUpdate(
       req.params.id,
@@ -116,12 +171,16 @@ exports.updateMaterial = async (req, res, next) => {
       });
     }
     
+    console.log('Updated material from DB:', material);
+    console.log('Selling price in updated material:', material.sellingPrice);
+    
     res.status(200).json({
       success: true,
       data: material,
       message: 'Material updated successfully'
     });
   } catch (error) {
+    console.error('Error updating material:', error);
     next(error);
   }
 };

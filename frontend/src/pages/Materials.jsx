@@ -40,7 +40,13 @@ const Materials = () => {
     try {
       setLoading(true);
       const response = await materialService.getAll(filters);
-      setMaterials(response.data.data.materials);
+      const materialsList = response.data.data.materials;
+      console.log('Fetched materials list:', materialsList);
+      // Check if sellingPrice is included in the response
+      if (materialsList.length > 0) {
+        console.log('First material sellingPrice:', materialsList[0].sellingPrice);
+      }
+      setMaterials(materialsList);
       setPagination(response.data.data.pagination);
     } catch (error) {
       console.error('Error fetching materials:', error);
@@ -63,9 +69,21 @@ const Materials = () => {
     setShowForm(true);
   };
 
-  const handleEditMaterial = (material) => {
-    setSelectedMaterial(material);
-    setShowForm(true);
+  const handleEditMaterial = async (material) => {
+    console.log('Edit material clicked:', material);
+    // Fetch full material data to ensure we have all fields including sellingPrice
+    try {
+      const response = await materialService.getById(material._id);
+      const fullMaterial = response.data.data;
+      console.log('Full material data from API:', fullMaterial);
+      setSelectedMaterial(fullMaterial);
+      setShowForm(true);
+    } catch (error) {
+      console.error('Error fetching material details:', error);
+      // Fallback to using the material from list
+      setSelectedMaterial(material);
+      setShowForm(true);
+    }
   };
 
   const handleDeleteMaterial = async (materialId) => {
@@ -82,13 +100,25 @@ const Materials = () => {
 
   const handleFormSubmit = async (materialData) => {
     try {
+      console.log('Submitting material data:', materialData);
+      console.log('Selling price in submit:', materialData.sellingPrice);
+      let response;
       if (selectedMaterial) {
-        await materialService.update(selectedMaterial._id, materialData);
+        console.log('Updating material:', selectedMaterial._id);
+        response = await materialService.update(selectedMaterial._id, materialData);
+        console.log('Update response:', response.data);
+        console.log('Updated material sellingPrice:', response.data.data?.sellingPrice);
       } else {
-        await materialService.create(materialData);
+        console.log('Creating new material');
+        response = await materialService.create(materialData);
+        console.log('Create response:', response.data);
       }
       setShowForm(false);
-      fetchMaterials();
+      setSelectedMaterial(null);
+      // Small delay to ensure backend has saved
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Refresh materials list to show updated data
+      await fetchMaterials();
     } catch (error) {
       console.error('Error saving material:', error);
       throw error;
@@ -263,10 +293,14 @@ const Materials = () => {
 
       {showForm && (
         <MaterialForm
+          key={selectedMaterial?._id || 'new'}
           material={selectedMaterial}
           suppliers={suppliers}
           onSubmit={handleFormSubmit}
-          onClose={() => setShowForm(false)}
+          onClose={() => {
+            setShowForm(false);
+            setSelectedMaterial(null);
+          }}
         />
       )}
     </div>
