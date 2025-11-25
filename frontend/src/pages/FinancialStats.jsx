@@ -54,17 +54,17 @@ const FinancialStats = () => {
 
           <div style={styles.statCard}>
             <div style={styles.statLabel}>Total Revenue</div>
-            <div style={styles.statValue}>${overall?.totalRevenue || 0}</div>
+            <div style={styles.statValue}>{overall?.totalRevenue || 0} EGP</div>
           </div>
 
           <div style={styles.statCard}>
             <div style={styles.statLabel}>Total Deposits</div>
-            <div style={styles.statValue}>${overall?.totalDeposits || 0}</div>
+            <div style={styles.statValue}>{overall?.totalDeposits || 0} EGP</div>
           </div>
 
           <div style={styles.statCard}>
             <div style={styles.statLabel}>Total Remaining</div>
-            <div style={styles.statValue}>${overall?.totalRemaining || 0}</div>
+            <div style={styles.statValue}>{overall?.totalRemaining || 0} EGP</div>
           </div>
         </div>
 
@@ -86,7 +86,7 @@ const FinancialStats = () => {
                       <span style={getStatusStyle(stat._id)}>{stat._id}</span>
                     </td>
                     <td style={styles.td}>{stat.count}</td>
-                    <td style={styles.td}>${stat.totalValue}</td>
+                    <td style={styles.td}>{stat.totalValue} EGP</td>
                   </tr>
                 ))
               ) : (

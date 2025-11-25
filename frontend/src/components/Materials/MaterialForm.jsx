@@ -11,7 +11,9 @@ const MaterialForm = ({ material, onSubmit, onClose, suppliers: propSuppliers = 
     currentStock: '',
     costPerUnit: '',
     supplier: '',
-    description: ''
+    description: '',
+    sellingPrice: '',
+    isOrderType: false
   });
   
   const [suppliers, setSuppliers] = useState(propSuppliers);
@@ -19,16 +21,50 @@ const MaterialForm = ({ material, onSubmit, onClose, suppliers: propSuppliers = 
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (material) {
-      setFormData({
+    console.log('MaterialForm useEffect - material prop:', material);
+    
+    if (material && material._id) {
+      console.log('Loading material for edit - Full material object:', material);
+      console.log('Selling price from material:', material.sellingPrice, 'Type:', typeof material.sellingPrice);
+      
+      // Extract selling price - handle 0 as valid value
+      let sellingPriceValue = '';
+      if (material.sellingPrice !== undefined && material.sellingPrice !== null) {
+        sellingPriceValue = String(material.sellingPrice);
+        console.log('Extracted selling price value:', sellingPriceValue);
+      }
+      
+      const newFormData = {
         name: material.name || '',
         category: material.category || 'other',
         unit: material.unit || 'piece',
-        minStockLevel: material.minStockLevel || '',
-        currentStock: material.currentStock || '',
-        costPerUnit: material.costPerUnit || '',
-        supplier: material.supplier?._id || '',
-        description: material.description || ''
+        minStockLevel: material.minStockLevel !== undefined && material.minStockLevel !== null ? String(material.minStockLevel) : '',
+        currentStock: material.currentStock !== undefined && material.currentStock !== null ? String(material.currentStock) : '',
+        costPerUnit: material.costPerUnit !== undefined && material.costPerUnit !== null ? String(material.costPerUnit) : '',
+        supplier: material.supplier?._id || material.supplier || '',
+        description: material.description || '',
+        sellingPrice: sellingPriceValue,
+        isOrderType: Boolean(material.isOrderType)
+      };
+      
+      console.log('New form data to set:', newFormData);
+      console.log('Selling price in form data:', newFormData.sellingPrice);
+      
+      setFormData(newFormData);
+    } else {
+      // Reset form when no material (creating new)
+      console.log('No material - resetting form for new material');
+      setFormData({
+        name: '',
+        category: 'other',
+        unit: 'piece',
+        minStockLevel: '',
+        currentStock: '',
+        costPerUnit: '',
+        supplier: '',
+        description: '',
+        sellingPrice: '',
+        isOrderType: false
       });
     }
     
@@ -36,7 +72,7 @@ const MaterialForm = ({ material, onSubmit, onClose, suppliers: propSuppliers = 
     if (propSuppliers.length === 0) {
       fetchSuppliers();
     }
-  }, [material, propSuppliers]);
+  }, [material, propSuppliers.length]); // Watch the entire material object
 
   const fetchSuppliers = async () => {
     try {
@@ -48,10 +84,10 @@ const MaterialForm = ({ material, onSubmit, onClose, suppliers: propSuppliers = 
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
     
     // Clear error when user starts typing
@@ -70,16 +106,21 @@ const MaterialForm = ({ material, onSubmit, onClose, suppliers: propSuppliers = 
       newErrors.name = 'Material name is required';
     }
     
-    if (!formData.minStockLevel || formData.minStockLevel < 0) {
-      newErrors.minStockLevel = 'Minimum stock level must be a positive number';
+    if (!formData.minStockLevel || isNaN(formData.minStockLevel) || Number(formData.minStockLevel) < 0) {
+      newErrors.minStockLevel = 'Minimum stock level must be a valid positive number';
     }
     
-    if (!formData.currentStock || formData.currentStock < 0) {
-      newErrors.currentStock = 'Current stock must be a positive number';
+    if (!formData.currentStock || isNaN(formData.currentStock) || Number(formData.currentStock) < 0) {
+      newErrors.currentStock = 'Current stock must be a valid positive number';
     }
     
-    if (!formData.costPerUnit || formData.costPerUnit < 0) {
-      newErrors.costPerUnit = 'Cost per unit must be a positive number';
+    if (!formData.costPerUnit || isNaN(formData.costPerUnit) || Number(formData.costPerUnit) < 0) {
+      newErrors.costPerUnit = 'Cost per unit must be a valid positive number';
+    }
+    
+    // Validate selling price if provided
+    if (formData.sellingPrice && formData.sellingPrice !== '' && (isNaN(formData.sellingPrice) || Number(formData.sellingPrice) < 0)) {
+      newErrors.sellingPrice = 'Selling price must be a valid positive number';
     }
     
     setErrors(newErrors);
@@ -101,8 +142,16 @@ const MaterialForm = ({ material, onSubmit, onClose, suppliers: propSuppliers = 
         minStockLevel: parseInt(formData.minStockLevel),
         currentStock: parseInt(formData.currentStock),
         costPerUnit: parseFloat(formData.costPerUnit),
+        // Properly handle sellingPrice - convert to number if provided, otherwise set to 0
+        sellingPrice: formData.sellingPrice && formData.sellingPrice.trim() !== '' 
+          ? parseFloat(formData.sellingPrice) 
+          : 0,
+        isOrderType: Boolean(formData.isOrderType),
         supplier: formData.supplier || null
       };
+      
+      console.log('Submitting material data:', submitData);
+      console.log('Selling price being submitted:', submitData.sellingPrice, 'Type:', typeof submitData.sellingPrice);
       
       await onSubmit(submitData);
     } catch (error) {
@@ -245,6 +294,46 @@ const MaterialForm = ({ material, onSubmit, onClose, suppliers: propSuppliers = 
                 required
               />
               {errors.costPerUnit && <span className="error-text">{errors.costPerUnit}</span>}
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="sellingPrice">Selling Price (EGP)</label>
+              <input
+                type="number"
+                id="sellingPrice"
+                name="sellingPrice"
+                value={formData.sellingPrice}
+                onChange={handleChange}
+                className={errors.sellingPrice ? 'error' : ''}
+                placeholder="Enter selling price (for order types)"
+                min="0"
+                step="0.01"
+              />
+              {errors.sellingPrice && <span className="error-text">{errors.sellingPrice}</span>}
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                This price will be used directly when material is selected in orders
+              </small>
+              {material && (
+                <small style={{ color: '#0066cc', fontSize: '11px', display: 'block', marginTop: '2px' }}>
+                  Debug: Material sellingPrice = {material.sellingPrice}, Form value = {formData.sellingPrice}
+                </small>
+              )}
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="isOrderType" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  id="isOrderType"
+                  name="isOrderType"
+                  checked={formData.isOrderType}
+                  onChange={handleChange}
+                />
+                <span>Use as Order Type (DTF, DTFUV, etc.)</span>
+              </label>
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                Check this if this material represents an order type
+              </small>
             </div>
             
             <div className="form-group full-width">

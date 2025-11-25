@@ -15,9 +15,15 @@ exports.getDailyInventory = async (req, res, next) => {
      .populate('countedBy', 'fullName')
      .sort({ createdAt: -1 });
     
+    // Add calculated wastage to each record
+    const recordsWithWastage = inventoryRecords.map(record => ({
+      ...record.toObject(),
+      wastage: record.systemStock - record.actualStock
+    }));
+    
     res.status(200).json({
       success: true,
-      data: inventoryRecords
+      data: recordsWithWastage
     });
   } catch (error) {
     next(error);
@@ -35,25 +41,47 @@ exports.submitDailyCount = async (req, res, next) => {
       const material = await Material.findById(count.materialId);
       if (material) {
         const previousStock = material.currentStock;
+        const systemStock = material.currentStock; // Current system-tracked stock
+        const actualStock = parseFloat(count.actualStock);
         
-        // Create inventory record
+        // Calculate wastage: system stock - actual stock
+        const wastage = systemStock - actualStock;
+        
+        // Create inventory record with system stock and wastage
         const inventoryRecord = await Inventory.create({
           material: count.materialId,
           previousStock,
-          actualStock: count.actualStock,
+          systemStock,
+          actualStock,
           type: 'daily_count',
           notes: count.notes,
           countedBy: req.user.id
         });
         
-        // Update material stock if there's a difference
-        if (previousStock !== count.actualStock) {
-          material.currentStock = count.actualStock;
+        // Update material stock to actual counted stock
+        if (systemStock !== actualStock) {
+          material.currentStock = actualStock;
           material.updatedBy = req.user.id;
           await material.save();
+          
+          console.log('Stock adjusted after count:', {
+            material: material.name,
+            systemStock,
+            actualStock,
+            wastage,
+            difference: actualStock - systemStock
+          });
         }
         
-        inventoryRecords.push(inventoryRecord);
+        inventoryRecords.push({
+          ...inventoryRecord.toObject(),
+          wastage,
+          material: {
+            _id: material._id,
+            name: material.name,
+            unit: material.unit
+          }
+        });
       }
     }
     

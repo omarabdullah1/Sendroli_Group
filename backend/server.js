@@ -101,6 +101,7 @@ const materialRoutes = require('./routes/materialRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
 const purchaseRoutes = require('./routes/purchaseRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
@@ -110,6 +111,7 @@ app.use('/api/materials', materialRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

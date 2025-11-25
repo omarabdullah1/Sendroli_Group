@@ -5,13 +5,26 @@ const orderSchema = new mongoose.Schema(
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Client',
-      required: [true, 'Client is required'],
+      required: function() {
+        // Client is required only if invoice is not provided
+        return !this.invoice;
+      },
     },
     // Snapshot of client data at order creation time
     clientSnapshot: {
       name: String,
       phone: String,
       factoryName: String,
+    },
+    // Reference to invoice (if part of an invoice)
+    invoice: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Invoice',
+    },
+    // Client name for invoice orders
+    clientName: {
+      type: String,
+      trim: true,
     },
     repeats: {
       type: Number,
@@ -21,9 +34,27 @@ const orderSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    sheetWidth: {
+      type: Number,
+      min: [0, 'Sheet width must be positive'],
+    },
+    sheetHeight: {
+      type: Number,
+      min: [0, 'Sheet height must be positive'],
+    },
+    orderSize: {
+      type: Number,
+      default: 0,
+    },
+    // Type is now optional - use material instead
     type: {
       type: String,
       trim: true,
+    },
+    // Reference to material (for pricing)
+    material: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Material',
     },
     totalPrice: {
       type: Number,
@@ -68,28 +99,255 @@ const orderSchema = new mongoose.Schema(
   }
 );
 
-// Calculate remaining amount before saving
-orderSchema.pre('save', function (next) {
-  this.remainingAmount = this.totalPrice - this.deposit;
-  next();
+// Calculate remaining amount and order size before saving
+orderSchema.pre('save', async function (next) {
+  try {
+    // Calculate order size first if dimensions are provided
+    if (this.repeats && this.sheetWidth && this.sheetHeight) {
+      this.orderSize = this.repeats * (this.sheetWidth * this.sheetHeight);
+    }
+    
+    // If material is selected, calculate total price as selling price per cm * order size
+    // Only recalculate if totalPrice is not already set (preserve price set by controller)
+    if (this.material && !this.totalPrice) {
+      const Material = mongoose.model('Material');
+      const material = await Material.findById(this.material);
+      if (material) {
+        // Set type from material name
+        this.type = material.name;
+        
+        // Calculate total price as selling price per cm² * order size (cm²)
+        if (material.sellingPrice) {
+          if (this.orderSize && this.orderSize > 0) {
+            this.totalPrice = material.sellingPrice * this.orderSize;
+            console.log('🔧 ORDER MODEL PRICE CALCULATION (pre-save):', {
+              materialName: material.name,
+              sellingPrice: material.sellingPrice,
+              orderSize: this.orderSize,
+              totalPrice: this.totalPrice,
+              calculation: `${material.sellingPrice} * ${this.orderSize} = ${this.totalPrice}`
+            });
+          } else {
+            // If order size is not available yet, use selling price directly (will be recalculated when size is set)
+            this.totalPrice = material.sellingPrice;
+            console.log('🔧 ORDER MODEL PRICE DEBUG (no size, pre-save):', {
+              materialName: material.name,
+              sellingPrice: material.sellingPrice,
+              totalPrice: this.totalPrice
+            });
+          }
+        }
+      }
+    } else if (this.material && this.totalPrice) {
+      // Material is set and totalPrice is already set, just update type
+      const Material = mongoose.model('Material');
+      const material = await Material.findById(this.material);
+      if (material) {
+        this.type = material.name;
+        console.log('🔧 ORDER MODEL PRICE DEBUG (price already set):', {
+          materialName: material.name,
+          existingTotalPrice: this.totalPrice
+        });
+      }
+    }
+    
+    // Calculate remaining amount
+    this.remainingAmount = this.totalPrice - (this.deposit || 0);
+    
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
-// Update remaining amount before updating
-orderSchema.pre('findOneAndUpdate', function (next) {
-  const update = this.getUpdate();
-  if (update.$set && (update.$set.totalPrice !== undefined || update.$set.deposit !== undefined)) {
-    const totalPrice = update.$set.totalPrice;
-    const deposit = update.$set.deposit;
-    
-    if (totalPrice !== undefined && deposit !== undefined) {
-      update.$set.remainingAmount = totalPrice - deposit;
+// Update remaining amount and order size before updating
+orderSchema.pre('findOneAndUpdate', async function (next) {
+  try {
+    const update = this.getUpdate();
+    if (update.$set) {
+      const { totalPrice, deposit, repeats, sheetWidth, sheetHeight, material } = update.$set;
+      
+      // Calculate order size if dimensions changed
+      let calculatedOrderSize = null;
+      if (repeats !== undefined || sheetWidth !== undefined || sheetHeight !== undefined) {
+        const r = repeats !== undefined ? repeats : this.getQuery().repeats;
+        const w = sheetWidth !== undefined ? sheetWidth : this.getQuery().sheetWidth;
+        const h = sheetHeight !== undefined ? sheetHeight : this.getQuery().sheetHeight;
+        if (r && w && h) {
+          calculatedOrderSize = r * (w * h);
+          update.$set.orderSize = calculatedOrderSize;
+        }
+      } else {
+        // Get existing order size if dimensions didn't change
+        const existingOrder = await this.model.findOne(this.getQuery());
+        if (existingOrder && existingOrder.orderSize) {
+          calculatedOrderSize = existingOrder.orderSize;
+        }
+      }
+      
+      // If material changed or size changed, recalculate price from material selling price * order size
+      if (material !== undefined || (calculatedOrderSize !== null && material === undefined)) {
+        const materialId = material !== undefined ? material : (await this.model.findOne(this.getQuery()))?.material;
+        if (materialId) {
+          const Material = mongoose.model('Material');
+          const materialDoc = await Material.findById(materialId);
+          if (materialDoc && materialDoc.sellingPrice) {
+            const orderSizeToUse = calculatedOrderSize !== null ? calculatedOrderSize : (await this.model.findOne(this.getQuery()))?.orderSize || 0;
+            if (orderSizeToUse > 0) {
+              update.$set.totalPrice = materialDoc.sellingPrice * orderSizeToUse;
+              update.$set.type = materialDoc.name;
+            } else if (materialDoc.sellingPrice) {
+              update.$set.totalPrice = materialDoc.sellingPrice;
+              update.$set.type = materialDoc.name;
+            }
+          }
+        }
+      }
+      
+      // Calculate remaining amount if price or deposit changed
+      const finalPrice = update.$set.totalPrice !== undefined ? update.$set.totalPrice : (await this.model.findOne(this.getQuery()))?.totalPrice;
+      const dep = deposit !== undefined ? deposit : (await this.model.findOne(this.getQuery()))?.deposit;
+      if (finalPrice !== undefined && dep !== undefined) {
+        update.$set.remainingAmount = finalPrice - dep;
+      } else if (totalPrice !== undefined || deposit !== undefined) {
+        const price = totalPrice !== undefined ? totalPrice : (await this.model.findOne(this.getQuery()))?.totalPrice;
+        const dep = deposit !== undefined ? deposit : (await this.model.findOne(this.getQuery()))?.deposit;
+        if (price !== undefined && dep !== undefined) {
+          update.$set.remainingAmount = price - dep;
+        }
+      }
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// After save, update invoice totals if order is part of an invoice
+// Also track material usage when order is marked as "done"
+orderSchema.post('save', async function(doc) {
+  if (doc.invoice) {
+    const Invoice = mongoose.model('Invoice');
+    const invoice = await Invoice.findById(doc.invoice);
+    if (invoice) {
+      await invoice.recalculateTotals();
     }
   }
-  next();
+  
+  // Track material usage when order is completed (status changes to "done")
+  if (doc.orderState === 'done' && doc.material && doc.orderSize) {
+    try {
+      const Material = mongoose.model('Material');
+      const Inventory = mongoose.model('Inventory');
+      
+      const material = await Material.findById(doc.material);
+      if (material) {
+        const previousStock = material.currentStock;
+        const usedQuantity = doc.orderSize; // Order size in cm²
+        
+        // Decrease material stock
+        material.currentStock = Math.max(0, previousStock - usedQuantity);
+        await material.save();
+        
+        // Create inventory record for material usage
+        await Inventory.create({
+          material: doc.material,
+          previousStock,
+          systemStock: material.currentStock,
+          actualStock: material.currentStock,
+          type: 'usage',
+          reason: `Order completed: ${doc.clientName || 'N/A'}`,
+          notes: `Order size: ${usedQuantity.toFixed(2)} cm²`,
+          countedBy: doc.createdBy
+        });
+        
+        console.log('Material stock decreased:', {
+          material: material.name,
+          previousStock,
+          usedQuantity,
+          newStock: material.currentStock
+        });
+      }
+    } catch (error) {
+      console.error('Error tracking material usage:', error);
+    }
+  }
+});
+
+// After update, update invoice totals if order is part of an invoice
+// Also track material usage when order status changes to "done"
+orderSchema.post('findOneAndUpdate', async function(doc) {
+  if (doc && doc.invoice) {
+    const Invoice = mongoose.model('Invoice');
+    const invoice = await Invoice.findById(doc.invoice);
+    if (invoice) {
+      await invoice.recalculateTotals();
+    }
+  }
+  
+  // Track material usage when order status changes to "done"
+  if (doc && doc.orderState === 'done' && doc.material && doc.orderSize) {
+    try {
+      // Check if this order was already marked as "done" before
+      const Inventory = mongoose.model('Inventory');
+      const existingUsageRecord = await Inventory.findOne({
+        type: 'usage',
+        notes: { $regex: `Order ID: ${doc._id}` }
+      });
+      
+      // Only decrease stock if not already recorded
+      if (!existingUsageRecord) {
+        const Material = mongoose.model('Material');
+        const material = await Material.findById(doc.material);
+        
+        if (material) {
+          const previousStock = material.currentStock;
+          const usedQuantity = doc.orderSize; // Order size in cm²
+          
+          // Decrease material stock
+          material.currentStock = Math.max(0, previousStock - usedQuantity);
+          await material.save();
+          
+          // Create inventory record for material usage
+          await Inventory.create({
+            material: doc.material,
+            previousStock,
+            systemStock: material.currentStock,
+            actualStock: material.currentStock,
+            type: 'usage',
+            reason: `Order completed: ${doc.clientName || 'N/A'}`,
+            notes: `Order size: ${usedQuantity.toFixed(2)} cm² | Order ID: ${doc._id}`,
+            countedBy: doc.updatedBy || doc.createdBy
+          });
+          
+          console.log('Material stock decreased (update):', {
+            material: material.name,
+            previousStock,
+            usedQuantity,
+            newStock: material.currentStock
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error tracking material usage on update:', error);
+    }
+  }
+});
+
+// After delete, update invoice totals if order was part of an invoice
+orderSchema.post('findOneAndDelete', async function(doc) {
+  if (doc && doc.invoice) {
+    const Invoice = mongoose.model('Invoice');
+    const invoice = await Invoice.findById(doc.invoice);
+    if (invoice) {
+      await invoice.recalculateTotals();
+    }
+  }
 });
 
 // Create indexes for search and filtering
 orderSchema.index({ orderState: 1, createdAt: -1 });
 orderSchema.index({ client: 1 });
+orderSchema.index({ invoice: 1 });
 
 module.exports = mongoose.model('Order', orderSchema);

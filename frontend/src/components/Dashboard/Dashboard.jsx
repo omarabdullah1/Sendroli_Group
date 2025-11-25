@@ -125,7 +125,7 @@ const Dashboard = () => {
         {['financial', 'admin'].includes(user?.role) && (
           <div className="stat-card">
             <h3>Total Revenue</h3>
-            <p className="stat-value">${stats.totalRevenue?.toFixed(2) || 0}</p>
+            <p className="stat-value">{stats.totalRevenue?.toFixed(2) || 0} EGP</p>
           </div>
         )}
       </div>
@@ -139,7 +139,7 @@ const Dashboard = () => {
               <div key={status._id} className="status-card">
                 <h4>{status._id}</h4>
                 <p>Count: {status.count}</p>
-                <p>Total: ${status.totalValue?.toFixed(2) || 0}</p>
+                <p>Total: {status.totalValue?.toFixed(2) || 0} EGP</p>
               </div>
             ))}
           </div>

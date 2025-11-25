@@ -83,7 +83,20 @@ const Orders = () => {
       await orderService.updateOrder(orderId, { orderState: newStatus });
       fetchOrders();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update order');
+      // Enhanced error message with material stock details if available
+      let errorMessage = err.response?.data?.message || 'Failed to update order';
+      
+      if (err.response?.data?.materialInfo) {
+        const info = err.response.data.materialInfo;
+        errorMessage += `\n\n📦 Material Stock Details:`;
+        errorMessage += `\n• Material: ${info.name}`;
+        errorMessage += `\n• Required: ${info.required.toFixed(2)} ${info.unit}`;
+        errorMessage += `\n• Available: ${info.available.toFixed(2)} ${info.unit}`;
+        errorMessage += `\n• Shortage: ${info.shortage.toFixed(2)} ${info.unit}`;
+        errorMessage += `\n• Stock Status: ${info.status}`;
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -407,9 +420,9 @@ const Orders = () => {
                       <td style={styles.td}>{order.type || '-'}</td>
                       <td style={styles.td}>{order.sheetSize || '-'}</td>
                       <td style={styles.td}>{order.repeats || 0}</td>
-                      <td style={styles.td}>${order.totalPrice}</td>
-                      <td style={styles.td}>${order.deposit}</td>
-                      <td style={styles.td}>${order.remainingAmount}</td>
+                      <td style={styles.td}>{order.totalPrice} EGP</td>
+                      <td style={styles.td}>{order.deposit} EGP</td>
+                      <td style={styles.td}>{order.remainingAmount} EGP</td>
                       <td style={styles.td}>
                         <span style={getStatusStyle(order.orderState || 'pending')}>
                           {order.orderState || 'pending'}

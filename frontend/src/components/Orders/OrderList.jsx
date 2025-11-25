@@ -106,9 +106,9 @@ const OrderList = () => {
                   {/* Show financial columns only for financial roles */}
                   {['financial', 'admin'].includes(user?.role) && (
                     <>
-                      <td>${order.totalPrice || order.price || 0}</td>
-                      <td>${order.deposit || 0}</td>
-                      <td>${(order.remainingAmount || order.balance || ((order.totalPrice || order.price || 0) - (order.deposit || 0)))}</td>
+                      <td>{order.totalPrice || order.price || 0} EGP</td>
+                      <td>{order.deposit || 0} EGP</td>
+                      <td>{(order.remainingAmount || order.balance || ((order.totalPrice || order.price || 0) - (order.deposit || 0)))} EGP</td>
                     </>
                   )}
                   

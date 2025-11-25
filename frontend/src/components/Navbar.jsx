@@ -35,24 +35,24 @@ const Navbar = () => {
 
           {user.role === 'designer' && (
             <>
-              <Link to="/orders" style={styles.link}>
-                Orders
+              <Link to="/invoices" style={styles.link}>
+                Invoices
               </Link>
             </>
           )}
 
           {user.role === 'worker' && (
             <>
-              <Link to="/orders" style={styles.link}>
-                Orders
+              <Link to="/invoices" style={styles.link}>
+                Invoices
               </Link>
             </>
           )}
 
           {user.role === 'financial' && (
             <>
-              <Link to="/orders" style={styles.link}>
-                Orders
+              <Link to="/invoices" style={styles.link}>
+                Invoices
               </Link>
               <Link to="/financial-stats" style={styles.link}>
                 Financial Stats
@@ -65,8 +65,8 @@ const Navbar = () => {
               <Link to="/clients" style={styles.link}>
                 Clients
               </Link>
-              <Link to="/orders" style={styles.link}>
-                Orders
+              <Link to="/invoices" style={styles.link}>
+                Invoices
               </Link>
               <Link to="/materials" style={styles.link}>
                 Materials

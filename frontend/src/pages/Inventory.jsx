@@ -174,26 +174,33 @@ const Inventory = () => {
                     <thead>
                       <tr>
                         <th>Material</th>
-                        <th>Previous</th>
-                        <th>Actual</th>
+                        <th>System Stock</th>
+                        <th>Actual Count</th>
                         <th>Difference</th>
+                        <th>Wastage</th>
                         <th>Counted By</th>
                         <th>Time</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dailyCounts.map(count => (
-                        <tr key={count._id}>
-                          <td>{count.material.name}</td>
-                          <td>{count.previousStock}</td>
-                          <td>{count.actualStock}</td>
-                          <td className={count.difference !== 0 ? 'difference' : ''}>
-                            {count.difference > 0 ? '+' : ''}{count.difference}
-                          </td>
-                          <td>{count.countedBy?.fullName}</td>
-                          <td>{new Date(count.createdAt).toLocaleTimeString()}</td>
-                        </tr>
-                      ))}
+                      {dailyCounts.map(count => {
+                        const wastage = (count.systemStock || count.previousStock) - count.actualStock;
+                        return (
+                          <tr key={count._id}>
+                            <td>{count.material.name}</td>
+                            <td>{count.systemStock || count.previousStock}</td>
+                            <td>{count.actualStock}</td>
+                            <td className={count.difference !== 0 ? 'difference' : ''}>
+                              {count.difference > 0 ? '+' : ''}{count.difference}
+                            </td>
+                            <td className={wastage > 0 ? 'wastage-positive' : wastage < 0 ? 'wastage-negative' : ''}>
+                              {wastage > 0 ? `${wastage.toFixed(2)} (loss)` : wastage < 0 ? `${Math.abs(wastage).toFixed(2)} (gain)` : '0'}
+                            </td>
+                            <td>{count.countedBy?.fullName}</td>
+                            <td>{new Date(count.createdAt).toLocaleTimeString()}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -264,18 +271,20 @@ const DailyCountForm = ({ materials, onSubmit, onClose }) => {
               <div key={material._id} className="count-item">
                 <div className="material-info">
                   <h4>{material.name}</h4>
-                  <p>Current: {material.currentStock} {material.unit}</p>
+                  <p><strong>System Stock:</strong> {material.currentStock} {material.unit}</p>
                 </div>
                 <div className="count-inputs">
                   <div className="input-group">
-                    <label>Actual Count:</label>
+                    <label>Actual Count (by Worker):</label>
                     <input
                       type="number"
                       value={counts[index].actualStock}
                       onChange={(e) => handleCountChange(index, e.target.value)}
                       min="0"
+                      step="0.01"
                       required
                     />
+                    <small>Count what you actually see in inventory</small>
                   </div>
                   <div className="input-group">
                     <label>Notes:</label>
@@ -288,8 +297,24 @@ const DailyCountForm = ({ materials, onSubmit, onClose }) => {
                   </div>
                 </div>
                 {counts[index].actualStock !== material.currentStock && (
-                  <div className="difference-indicator">
-                    Difference: {counts[index].actualStock - material.currentStock}
+                  <div className="difference-indicator" style={{ 
+                    padding: '10px', 
+                    backgroundColor: counts[index].actualStock < material.currentStock ? '#fff3cd' : '#d4edda',
+                    border: counts[index].actualStock < material.currentStock ? '1px solid #ffc107' : '1px solid #28a745',
+                    borderRadius: '4px',
+                    marginTop: '10px'
+                  }}>
+                    <div><strong>Difference:</strong> {counts[index].actualStock - material.currentStock} {material.unit}</div>
+                    {counts[index].actualStock < material.currentStock && (
+                      <div style={{ color: '#856404' }}>
+                        <strong>Wastage:</strong> {material.currentStock - counts[index].actualStock} {material.unit}
+                      </div>
+                    )}
+                    {counts[index].actualStock > material.currentStock && (
+                      <div style={{ color: '#155724' }}>
+                        <strong>Surplus:</strong> {counts[index].actualStock - material.currentStock} {material.unit}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

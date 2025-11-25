@@ -96,16 +96,16 @@ const OrderDetail = () => {
         <h3>Financial Information</h3>
         <div className="detail-row">
           <span className="detail-label">Price:</span>
-          <span className="detail-value">${order.price.toFixed(2)}</span>
+          <span className="detail-value">{order.price.toFixed(2)} EGP</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">Deposit:</span>
-          <span className="detail-value">${order.deposit.toFixed(2)}</span>
+          <span className="detail-value">{order.deposit.toFixed(2)} EGP</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">Balance:</span>
           <span className="detail-value">
-            <strong>${order.balance.toFixed(2)}</strong>
+            <strong>{order.balance.toFixed(2)} EGP</strong>
           </span>
         </div>
       </div>

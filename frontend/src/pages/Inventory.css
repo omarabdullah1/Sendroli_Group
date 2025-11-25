@@ -253,6 +253,22 @@
   color: #ef4444;
 }
 
+.data-table .wastage-positive {
+  font-weight: 600;
+  color: #dc2626;
+  background-color: #fee2e2;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.data-table .wastage-negative {
+  font-weight: 600;
+  color: #059669;
+  background-color: #d1fae5;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
 /* Daily Count Form Modal */
 .count-form-overlay {
   position: fixed;

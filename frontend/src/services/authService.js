@@ -4,7 +4,7 @@ const authService = {
   // Login user with single device restriction
   login: async (username, password) => {
     console.log('🚀 Frontend: Attempting single login with:', { username, password: '***' });
-    console.log('🌐 API URL:', process.env.REACT_APP_API_URL || 'http://localhost:5000/api');
+    console.log('🌐 API URL:', process.env.REACT_APP_API_URL || 'http://localhost:5001/api');
 
     try {
       // Send login request
