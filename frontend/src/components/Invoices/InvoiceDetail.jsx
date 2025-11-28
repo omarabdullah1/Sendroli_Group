@@ -58,7 +58,7 @@ const InvoiceDetail = () => {
           <button onClick={handlePrint} className="btn-secondary">
             Print
           </button>
-          {['admin', 'worker', 'designer'].includes(user?.role) && (
+          {['admin', 'designer'].includes(user?.role) && (
             <Link to={`/invoices/edit/${invoice._id}`} className="btn-primary">
               Edit Invoice
             </Link>

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import clientService from '../../services/clientService';
 import orderService from '../../services/orderService';
 import { materialService } from '../../services/materialService';
+import Loading from '../Loading';
 import './EnhancedDashboard.css';
 
 const EnhancedDashboard = () => {
@@ -123,13 +124,26 @@ const EnhancedDashboard = () => {
     return colors[status] || 'info';
   };
 
+  // Helper function to render KPI icon (supports both image and emoji)
+  const renderKPIIcon = (icon, image, gradient) => {
+    if (image) {
+      return (
+        <div className="kpi-icon" style={{ background: gradient }}>
+          <img src={image} alt="KPI" className="kpi-image" />
+        </div>
+      );
+    }
+    return (
+      <div className="kpi-icon" style={{ background: gradient }}>
+        <span className="kpi-emoji">{icon}</span>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="dashboard-container">
-        <div className="loading-state">
-          <div className="skeleton-loader"></div>
-          <p>Loading dashboard...</p>
-        </div>
+        <Loading message="Loading dashboard..." size="large" />
       </div>
     );
   }
@@ -140,22 +154,31 @@ const EnhancedDashboard = () => {
       <div className="dashboard-header">
         <div className="welcome-section">
           <h1 className="dashboard-title">
-            {getGreeting()}, {user?.fullName}! 👋
+            Welcome back, {user?.fullName || user?.username}
           </h1>
-          <p className="dashboard-subtitle">Here's what's happening with your business today</p>
+          <p className="dashboard-subtitle">Track and manage your operations.</p>
         </div>
         <div className="header-actions">
-          <div className="date-display">
-            <span className="date-icon">📅</span>
-            <span className="date-text">
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </span>
-          </div>
+          <button className="action-button">
+            This month
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <button className="action-button">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 2V14M2 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Import
+          </button>
+          {['admin', 'receptionist'].includes(user?.role) && (
+            <Link to="/clients/new" className="action-button primary">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 2V14M2 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              Add User
+            </Link>
+          )}
         </div>
       </div>
 
@@ -164,22 +187,18 @@ const EnhancedDashboard = () => {
         {['designer', 'worker', 'financial', 'admin'].includes(user?.role) && (
           <>
             <div className="kpi-card">
-              <div className="kpi-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                📊
-              </div>
+              {renderKPIIcon('📊', null, 'linear-gradient(135deg, #00CED1, #0099CC)')}
               <div className="kpi-content">
                 <span className="kpi-label">Total Orders</span>
                 <span className="kpi-value">{dashboardData.stats.totalOrders}</span>
                 <span className="kpi-trend positive">
-                  <span className="trend-icon">↑</span> Active Operations
+                  <span className="trend-icon">+20%</span> v/s Last Month
                 </span>
               </div>
             </div>
 
             <div className="kpi-card">
-              <div className="kpi-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
-                ⏳
-              </div>
+              {renderKPIIcon('⏳', null, 'linear-gradient(135deg, #FF6B35, #FF6B9D)')}
               <div className="kpi-content">
                 <span className="kpi-label">Pending Orders</span>
                 <span className="kpi-value">{dashboardData.stats.pendingOrders}</span>
@@ -190,22 +209,18 @@ const EnhancedDashboard = () => {
             </div>
 
             <div className="kpi-card">
-              <div className="kpi-icon" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-                🔄
-              </div>
+              {renderKPIIcon('🔄', null, 'linear-gradient(135deg, #20E0E3, #00CED1)')}
               <div className="kpi-content">
                 <span className="kpi-label">Active Orders</span>
                 <span className="kpi-value">{dashboardData.stats.activeOrders}</span>
-                <span className="kpi-trend">
-                  In Progress
+                <span className="kpi-trend positive">
+                  <span className="trend-icon">+20%</span> v/s Last Month
                 </span>
               </div>
             </div>
 
             <div className="kpi-card">
-              <div className="kpi-icon" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
-                ✅
-              </div>
+              {renderKPIIcon('✅', null, 'linear-gradient(135deg, #00CED1, #20E0E3)')}
               <div className="kpi-content">
                 <span className="kpi-label">Completed</span>
                 <span className="kpi-value">{dashboardData.stats.completedOrders}</span>
@@ -219,9 +234,7 @@ const EnhancedDashboard = () => {
 
         {['financial', 'admin'].includes(user?.role) && (
           <div className="kpi-card featured">
-            <div className="kpi-icon" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
-              💰
-            </div>
+            {renderKPIIcon('💰', null, 'linear-gradient(135deg, #FF6B35, #FF6B9D)')}
             <div className="kpi-content">
               <span className="kpi-label">Total Revenue</span>
               <span className="kpi-value">{dashboardData.stats.totalRevenue.toFixed(2)} EGP</span>
@@ -234,14 +247,12 @@ const EnhancedDashboard = () => {
 
         {['receptionist', 'admin'].includes(user?.role) && (
           <div className="kpi-card">
-            <div className="kpi-icon" style={{ background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' }}>
-              👥
-            </div>
+            {renderKPIIcon('👥', null, 'linear-gradient(135deg, #20E0E3, #00CED1)')}
             <div className="kpi-content">
               <span className="kpi-label">Total Clients</span>
               <span className="kpi-value">{dashboardData.stats.totalClients}</span>
-              <span className="kpi-trend">
-                Active Relationships
+              <span className="kpi-trend positive">
+                <span className="trend-icon">+20%</span> v/s Last Month
               </span>
             </div>
           </div>
@@ -249,9 +260,7 @@ const EnhancedDashboard = () => {
 
         {user?.role === 'admin' && (
           <div className="kpi-card">
-            <div className="kpi-icon" style={{ background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' }}>
-              🎨
-            </div>
+            {renderKPIIcon('🎨', null, 'linear-gradient(135deg, #4A90E2, #00CED1)')}
             <div className="kpi-content">
               <span className="kpi-label">Materials</span>
               <span className="kpi-value">{dashboardData.stats.totalMaterials}</span>
@@ -364,19 +373,15 @@ const EnhancedDashboard = () => {
               {user?.role === 'admin' && (
                 <>
                   <Link to="/invoices/new" className="action-card">
-                    <span className="action-icon">📄</span>
                     <span className="action-label">New Invoice</span>
                   </Link>
                   <Link to="/clients/new" className="action-card">
-                    <span className="action-icon">👤</span>
                     <span className="action-label">Add Client</span>
                   </Link>
                   <Link to="/materials" className="action-card">
-                    <span className="action-icon">🎨</span>
                     <span className="action-label">Materials</span>
                   </Link>
                   <Link to="/purchases/new" className="action-card">
-                    <span className="action-icon">🛍️</span>
                     <span className="action-label">New Purchase</span>
                   </Link>
                 </>
@@ -384,11 +389,9 @@ const EnhancedDashboard = () => {
               {user?.role === 'receptionist' && (
                 <>
                   <Link to="/clients/new" className="action-card">
-                    <span className="action-icon">👤</span>
                     <span className="action-label">Add Client</span>
                   </Link>
                   <Link to="/clients" className="action-card">
-                    <span className="action-icon">👥</span>
                     <span className="action-label">View Clients</span>
                   </Link>
                 </>
@@ -396,11 +399,9 @@ const EnhancedDashboard = () => {
               {['designer', 'worker'].includes(user?.role) && (
                 <>
                   <Link to="/invoices" className="action-card">
-                    <span className="action-icon">📄</span>
                     <span className="action-label">View Invoices</span>
                   </Link>
                   <Link to="/orders" className="action-card">
-                    <span className="action-icon">📦</span>
                     <span className="action-label">View Orders</span>
                   </Link>
                 </>
@@ -408,11 +409,9 @@ const EnhancedDashboard = () => {
               {user?.role === 'financial' && (
                 <>
                   <Link to="/invoices" className="action-card">
-                    <span className="action-icon">📄</span>
                     <span className="action-label">View Invoices</span>
                   </Link>
                   <Link to="/financial-stats" className="action-card">
-                    <span className="action-icon">💰</span>
                     <span className="action-label">Financial Reports</span>
                   </Link>
                 </>

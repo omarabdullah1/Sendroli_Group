@@ -41,13 +41,6 @@ const Navbar = () => {
             </>
           )}
 
-          {user.role === 'worker' && (
-            <>
-              <Link to="/invoices" style={styles.link}>
-                Invoices
-              </Link>
-            </>
-          )}
 
           {user.role === 'financial' && (
             <>

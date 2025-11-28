@@ -1,13 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import clientService from '../services/clientService';
+import Loading from '../components/Loading';
+import SearchAndFilters from '../components/SearchAndFilters';
+import Pagination from '../components/Pagination';
+import { formatDateTime } from '../utils/dateUtils';
 
 const Clients = () => {
   const { user } = useAuth();
-  const [clients, setClients] = useState([]);
+  const [allClients, setAllClients] = useState([]); // Store all fetched clients
+  const [clients, setClients] = useState([]); // Displayed clients (filtered + paginated)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage] = useState(10);
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
   const [formData, setFormData] = useState({
@@ -23,26 +34,83 @@ const Clients = () => {
   const canDelete = user?.role === 'admin';
   const canAdd = user?.role === 'admin' || user?.role === 'receptionist';
 
-  const fetchClients = useCallback(async () => {
+  // Fetch all clients once
+  const fetchAllClients = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await clientService.getClients({ search: searchTerm });
-      // response is { success, data: [...clients], totalPages, etc }
-      setClients(response.data || []);
+      const response = await clientService.getClients({ limit: 10000 });
+      setAllClients(response.data || []);
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch clients');
+      setAllClients([]);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, []);
+
+  // Apply filters and pagination on client-side
+  const applyFiltersAndPagination = useCallback(() => {
+    let filteredClients = [...allClients];
+    
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filteredClients = filteredClients.filter(client => {
+        const name = client.name || '';
+        const phone = client.phone || '';
+        const factoryName = client.factoryName || '';
+        const address = client.address || '';
+        
+        return (
+          name.toLowerCase().includes(searchLower) ||
+          phone.toLowerCase().includes(searchLower) ||
+          factoryName.toLowerCase().includes(searchLower) ||
+          address.toLowerCase().includes(searchLower)
+        );
+      });
+    }
+    
+    // Date range filter
+    if (startDate || endDate) {
+      filteredClients = filteredClients.filter(client => {
+        const clientDate = new Date(client.createdAt || client.date);
+        if (startDate && clientDate < new Date(startDate)) return false;
+        if (endDate && clientDate > new Date(endDate + 'T23:59:59')) return false;
+        return true;
+      });
+    }
+    
+    // Calculate pagination
+    const total = filteredClients.length;
+    setTotalItems(total);
+    setTotalPages(Math.ceil(total / itemsPerPage) || 1);
+    
+    // Apply pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedClients = filteredClients.slice(startIndex, endIndex);
+    
+    setClients(paginatedClients);
+  }, [allClients, searchTerm, startDate, endDate, currentPage, itemsPerPage]);
 
   useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
+    fetchAllClients();
+  }, [fetchAllClients]);
 
-  const handleSearch = () => {
-    fetchClients();
+  useEffect(() => {
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [searchTerm, startDate, endDate]);
+
+  useEffect(() => {
+    applyFiltersAndPagination();
+  }, [applyFiltersAndPagination]);
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
   };
 
   const handleSubmit = async (e) => {
@@ -59,7 +127,7 @@ const Clients = () => {
       setShowForm(false);
       setEditingClient(null);
       setFormData({ name: '', phone: '', factoryName: '', address: '', notes: '' });
-      fetchClients();
+      fetchAllClients();
     } catch (err) {
       alert(err.response?.data?.message || 'Operation failed');
     }
@@ -83,7 +151,7 @@ const Clients = () => {
     if (window.confirm('Are you sure you want to delete this client?')) {
       try {
         await clientService.deleteClient(id);
-        fetchClients();
+        fetchAllClients();
       } catch (err) {
         alert(err.response?.data?.message || 'Failed to delete client');
       }
@@ -108,19 +176,19 @@ const Clients = () => {
           )}
         </div>
 
-        <div style={styles.searchBar}>
-          <input
-            type="text"
-            placeholder="Search by name, phone, or factory name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={styles.searchInput}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          />
-          <button onClick={handleSearch} style={styles.searchButton}>
-            Search
-          </button>
-        </div>
+        {/* Search and Filters */}
+        <SearchAndFilters
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          showClientFilter={false}
+          showStateFilter={false}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          onClearFilters={handleClearFilters}
+          searchPlaceholder="Search by name, phone, or factory name..."
+        />
 
         {showForm && (
           <div style={styles.formOverlay}>
@@ -197,12 +265,13 @@ const Clients = () => {
         {error && <div style={styles.error}>{error}</div>}
 
         {loading ? (
-          <div style={styles.loading}>Loading...</div>
+          <Loading message="Loading clients..." size="medium" />
         ) : (
           <div style={styles.tableContainer}>
             <table style={styles.table}>
               <thead>
                 <tr>
+                  <th style={styles.th}>Date</th>
                   <th style={styles.th}>Name</th>
                   <th style={styles.th}>Phone</th>
                   <th style={styles.th}>Factory Name</th>
@@ -213,13 +282,14 @@ const Clients = () => {
               <tbody>
                 {clients.length === 0 ? (
                   <tr>
-                    <td colSpan="5" style={styles.noData}>
+                    <td colSpan="6" style={styles.noData}>
                       No clients found
                     </td>
                   </tr>
                 ) : (
                   clients.map((client) => (
                     <tr key={client._id}>
+                      <td style={styles.td}>{formatDateTime(client.createdAt || client.date)}</td>
                       <td style={styles.td}>{client.name}</td>
                       <td style={styles.td}>{client.phone}</td>
                       <td style={styles.td}>{client.factoryName || '-'}</td>
@@ -246,6 +316,17 @@ const Clients = () => {
             </table>
           </div>
         )}
+
+        {/* Pagination */}
+        {!loading && clients.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </div>
     </div>
   );
@@ -254,7 +335,7 @@ const Clients = () => {
 const styles = {
   container: {
     minHeight: 'calc(100vh - 80px)',
-    backgroundColor: '#ecf0f1',
+    backgroundColor: 'var(--bg-primary, #f0fdfd)',
     padding: '2rem',
   },
   content: {
@@ -269,16 +350,18 @@ const styles = {
   },
   title: {
     fontSize: '2rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
   },
   addButton: {
-    backgroundColor: '#27ae60',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.75rem 1.5rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   searchBar: {
     display: 'flex',
@@ -288,18 +371,20 @@ const styles = {
   searchInput: {
     flex: 1,
     padding: '0.75rem',
-    border: '1px solid #bdc3c7',
-    borderRadius: '4px',
+    border: '1px solid var(--border-medium, #d1d5db)',
+    borderRadius: '8px',
     fontSize: '1rem',
   },
   searchButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.75rem 1.5rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   formOverlay: {
     position: 'fixed',
@@ -314,17 +399,18 @@ const styles = {
     zIndex: 1000,
   },
   formContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: 'var(--surface, #fff)',
     padding: '2rem',
-    borderRadius: '8px',
+    borderRadius: '12px',
     width: '90%',
     maxWidth: '500px',
     maxHeight: '90vh',
     overflow: 'auto',
+    boxShadow: 'var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1))',
   },
   formTitle: {
     fontSize: '1.5rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
     marginBottom: '1.5rem',
   },
   form: {
@@ -338,19 +424,19 @@ const styles = {
   },
   label: {
     marginBottom: '0.5rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
     fontWeight: '500',
   },
   input: {
     padding: '0.75rem',
-    border: '1px solid #bdc3c7',
-    borderRadius: '4px',
+    border: '1px solid var(--border-medium, #d1d5db)',
+    borderRadius: '8px',
     fontSize: '1rem',
   },
   textarea: {
     padding: '0.75rem',
-    border: '1px solid #bdc3c7',
-    borderRadius: '4px',
+    border: '1px solid var(--border-medium, #d1d5db)',
+    borderRadius: '8px',
     fontSize: '1rem',
     resize: 'vertical',
   },
@@ -361,23 +447,27 @@ const styles = {
   },
   submitButton: {
     flex: 1,
-    backgroundColor: '#27ae60',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.75rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#95a5a6',
+    backgroundColor: 'var(--gray-400, #9ca3af)',
     color: '#fff',
     padding: '0.75rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   error: {
     backgroundColor: '#e74c3c',
@@ -393,17 +483,18 @@ const styles = {
     color: '#7f8c8d',
   },
   tableContainer: {
-    backgroundColor: '#fff',
-    borderRadius: '8px',
+    backgroundColor: 'var(--surface, #fff)',
+    borderRadius: '12px',
     overflow: 'hidden',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    boxShadow: 'var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05))',
+    border: '1px solid var(--border-light, #e5e7eb)',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
   },
   th: {
-    backgroundColor: '#34495e',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '1rem',
     textAlign: 'left',
@@ -411,7 +502,7 @@ const styles = {
   },
   td: {
     padding: '1rem',
-    borderBottom: '1px solid #ecf0f1',
+    borderBottom: '1px solid var(--border-light, #e5e7eb)',
   },
   noData: {
     textAlign: 'center',
@@ -419,21 +510,27 @@ const styles = {
     color: '#7f8c8d',
   },
   editButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.5rem 1rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     marginRight: '0.5rem',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   deleteButton: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: 'var(--error, #ef4444)',
     color: '#fff',
     padding: '0.5rem 1rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
 };
 

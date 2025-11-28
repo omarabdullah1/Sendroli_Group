@@ -1,9 +1,45 @@
 const rateLimit = require('express-rate-limit');
 
+/**
+ * Rate Limit Configuration
+ * 
+ * Rate limits are configurable via environment variables:
+ * - RATE_LIMIT_API_MAX: Maximum API requests per window (default: 1000 per 15 minutes)
+ * - RATE_LIMIT_API_WINDOW: API rate limit window in milliseconds (default: 15 minutes)
+ * - RATE_LIMIT_SEARCH_MAX: Maximum search requests per window (default: 200 per minute)
+ * - RATE_LIMIT_SEARCH_WINDOW: Search rate limit window in milliseconds (default: 1 minute)
+ * - RATE_LIMIT_ADMIN_MAX: Maximum admin operations per window (default: 50 per minute)
+ * - RATE_LIMIT_ADMIN_WINDOW: Admin rate limit window in milliseconds (default: 1 minute)
+ * 
+ * Default Limits (generous for normal usage):
+ * - General API: 1000 requests per 15 minutes
+ * - Search: 200 requests per minute
+ * - Admin: 50 operations per minute
+ * - Auth: 5 login attempts per 15 minutes (unchanged for security)
+ * - Password: 3 attempts per hour (unchanged for security)
+ */
+const RATE_LIMIT_CONFIG = {
+  API_MAX: parseInt(process.env.RATE_LIMIT_API_MAX) || 1000, // Default: 1000 requests per 15 minutes
+  API_WINDOW: parseInt(process.env.RATE_LIMIT_API_WINDOW) || 15 * 60 * 1000, // Default: 15 minutes
+  SEARCH_MAX: parseInt(process.env.RATE_LIMIT_SEARCH_MAX) || 200, // Default: 200 requests per minute
+  SEARCH_WINDOW: parseInt(process.env.RATE_LIMIT_SEARCH_WINDOW) || 60 * 1000, // Default: 1 minute
+  ADMIN_MAX: parseInt(process.env.RATE_LIMIT_ADMIN_MAX) || 50, // Default: 50 requests per minute
+  ADMIN_WINDOW: parseInt(process.env.RATE_LIMIT_ADMIN_WINDOW) || 60 * 1000, // Default: 1 minute
+};
+
+// Log rate limit configuration on module load (in development)
+if (process.env.NODE_ENV === 'development') {
+  console.log('📊 Rate Limit Configuration:');
+  console.log(`   - General API: ${RATE_LIMIT_CONFIG.API_MAX} requests per ${RATE_LIMIT_CONFIG.API_WINDOW / 60000} minutes`);
+  console.log(`   - Search: ${RATE_LIMIT_CONFIG.SEARCH_MAX} requests per ${RATE_LIMIT_CONFIG.SEARCH_WINDOW / 1000} seconds`);
+  console.log(`   - Admin: ${RATE_LIMIT_CONFIG.ADMIN_MAX} operations per ${RATE_LIMIT_CONFIG.ADMIN_WINDOW / 1000} seconds`);
+}
+
 // General API rate limiting - applies to all API routes
+// Increased limits to accommodate higher usage
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
+  windowMs: RATE_LIMIT_CONFIG.API_WINDOW,
+  max: RATE_LIMIT_CONFIG.API_MAX, // Limit each IP to requests per window (configurable, default: 1000)
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again later.',
@@ -76,8 +112,8 @@ const passwordLimiter = rateLimit({
 
 // Conservative rate limiting for user creation (admin operations)
 const adminLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 10, // 10 admin operations per minute
+  windowMs: RATE_LIMIT_CONFIG.ADMIN_WINDOW,
+  max: RATE_LIMIT_CONFIG.ADMIN_MAX, // Admin operations per minute (configurable, default: 50)
   message: {
     success: false,
     message: 'Too many administrative operations, please slow down.',
@@ -96,9 +132,35 @@ const adminLimiter = rateLimit({
   }
 });
 
+// More lenient rate limiting for search endpoints
+// Allows more frequent searches since they're debounced on the frontend
+const searchLimiter = rateLimit({
+  windowMs: RATE_LIMIT_CONFIG.SEARCH_WINDOW,
+  max: RATE_LIMIT_CONFIG.SEARCH_MAX, // Search requests per minute (configurable, default: 200)
+  message: {
+    success: false,
+    message: 'Too many search requests. Please wait a moment before searching again.',
+    error: 'SEARCH_RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.warn(`Search rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
+    res.status(429).json({
+      success: false,
+      message: 'Too many search requests. Please wait a moment before searching again.',
+      error: 'SEARCH_RATE_LIMIT_EXCEEDED',
+      retryAfter: Math.round(req.rateLimit.resetTime / 1000)
+    });
+  },
+  // Skip rate limiting if no search query parameter
+  skip: (req) => !req.query.search || req.query.search.trim() === ''
+});
+
 module.exports = {
   apiLimiter,
   authLimiter,
   passwordLimiter,
-  adminLimiter
+  adminLimiter,
+  searchLimiter
 };

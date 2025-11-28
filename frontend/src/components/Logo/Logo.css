@@ -1,0 +1,182 @@
+/* Logo Component Styles */
+
+/* Base logo styles */
+.logo-icon,
+.logo-text,
+.logo-full {
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.logo-icon:hover,
+.logo-text:hover,
+.logo-full:hover {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+/* Logo SVG image styles */
+.logo-svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Icon Logo Styles */
+.logo-icon {
+  display: inline-block;
+}
+
+.logo-icon.small {
+  width: 30px;
+  height: 30px;
+}
+
+.logo-icon.medium {
+  width: 50px;
+  height: 50px;
+}
+
+.logo-icon.large {
+  width: 80px;
+  height: 80px;
+}
+
+/* Text Logo Styles */
+.logo-text {
+  display: inline-block;
+}
+
+.logo-text.small {
+  width: 150px;
+  height: 30px;
+}
+
+.logo-text.medium {
+  width: 200px;
+  height: 40px;
+}
+
+.logo-text.large {
+  width: 300px;
+  height: 60px;
+}
+
+/* Full Logo Styles */
+.logo-full {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-full.small {
+  height: 30px;
+}
+
+.logo-full.medium {
+  height: 50px;
+}
+
+.logo-full.large {
+  height: 70px;
+}
+
+.logo-full .logo-icon-part {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-full.small .logo-icon-part {
+  width: 30px;
+  height: 30px;
+}
+
+.logo-full.medium .logo-icon-part {
+  width: 40px;
+  height: 40px;
+}
+
+.logo-full.large .logo-icon-part {
+  width: 50px;
+  height: 50px;
+}
+
+.logo-full .logo-text-part {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-full.small .logo-text-part {
+  width: 120px;
+  height: 25px;
+}
+
+.logo-full.medium .logo-text-part {
+  width: 55px;
+  height: 75px;
+}
+
+.logo-full.large .logo-text-part {
+  width: 200px;
+  height: 40px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .logo-full {
+    gap: 8px;
+  }
+
+  .logo-full.large {
+    height: 50px;
+  }
+
+  .logo-full.large .logo-icon-part {
+    width: 40px;
+    height: 40px;
+  }
+
+  .logo-full.large .logo-text-part {
+    width: 150px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo-full.medium {
+    height: 40px;
+  }
+
+  .logo-full.medium .logo-icon-part {
+    width: 30px;
+    height: 30px;
+  }
+
+  .logo-full.medium .logo-text-part {
+    width: 120px;
+    height: 25px;
+  }
+}
+
+/* Accessibility */
+.logo-icon:focus,
+.logo-text:focus,
+.logo-full:focus {
+  outline: 2px solid #2c5aa0;
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .logo-icon,
+  .logo-text,
+  .logo-full {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

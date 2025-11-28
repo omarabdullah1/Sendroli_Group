@@ -225,3 +225,131 @@ exports.deleteClient = async (req, res) => {
     });
   }
 };
+
+// @desc    Get client financial report (orders, invoices, payments)
+// @route   GET /api/clients/:id/report
+// @access  Private (Admin, Financial, Receptionist)
+exports.getClientReport = async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const Order = require('../models/Order');
+    const Invoice = require('../models/Invoice');
+
+    // Get client
+    const client = await Client.findById(clientId);
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: 'Client not found',
+      });
+    }
+
+    // Get all orders for this client (both standalone and invoice-based)
+    const orders = await Order.find({
+      $or: [
+        { client: clientId },
+        { 'clientSnapshot.name': client.name }
+      ]
+    })
+      .populate('material', 'name')
+      .sort({ createdAt: -1 });
+
+    // Get all invoices for this client
+    const invoices = await Invoice.find({
+      client: clientId
+    })
+      .populate('orders')
+      .sort({ createdAt: -1 });
+
+    // Calculate statistics
+    const totalOrders = orders.length;
+    const totalInvoices = invoices.length;
+    
+    // Total from all orders
+    const totalOrderAmount = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+    const totalDeposits = orders.reduce((sum, order) => sum + (order.deposit || 0), 0);
+    const totalRemaining = orders.reduce((sum, order) => sum + (order.remainingAmount || 0), 0);
+
+    // Total from invoices
+    const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const totalInvoicePaid = invoices
+      .filter(inv => inv.status === 'paid')
+      .reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const totalInvoiceRemaining = invoices.reduce((sum, inv) => sum + (inv.totalRemaining || 0), 0);
+
+    // Orders by status
+    const ordersByStatus = {
+      pending: orders.filter(o => o.orderState === 'pending').length,
+      active: orders.filter(o => o.orderState === 'active').length,
+      done: orders.filter(o => o.orderState === 'done').length,
+      delivered: orders.filter(o => o.orderState === 'delivered').length,
+    };
+
+    // Invoices by status
+    const invoicesByStatus = {
+      draft: invoices.filter(inv => inv.status === 'draft').length,
+      sent: invoices.filter(inv => inv.status === 'sent').length,
+      paid: invoices.filter(inv => inv.status === 'paid').length,
+      cancelled: invoices.filter(inv => inv.status === 'cancelled').length,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        client: {
+          _id: client._id,
+          name: client.name,
+          phone: client.phone,
+          factoryName: client.factoryName,
+          address: client.address,
+        },
+        summary: {
+          totalOrders,
+          totalInvoices,
+          totalOrderAmount,
+          totalDeposits,
+          totalRemaining,
+          totalInvoiceAmount,
+          totalInvoicePaid,
+          totalInvoiceRemaining,
+          totalPaid: totalDeposits + totalInvoicePaid,
+          totalOwed: totalRemaining + totalInvoiceRemaining,
+        },
+        ordersByStatus,
+        invoicesByStatus,
+        orders: orders.map(order => ({
+          _id: order._id,
+          type: order.type,
+          material: order.material,
+          orderSize: order.orderSize,
+          totalPrice: order.totalPrice,
+          deposit: order.deposit,
+          remainingAmount: order.remainingAmount,
+          orderState: order.orderState,
+          createdAt: order.createdAt,
+          invoice: order.invoice,
+          clientName: order.clientName || order.clientSnapshot?.name,
+        })),
+        invoices: invoices.map(invoice => ({
+          _id: invoice._id,
+          invoiceDate: invoice.invoiceDate,
+          subtotal: invoice.subtotal,
+          tax: invoice.tax,
+          shipping: invoice.shipping,
+          discount: invoice.discount,
+          total: invoice.total,
+          totalRemaining: invoice.totalRemaining,
+          status: invoice.status,
+          createdAt: invoice.createdAt,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Get client report error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating client report',
+      error: error.message,
+    });
+  }
+};

@@ -10,13 +10,33 @@
   --primary-dark: #2d2d2d;
   --primary-white: #ffffff;
   
-  /* Accent Colors for Enterprise UI */
+  /* Sendroli Group Brand Colors (from Logo & Business Card) */
+  --primary-teal: #00CED1;        /* Main teal/green from business card */
+  --primary-teal-dark: #0099CC;   /* Darker teal */
+  --primary-teal-light: #20E0E3;  /* Lighter teal */
+  --primary-teal-lighter: #B0E0E6; /* Very light teal */
+  --primary-black: #000000;       /* Black from logo */
+  --primary-white: #FFFFFF;        /* White from logo */
+  
+  /* Accent Colors from Business Card */
+  --accent-orange: #FF6B35;       /* Orange from printing illustration */
+  --accent-red: #FF6B9D;          /* Red/pink from printing illustration */
+  --accent-blue: #4A90E2;         /* Blue from material rolls */
+  
+  /* Legacy Accent Colors (kept for compatibility) */
   --accent-gold: #d4af37;
   --accent-gold-light: #e8c968;
-  --accent-red: #dc2626;
-  --accent-green: #059669;
-  --accent-blue: #2563eb;
-  --accent-orange: #ea580c;
+  --accent-red-legacy: #dc2626;
+  --accent-green: #00CED1;        /* Using teal as green */
+  --accent-blue-legacy: #2563eb;
+  
+  /* Theme Colors (using teal as primary) */
+  --theme-primary: var(--primary-teal);
+  --theme-primary-dark: var(--primary-teal-dark);
+  --theme-primary-light: var(--primary-teal-light);
+  --theme-primary-lighter: var(--primary-teal-lighter);
+  --theme-bg: #f0fdfd;            /* Very light teal background */
+  --theme-bg-light: #e0fafa;      /* Light teal background */
   
   /* Neutral Shades */
   --gray-50: #f9fafb;
@@ -36,12 +56,12 @@
   --error: #ef4444;
   --info: #3b82f6;
   
-  /* Background & Surface */
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
+  /* Background & Surface - Unified Theme */
+  --bg-primary: var(--theme-bg);
+  --bg-secondary: var(--surface);
   --bg-dark: var(--primary-black);
   --surface: #ffffff;
-  --surface-hover: #f9fafb;
+  --surface-hover: var(--gray-100);
   
   /* Text Colors */
   --text-primary: #111827;
@@ -110,7 +130,7 @@
   /* Layout */
   --sidebar-width: 280px;
   --sidebar-collapsed-width: 80px;
-  --header-height: 64px;
+  --header-height: 80px; /* Increased to accommodate all header elements comfortably */
   --max-content-width: 1400px;
 }
 
@@ -170,7 +190,6 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
   padding: var(--space-3) var(--space-6);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
@@ -189,12 +208,12 @@ body {
 }
 
 .btn-primary {
-  background: var(--primary-black);
+  background: var(--theme-primary);
   color: var(--primary-white);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary-dark);
+  background: var(--theme-primary-dark);
   box-shadow: var(--shadow-md);
 }
 
@@ -206,25 +225,46 @@ body {
 
 .btn-secondary:hover:not(:disabled) {
   background: var(--gray-200);
+  border-color: var(--theme-primary);
+  color: var(--theme-primary);
 }
 
 .btn-accent {
-  background: var(--accent-gold);
+  background: var(--theme-primary-light);
   color: var(--primary-black);
 }
 
 .btn-accent:hover:not(:disabled) {
-  background: var(--accent-gold-light);
+  background: var(--theme-primary);
+  color: var(--primary-white);
   box-shadow: var(--shadow-md);
 }
 
 .btn-danger {
-  background: var(--accent-red);
+  background: var(--error);
   color: var(--primary-white);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #dc2626;
+}
+
+.btn-warning {
+  background: var(--warning);
+  color: var(--primary-white);
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.btn-success {
+  background: var(--success);
+  color: var(--primary-white);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #059669;
 }
 
 .btn-sm {

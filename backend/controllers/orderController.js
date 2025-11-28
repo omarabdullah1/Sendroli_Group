@@ -294,16 +294,16 @@ exports.updateOrder = async (req, res) => {
     // Role-based update restrictions
     const updateData = { ...req.body };
 
-    // Designer can update order details but NOT financial fields
+    // Designer can update order details and deposit, but NOT totalPrice
     if (isDesigner) {
-      // Remove all financial fields
+      // Remove totalPrice (can't change price directly, only via material)
       delete updateData.totalPrice;
-      delete updateData.deposit;
-      delete updateData.remainingAmount;
+      // Keep deposit - designers can now update deposits
+      // remainingAmount will be recalculated if needed
       delete updateData.client; // Can't change client
       delete updateData.invoice; // Can't change invoice
       
-      // Allowed fields for designers: size, repeats, status, designLink, notes, material
+      // Allowed fields for designers: size, repeats, status, designLink, notes, material, deposit
       const allowedFields = [
         'orderState', 
         'designLink', 
@@ -312,6 +312,7 @@ exports.updateOrder = async (req, res) => {
         'sheetHeight', 
         'repeats', 
         'notes',
+        'deposit', // Can now update deposit
         'clientName' // Can update client name display
       ];
       
@@ -349,7 +350,9 @@ exports.updateOrder = async (req, res) => {
                 updateData.totalPrice = materialDoc.sellingPrice;
               }
               
-              updateData.remainingAmount = updateData.totalPrice - (order.deposit || 0);
+              // Use updated deposit if provided, otherwise use existing deposit
+              const depositAmount = updateData.deposit !== undefined ? updateData.deposit : (order.deposit || 0);
+              updateData.remainingAmount = updateData.totalPrice - depositAmount;
             }
           }
         }
@@ -362,6 +365,20 @@ exports.updateOrder = async (req, res) => {
           success: false,
           message: 'Invalid order state',
         });
+      }
+      
+      // Validate deposit if being updated
+      if (updateData.deposit !== undefined) {
+        if (updateData.deposit < 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Deposit cannot be negative',
+          });
+        }
+        
+        // Recalculate remainingAmount if deposit is updated
+        const currentTotalPrice = updateData.totalPrice !== undefined ? updateData.totalPrice : order.totalPrice;
+        updateData.remainingAmount = currentTotalPrice - updateData.deposit;
       }
     }
 

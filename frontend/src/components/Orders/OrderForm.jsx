@@ -86,12 +86,13 @@ const OrderForm = () => {
           orderState: formData.status,
         };
       } 
-      // Designer can update orderState and designLink
+      // Designer can update orderState, designLink, and deposit
       else if (user.role === 'designer') {
         submitData = {
           orderState: formData.status,
           notes: formData.description,
           designLink: formData.designLink,
+          deposit: Number(formData.deposit),
         };
       }
       // Financial can update payments
@@ -242,7 +243,7 @@ const OrderForm = () => {
                 min="0"
                 step="0.01"
                 required
-                disabled={isEdit && (user.role === 'worker' || user.role === 'designer')}
+                disabled={isEdit && user.role === 'worker'}
               />
             </div>
 

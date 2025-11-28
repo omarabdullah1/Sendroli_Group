@@ -3,14 +3,19 @@ import PurchaseOrderForm from '../components/Purchases/PurchaseOrderForm';
 import { useAuth } from '../context/AuthContext';
 import { purchaseService } from '../services/purchaseService';
 import { supplierService } from '../services/supplierService';
+import SearchAndFilters from '../components/SearchAndFilters';
+import Pagination from '../components/Pagination';
+import Loading from '../components/Loading';
 import './Purchases.css';
 
 const Purchases = () => {
-  const [purchases, setPurchases] = useState([]);
+  const [allPurchases, setAllPurchases] = useState([]); // Store all fetched purchases
+  const [purchases, setPurchases] = useState([]); // Displayed purchases (filtered + paginated)
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState(null);
+  const [pagination, setPagination] = useState({ current: 1, pages: 1, total: 0 });
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -18,32 +23,118 @@ const Purchases = () => {
     page: 1,
     limit: 10
   });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   
   const { user } = useAuth();
 
   useEffect(() => {
     Promise.all([
-      fetchPurchases(),
+      fetchAllPurchases(),
       fetchSuppliers()
     ]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    fetchPurchases();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [filters.search, filters.status, filters.supplier, startDate, endDate]);
 
-  const fetchPurchases = async () => {
+  useEffect(() => {
+    applyFiltersAndPagination();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allPurchases, filters, startDate, endDate, currentPage]);
+
+  // Fetch all purchases once
+  const fetchAllPurchases = async () => {
     try {
       setLoading(true);
-      const response = await purchaseService.getAll(filters);
-      setPurchases(response.data.data.purchases);
+      const response = await purchaseService.getAll({ limit: 10000 });
+      setAllPurchases(response.data.data.purchases || []);
     } catch (error) {
       console.error('Error fetching purchases:', error);
+      setAllPurchases([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Apply filters and pagination on client-side
+  const applyFiltersAndPagination = () => {
+    try {
+      let filteredPurchases = [...allPurchases];
+      
+      // Search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredPurchases = filteredPurchases.filter(purchase => {
+          const purchaseNumber = purchase.purchaseNumber || '';
+          const supplierName = purchase.supplier?.name || '';
+          return (
+            purchaseNumber.toLowerCase().includes(searchLower) ||
+            supplierName.toLowerCase().includes(searchLower)
+          );
+        });
+      }
+      
+      // Status filter
+      if (filters.status) {
+        filteredPurchases = filteredPurchases.filter(purchase => 
+          purchase.status === filters.status
+        );
+      }
+      
+      // Supplier filter
+      if (filters.supplier) {
+        filteredPurchases = filteredPurchases.filter(purchase => 
+          purchase.supplier?._id === filters.supplier || purchase.supplier === filters.supplier
+        );
+      }
+      
+      // Date range filter
+      if (startDate || endDate) {
+        filteredPurchases = filteredPurchases.filter(purchase => {
+          const purchaseDate = new Date(purchase.createdAt || purchase.date || purchase.orderDate);
+          if (startDate && purchaseDate < new Date(startDate)) return false;
+          if (endDate && purchaseDate > new Date(endDate + 'T23:59:59')) return false;
+          return true;
+        });
+      }
+      
+      // Calculate pagination
+      const total = filteredPurchases.length;
+      const totalPages = Math.ceil(total / itemsPerPage) || 1;
+      setPagination({ 
+        current: currentPage, 
+        pages: totalPages, 
+        total: total 
+      });
+      
+      // Apply pagination
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedPurchases = filteredPurchases.slice(startIndex, endIndex);
+      
+      setPurchases(paginatedPurchases);
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      setPurchases([]);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      search: '',
+      status: '',
+      supplier: '',
+      page: 1,
+      limit: 10
+    });
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
   };
 
   const fetchSuppliers = async () => {
@@ -101,7 +192,7 @@ const Purchases = () => {
       
       setShowForm(false);
       setEditingPurchase(null);
-      fetchPurchases(); // Refresh the list
+      fetchAllPurchases(); // Refresh the list
     } catch (error) {
       throw new Error(error.response?.data?.message || error.message);
     }
@@ -120,7 +211,7 @@ const Purchases = () => {
 
     try {
       await purchaseService.update(purchaseId, { status: newStatus });
-      fetchPurchases(); // Refresh the list
+      fetchAllPurchases(); // Refresh the list
     } catch (error) {
       console.error('Error updating purchase status:', error);
     }
@@ -135,7 +226,7 @@ const Purchases = () => {
 
     try {
       await purchaseService.delete(purchaseId);
-      fetchPurchases(); // Refresh the list
+      fetchAllPurchases(); // Refresh the list
     } catch (error) {
       console.error('Error deleting purchase:', error);
       alert('Failed to delete purchase order. Please try again.');
@@ -145,10 +236,7 @@ const Purchases = () => {
   if (loading && purchases.length === 0) {
     return (
       <div className="purchases-page">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading purchases...</p>
-        </div>
+        <Loading message="Loading purchases..." />
       </div>
     );
   }
@@ -163,56 +251,36 @@ const Purchases = () => {
           </div>
           {user?.role === 'admin' && (
             <button className="btn btn-primary" onClick={handleCreatePurchase}>
-              <i className="icon-plus"></i> New Purchase Order
+              New Purchase Order
             </button>
           )}
         </div>
       </div>
 
       <div className="page-content">
-        <div className="filters-section">
-          <div className="filters-grid">
-            <div className="filter-group">
-              <label>Search Purchase Orders</label>
-              <input
-                type="text"
-                placeholder="Search by purchase number..."
-                value={filters.search}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value, page: 1 }))}
-                className="search-input"
-              />
-            </div>
-            
-            <div className="filter-group">
-              <label>Status</label>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
-              >
-                <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="ordered">Ordered</option>
-                <option value="received">Received</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            
-            <div className="filter-group">
-              <label>Supplier</label>
-              <select
-                value={filters.supplier}
-                onChange={(e) => setFilters(prev => ({ ...prev, supplier: e.target.value, page: 1 }))}
-              >
-                <option value="">All Suppliers</option>
-                {suppliers.map(supplier => (
-                  <option key={supplier._id} value={supplier._id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
+        {/* Search and Filters */}
+        <SearchAndFilters
+          searchValue={filters.search}
+          onSearchChange={(value) => setFilters(prev => ({ ...prev, search: value, page: 1 }))}
+          clients={suppliers.map(s => ({ _id: s._id, name: s.name }))} // Map suppliers as clients for the component
+          selectedClient={filters.supplier}
+          onClientChange={(value) => setFilters(prev => ({ ...prev, supplier: value, page: 1 }))}
+          states={[
+            { value: '', label: 'All Statuses' },
+            { value: 'pending', label: 'Pending' },
+            { value: 'ordered', label: 'Ordered' },
+            { value: 'received', label: 'Received' },
+            { value: 'cancelled', label: 'Cancelled' },
+          ]}
+          selectedState={filters.status}
+          onStateChange={(value) => setFilters(prev => ({ ...prev, status: value, page: 1 }))}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          onClearFilters={handleClearFilters}
+          searchPlaceholder="Search by purchase number..."
+        />
 
         <div className="purchases-table-section">
           <div className="table-container">
@@ -320,10 +388,21 @@ const Purchases = () => {
           
           {purchases.length === 0 && (
             <div className="empty-state">
-              <div className="empty-icon">📦</div>
+              {/* Empty state icon removed for unified design */}
               <h3>No purchase orders found</h3>
               <p>Start by creating your first purchase order.</p>
             </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && purchases.length > 0 && (
+            <Pagination
+              currentPage={pagination.current || currentPage}
+              totalPages={pagination.pages || 1}
+              totalItems={pagination.total || purchases.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
           )}
         </div>
       </div>

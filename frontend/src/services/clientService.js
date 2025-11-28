@@ -30,6 +30,12 @@ const clientService = {
     const response = await api.delete(`/clients/${id}`);
     return response.data;
   },
+
+  // Get client financial report
+  getClientReport: async (id) => {
+    const response = await api.get(`/clients/${id}/report`);
+    return response.data;
+  },
 };
 
 export default clientService;

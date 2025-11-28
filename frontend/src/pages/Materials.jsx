@@ -4,10 +4,14 @@ import MaterialList from '../components/Materials/MaterialList';
 import { useAuth } from '../context/AuthContext';
 import { materialService } from '../services/materialService';
 import { supplierService } from '../services/supplierService';
+import Loading from '../components/Loading';
+import SearchAndFilters from '../components/SearchAndFilters';
+import Pagination from '../components/Pagination';
 import './Materials.css';
 
 const Materials = () => {
-  const [materials, setMaterials] = useState([]);
+  const [allMaterials, setAllMaterials] = useState([]); // Store all fetched materials
+  const [materials, setMaterials] = useState([]); // Displayed materials (filtered + paginated)
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -20,39 +24,126 @@ const Materials = () => {
     page: 1,
     limit: 10
   });
+  const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   
   const { user } = useAuth();
 
   useEffect(() => {
     Promise.all([
-      fetchMaterials(),
+      fetchAllMaterials(),
       fetchSuppliers()
     ]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    fetchMaterials();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [filters.search, filters.category, filters.stockStatus, selectedSupplier, startDate, endDate]);
 
-  const fetchMaterials = async () => {
+  useEffect(() => {
+    applyFiltersAndPagination();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allMaterials, filters, selectedSupplier, startDate, endDate, currentPage]);
+
+  // Fetch all materials once
+  const fetchAllMaterials = async () => {
     try {
       setLoading(true);
-      const response = await materialService.getAll(filters);
-      const materialsList = response.data.data.materials;
-      console.log('Fetched materials list:', materialsList);
-      // Check if sellingPrice is included in the response
-      if (materialsList.length > 0) {
-        console.log('First material sellingPrice:', materialsList[0].sellingPrice);
-      }
-      setMaterials(materialsList);
-      setPagination(response.data.data.pagination);
+      const response = await materialService.getAll({ limit: 10000 });
+      setAllMaterials(response.data.data.materials || []);
     } catch (error) {
       console.error('Error fetching materials:', error);
+      setAllMaterials([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Apply filters and pagination on client-side
+  const applyFiltersAndPagination = () => {
+    try {
+      let filteredMaterials = [...allMaterials];
+      
+      // Search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredMaterials = filteredMaterials.filter(material => 
+          material.name?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Category filter
+      if (filters.category) {
+        filteredMaterials = filteredMaterials.filter(material => 
+          material.category === filters.category
+        );
+      }
+      
+      // Stock status filter
+      if (filters.stockStatus === 'low_stock') {
+        filteredMaterials = filteredMaterials.filter(material => 
+          material.currentStock <= material.minStockLevel
+        );
+      } else if (filters.stockStatus === 'out_of_stock') {
+        filteredMaterials = filteredMaterials.filter(material => 
+          material.currentStock <= 0
+        );
+      }
+      
+      // Supplier filter
+      if (selectedSupplier) {
+        filteredMaterials = filteredMaterials.filter(material => 
+          material.supplier?._id === selectedSupplier || material.supplier === selectedSupplier
+        );
+      }
+      
+      // Date range filter
+      if (startDate || endDate) {
+        filteredMaterials = filteredMaterials.filter(material => {
+          const materialDate = new Date(material.createdAt || material.date);
+          if (startDate && materialDate < new Date(startDate)) return false;
+          if (endDate && materialDate > new Date(endDate + 'T23:59:59')) return false;
+          return true;
+        });
+      }
+      
+      // Calculate pagination
+      const total = filteredMaterials.length;
+      const totalPages = Math.ceil(total / itemsPerPage) || 1;
+      setPagination({ 
+        current: currentPage, 
+        pages: totalPages, 
+        total: total 
+      });
+      
+      // Apply pagination
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedMaterials = filteredMaterials.slice(startIndex, endIndex);
+      
+      setMaterials(paginatedMaterials);
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      setMaterials([]);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      search: '',
+      category: '',
+      stockStatus: '',
+      page: 1,
+      limit: 10
+    });
+    setSelectedSupplier('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
   };
 
   const fetchSuppliers = async () => {
@@ -90,7 +181,7 @@ const Materials = () => {
     if (window.confirm('Are you sure you want to delete this material? This action cannot be undone.')) {
       try {
         await materialService.delete(materialId);
-        fetchMaterials();
+        fetchAllMaterials();
       } catch (error) {
         console.error('Error deleting material:', error);
         alert('Failed to delete material. Please try again.');
@@ -129,8 +220,8 @@ const Materials = () => {
     setFilters(prev => ({
       ...prev,
       [name]: value,
-      page: 1 // Reset to first page when filters change
     }));
+    // Page reset is handled by useEffect
   };
 
   const handlePageChange = (page) => {
@@ -150,10 +241,7 @@ const Materials = () => {
   if (loading && materials.length === 0) {
     return (
       <div className="materials-page">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading materials...</p>
-        </div>
+        <Loading message="Loading materials..." size="medium" />
       </div>
     );
   }
@@ -171,63 +259,58 @@ const Materials = () => {
               className="btn btn-primary"
               onClick={handleCreateMaterial}
             >
-              <i className="icon-plus"></i> Add Material
+              Add Material
             </button>
           )}
         </div>
       </div>
 
       <div className="page-content">
-        <div className="filters-section">
-          <div className="filters-grid">
-            <div className="filter-group">
-              <label>Search Materials</label>
-              <input
-                type="text"
-                placeholder="Search by material name..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="search-input"
-              />
-            </div>
-            
-            <div className="filter-group">
-              <label>Category</label>
-              <select
-                value={filters.category}
-                onChange={(e) => handleFilterChange('category', e.target.value)}
-              >
-                <option value="">All Categories</option>
-                <option value="paper">Paper</option>
-                <option value="ink">Ink</option>
-                <option value="chemicals">Chemicals</option>
-                <option value="packaging">Packaging</option>
-                <option value="tools">Tools</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            
-            <div className="filter-group">
-              <label>Stock Status</label>
-              <select
-                value={filters.stockStatus}
-                onChange={(e) => handleFilterChange('stockStatus', e.target.value)}
-              >
-                <option value="">All Stock Levels</option>
-                <option value="low_stock">Low Stock</option>
-                <option value="out_of_stock">Out of Stock</option>
-              </select>
-            </div>
-            
-            <div className="filter-actions">
-              <button 
-                className="btn btn-outline"
-                onClick={clearFilters}
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
+        {/* Search and Filters */}
+        <SearchAndFilters
+          searchValue={filters.search}
+          onSearchChange={(value) => handleFilterChange('search', value)}
+          clients={suppliers.map(s => ({ _id: s._id, name: s.name }))} // Map suppliers as clients
+          selectedClient={selectedSupplier}
+          onClientChange={setSelectedSupplier}
+          states={[
+            { value: '', label: 'All Categories' },
+            { value: 'paper', label: 'Paper' },
+            { value: 'ink', label: 'Ink' },
+            { value: 'chemicals', label: 'Chemicals' },
+            { value: 'packaging', label: 'Packaging' },
+            { value: 'tools', label: 'Tools' },
+            { value: 'other', label: 'Other' },
+          ]}
+          selectedState={filters.category}
+          onStateChange={(value) => handleFilterChange('category', value)}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          onClearFilters={handleClearFilters}
+          searchPlaceholder="Search by material name..."
+        />
+        
+        {/* Stock Status Filter (separate since it's specific to materials) */}
+        <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <label style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-primary, #111827)' }}>
+            Stock Status:
+          </label>
+          <select
+            value={filters.stockStatus}
+            onChange={(e) => handleFilterChange('stockStatus', e.target.value)}
+            style={{
+              padding: '0.5rem',
+              border: '1px solid var(--border-medium, #d1d5db)',
+              borderRadius: '8px',
+              fontSize: '1rem',
+            }}
+          >
+            <option value="">All Stock Levels</option>
+            <option value="low_stock">Low Stock</option>
+            <option value="out_of_stock">Out of Stock</option>
+          </select>
         </div>
 
         <div className="materials-stats">
@@ -257,36 +340,15 @@ const Materials = () => {
             userRole={user?.role}
           />
           
+          {/* Pagination */}
           {pagination.pages > 1 && (
-            <div className="pagination">
-              <button 
-                className="page-btn"
-                onClick={() => handlePageChange(pagination.current - 1)}
-                disabled={pagination.current === 1}
-              >
-                Previous
-              </button>
-              
-              <div className="page-numbers">
-                {[...Array(pagination.pages)].map((_, index) => (
-                  <button
-                    key={index + 1}
-                    className={`page-btn ${pagination.current === index + 1 ? 'active' : ''}`}
-                    onClick={() => handlePageChange(index + 1)}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-              </div>
-              
-              <button 
-                className="page-btn"
-                onClick={() => handlePageChange(pagination.current + 1)}
-                disabled={pagination.current === pagination.pages}
-              >
-                Next
-              </button>
-            </div>
+            <Pagination
+              currentPage={pagination.current}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => handleFilterChange('page', page)}
+            />
           )}
         </div>
       </div>

@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSidebar } from '../../context/SidebarContext';
+import Logo from '../Logo';
 import './Sidebar.css';
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
+  const { isOpen, isCollapsed, toggleCollapse, closeSidebar } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = isCollapsed;
   const [expandedSections, setExpandedSections] = useState({
     sales: true,
     inventory: true,
@@ -30,6 +33,20 @@ const Sidebar = () => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
+  // Close sidebar on mobile when clicking a link
+  useEffect(() => {
+    const handleLinkClick = () => {
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        closeSidebar();
+      }
+    };
+    
+    // Close sidebar when route changes on mobile
+    if (typeof window !== 'undefined' && window.innerWidth <= 768 && isOpen) {
+      handleLinkClick();
+    }
+  }, [location.pathname, isOpen, closeSidebar]);
+
   if (!user) {
     return null;
   }
@@ -40,7 +57,7 @@ const Sidebar = () => {
       {
         section: 'main',
         items: [
-          { path: '/', label: 'Dashboard', icon: '📊', roles: ['admin', 'receptionist', 'designer', 'worker', 'financial'] },
+          { path: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['admin', 'receptionist', 'designer', 'worker', 'financial'] },
         ],
       },
     ];
@@ -52,7 +69,7 @@ const Sidebar = () => {
       collapsible: true,
       items: [
         { path: '/clients', label: 'Clients', icon: '👥', roles: ['admin', 'receptionist'] },
-        { path: '/invoices', label: 'Invoices', icon: '📄', roles: ['admin', 'designer', 'worker', 'financial'] },
+        { path: '/invoices', label: 'Invoices', icon: '📄', roles: ['admin', 'designer', 'financial'] },
         { path: '/orders', label: 'Orders', icon: '📦', roles: ['admin', 'designer', 'worker', 'financial'] },
       ],
     };
@@ -77,6 +94,7 @@ const Sidebar = () => {
       collapsible: true,
       items: [
         { path: '/financial-stats', label: 'Financial Stats', icon: '💰', roles: ['admin', 'financial'] },
+        { path: '/client-reports', label: 'Client Reports', icon: '📊', roles: ['admin', 'financial', 'receptionist'] },
       ],
     };
 
@@ -87,6 +105,7 @@ const Sidebar = () => {
       collapsible: false,
       items: [
         { path: '/users', label: 'User Management', icon: '👤', roles: ['admin'] },
+        { path: '/website-settings', label: 'Website Settings', icon: '🌐', roles: ['admin'] },
       ],
     };
 
@@ -114,27 +133,28 @@ const Sidebar = () => {
   const menuItems = getMenuItems();
 
   return (
-    <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <>
+      {/* Mobile backdrop overlay */}
+      {isOpen && typeof window !== 'undefined' && window.innerWidth <= 768 && (
+        <div 
+          className="sidebar-backdrop" 
+          onClick={closeSidebar}
+          aria-hidden="true"
+        />
+      )}
+      
+      <div className={`sidebar ${collapsed ? 'collapsed' : ''} ${isOpen ? 'open' : ''}`}>
       {/* Logo & Brand */}
       <div className="sidebar-header">
-        <Link to="/" className="sidebar-brand">
+        <Link to="/dashboard" className="sidebar-brand">
           <div className="brand-logo">
-            <img src="/assets/logo.jpg" alt="Sendroli Group" className="logo-image" />
+            <Logo 
+              variant={collapsed ? 'icon' : 'full'} 
+              size="medium" 
+              alt="Sendroli Group" 
+            />
           </div>
-          {!collapsed && (
-            <div className="brand-text">
-              <span className="brand-name">Sendroli Group</span>
-              <span className="brand-tagline">Printing Services</span>
-            </div>
-          )}
         </Link>
-        <button
-          className="sidebar-toggle"
-          onClick={() => setCollapsed(!collapsed)}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? '→' : '←'}
-        </button>
       </div>
 
       {/* User Info */}
@@ -159,7 +179,6 @@ const Sidebar = () => {
                 className="section-header"
                 onClick={() => toggleSection(section.section)}
               >
-                <span className="section-icon">{section.icon}</span>
                 <span className="section-label">{section.label}</span>
                 <span className={`section-arrow ${expandedSections[section.section] ? 'expanded' : ''}`}>
                   ▼
@@ -183,7 +202,9 @@ const Sidebar = () => {
                       className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
                       title={collapsed ? item.label : ''}
                     >
-                      <span className="nav-icon">{item.icon}</span>
+                      {collapsed && item.icon && (
+                        <span className="nav-icon">{item.icon}</span>
+                      )}
                       {!collapsed && <span className="nav-label">{item.label}</span>}
                       {isActive(item.path) && <span className="active-indicator" />}
                     </Link>
@@ -194,14 +215,28 @@ const Sidebar = () => {
         ))}
       </nav>
 
-      {/* Logout Button */}
+      {/* Footer with Logout and Toggle */}
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={handleLogout} title={collapsed ? 'Logout' : ''}>
-          <span className="nav-icon">🚪</span>
+          {collapsed && <span className="logout-icon">🚪</span>}
           {!collapsed && <span>Logout</span>}
+        </button>
+        <button
+          className="sidebar-toggle"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleCollapse();
+          }}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          type="button"
+        >
+          {collapsed ? '→' : '←'}
         </button>
       </div>
     </div>
+    </>
   );
 };
 

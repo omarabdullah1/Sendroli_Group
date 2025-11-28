@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supplierService } from '../../services/supplierService';
+import { formatDateTime } from '../../utils/dateUtils';
+import Loading from '../Loading';
 import './SupplierList.css';
 
 const SupplierList = ({ onEdit, onDelete }) => {
@@ -88,10 +90,7 @@ const SupplierList = ({ onEdit, onDelete }) => {
   if (loading && suppliers.length === 0) {
     return (
       <div className="supplier-list">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading suppliers...</p>
-        </div>
+        <Loading message="Loading suppliers..." size="medium" />
       </div>
     );
   }
@@ -101,13 +100,18 @@ const SupplierList = ({ onEdit, onDelete }) => {
       {/* Search and Actions */}
       <div className="list-header">
         <div className="search-bar">
+          <div className="search-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7.33333 12.6667C10.2789 12.6667 12.6667 10.2789 12.6667 7.33333C12.6667 4.38781 10.2789 2 7.33333 2C4.38781 2 2 4.38781 2 7.33333C2 10.2789 4.38781 12.6667 7.33333 12.6667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M14 14L11.1 11.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
           <input
             type="text"
             placeholder="Search suppliers..."
             value={search}
             onChange={handleSearchChange}
           />
-          <i className="search-icon">🔍</i>
         </div>
         
         {selectedSuppliers.length > 0 && (
@@ -126,7 +130,7 @@ const SupplierList = ({ onEdit, onDelete }) => {
       {/* Suppliers Table */}
       {suppliers.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">📦</div>
+          {/* Empty state icon removed for unified design */}
           <h3>No suppliers found</h3>
           <p>Start by adding your first supplier to manage your inventory</p>
         </div>
@@ -143,6 +147,7 @@ const SupplierList = ({ onEdit, onDelete }) => {
                       onChange={handleSelectAll}
                     />
                   </th>
+                  <th>Date</th>
                   <th>Supplier</th>
                   <th>Contact</th>
                   <th>Materials</th>
@@ -161,6 +166,7 @@ const SupplierList = ({ onEdit, onDelete }) => {
                         onChange={() => handleSelectSupplier(supplier._id)}
                       />
                     </td>
+                    <td>{formatDateTime(supplier.createdAt || supplier.date)}</td>
                     <td>
                       <div className="supplier-info">
                         <h4>{supplier.name}</h4>
@@ -209,18 +215,18 @@ const SupplierList = ({ onEdit, onDelete }) => {
                     <td>
                       <div className="action-buttons">
                         <button
-                          className="btn btn-sm btn-outline"
+                          className="btn btn-sm btn-secondary"
                           onClick={() => onEdit(supplier)}
                           title="Edit supplier"
                         >
-                          ✏️
+                          Edit
                         </button>
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => onDelete(supplier)}
                           title="Delete supplier"
                         >
-                          🗑️
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -257,9 +263,9 @@ const SupplierList = ({ onEdit, onDelete }) => {
         </>
       )}
 
-      {loading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
+      {loading && suppliers.length > 0 && (
+        <div className="loading-overlay-wrapper">
+          <Loading size="small" />
         </div>
       )}
     </div>

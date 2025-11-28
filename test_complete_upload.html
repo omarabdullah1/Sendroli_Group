@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        img { max-width: 200px; max-height: 200px; margin: 10px 0; }
+        button { padding: 10px; margin: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Complete Image Upload Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Upload Endpoint Availability</h2>
+        <button onclick="testEndpoint()">Test Upload Endpoint</button>
+        <div id="endpoint-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Upload Image</h2>
+        <input type="file" id="imageFile" accept="image/*">
+        <button onclick="uploadImage()">Upload Image</button>
+        <div id="upload-result"></div>
+        <div id="image-preview"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Image Serving</h2>
+        <button onclick="testImageServing()">Test Latest Upload</button>
+        <div id="serving-result"></div>
+        <div id="served-image"></div>
+    </div>
+
+    <script>
+        let lastUploadedUrl = '';
+        
+        // Test if upload endpoint is reachable
+        async function testEndpoint() {
+            try {
+                const response = await fetch('http://localhost:5000/api/website/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer test-token' // This will fail but we test reachability
+                    }
+                });
+                
+                document.getElementById('endpoint-result').innerHTML = 
+                    `<span class="success">Endpoint reachable - Status: ${response.status}</span>`;
+            } catch (error) {
+                document.getElementById('endpoint-result').innerHTML = 
+                    `<span class="error">Endpoint unreachable: ${error.message}</span>`;
+            }
+        }
+        
+        // Upload image test
+        async function uploadImage() {
+            const fileInput = document.getElementById('imageFile');
+            if (!fileInput.files[0]) {
+                alert('Please select an image first');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/website/upload', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Authorization': 'Bearer your-token-here' // Replace with actual token
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    lastUploadedUrl = result.data.url;
+                    document.getElementById('upload-result').innerHTML = 
+                        `<span class="success">Upload successful! URL: ${result.data.url}</span>`;
+                    
+                    // Show preview
+                    document.getElementById('image-preview').innerHTML = 
+                        `<img src="http://localhost:5000${result.data.url}" alt="Uploaded image" />`;
+                } else {
+                    document.getElementById('upload-result').innerHTML = 
+                        `<span class="error">Upload failed: ${result.message}</span>`;
+                }
+            } catch (error) {
+                document.getElementById('upload-result').innerHTML = 
+                    `<span class="error">Upload error: ${error.message}</span>`;
+            }
+        }
+        
+        // Test image serving
+        async function testImageServing() {
+            if (!lastUploadedUrl) {
+                alert('No image uploaded yet');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:5000${lastUploadedUrl}`);
+                
+                if (response.ok) {
+                    document.getElementById('serving-result').innerHTML = 
+                        `<span class="success">Image serving works - Status: ${response.status}</span>`;
+                    
+                    // Force refresh with timestamp
+                    const timestamp = Date.now();
+                    document.getElementById('served-image').innerHTML = 
+                        `<img src="http://localhost:5000${lastUploadedUrl}?t=${timestamp}" alt="Served image" />`;
+                } else {
+                    document.getElementById('serving-result').innerHTML = 
+                        `<span class="error">Image serving failed - Status: ${response.status}</span>`;
+                }
+            } catch (error) {
+                document.getElementById('serving-result').innerHTML = 
+                    `<span class="error">Serving test error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

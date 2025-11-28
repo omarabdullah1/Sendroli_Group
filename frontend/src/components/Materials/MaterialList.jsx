@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../utils/dateUtils';
 import './MaterialList.css';
 
 const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
@@ -34,6 +35,7 @@ const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
         <table className="data-table">
           <thead>
             <tr>
+              <th>Date</th>
               <th>Material Name</th>
               <th>Category</th>
               <th>Current Stock</th>
@@ -50,6 +52,7 @@ const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
           <tbody>
             {materials.map(material => (
               <tr key={material._id}>
+                <td>{formatDateTime(material.createdAt || material.date)}</td>
                 <td className="material-name">{material.name}</td>
                 <td>
                   <span className="category-badge category-{material.category}">
@@ -82,14 +85,14 @@ const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
                         onClick={() => onEdit(material)}
                         title="Edit Material"
                       >
-                        <i className="icon-edit"></i> Edit
+                        Edit
                       </button>
                       <button 
                         className="btn btn-sm btn-danger"
                         onClick={() => onDelete(material._id)}
                         title="Delete Material"
                       >
-                        <i className="icon-trash"></i> Delete
+                        Delete
                       </button>
                     </div>
                   </td>
@@ -102,7 +105,7 @@ const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
       
       {materials.length === 0 && (
         <div className="empty-state">
-          <div className="empty-icon">📦</div>
+          {/* Empty state icon removed for unified design */}
           <h3>No materials found</h3>
           <p>Start by adding your first material to the inventory.</p>
         </div>

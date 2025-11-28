@@ -1,12 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/userService';
+import Loading from '../components/Loading';
+import SearchAndFilters from '../components/SearchAndFilters';
+import Pagination from '../components/Pagination';
+import { formatDateTime } from '../utils/dateUtils';
 
 const Users = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage] = useState(10);
+  const [allUsers, setAllUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
@@ -23,17 +37,72 @@ const Users = () => {
   const canAdd = user?.role === 'admin';
 
   useEffect(() => {
-    fetchUsers();
+    fetchAllUsers();
   }, []);
 
-  const fetchUsers = async () => {
+  useEffect(() => {
+    applyFilters();
+  }, [searchTerm, selectedRole, selectedStatus, startDate, endDate, currentPage, allUsers]);
+
+  const fetchAllUsers = async () => {
     try {
-      setLoading(true);
       const response = await userService.getUsers();
-      setUsers(response.data);
-      setError('');
+      setAllUsers(response.data || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch users');
+    }
+  };
+
+  const applyFilters = () => {
+    try {
+      setLoading(true);
+      let filteredUsers = [...allUsers];
+      
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        filteredUsers = filteredUsers.filter(user =>
+          user.username?.toLowerCase().includes(searchLower) ||
+          user.fullName?.toLowerCase().includes(searchLower) ||
+          user.email?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Role filter
+      if (selectedRole) {
+        filteredUsers = filteredUsers.filter(user => user.role === selectedRole);
+      }
+      
+      // Status filter
+      if (selectedStatus) {
+        const isActive = selectedStatus === 'active';
+        filteredUsers = filteredUsers.filter(user => user.isActive === isActive);
+      }
+      
+      // Date range filter
+      if (startDate || endDate) {
+        filteredUsers = filteredUsers.filter(user => {
+          const userDate = new Date(user.createdAt || user.date);
+          if (startDate && userDate < new Date(startDate)) return false;
+          if (endDate && userDate > new Date(endDate + 'T23:59:59')) return false;
+          return true;
+        });
+      }
+
+      // Calculate pagination
+      const total = filteredUsers.length;
+      setTotalItems(total);
+      setTotalPages(Math.ceil(total / itemsPerPage) || 1);
+
+      // Apply pagination
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+      
+      setUsers(paginatedUsers);
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to filter users');
     } finally {
       setLoading(false);
     }
@@ -43,7 +112,7 @@ const Users = () => {
     if (!canEdit) return;
     try {
       await userService.updateUser(userId, { isActive: !currentStatus });
-      fetchUsers();
+      fetchAllUsers();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to update user');
     }
@@ -67,7 +136,7 @@ const Users = () => {
       setShowForm(false);
       setEditingUser(null);
       setFormData({ username: '', fullName: '', email: '', role: 'receptionist', password: '' });
-      fetchUsers();
+      fetchAllUsers();
     } catch (err) {
       alert(err.response?.data?.message || 'Operation failed');
     }
@@ -91,11 +160,20 @@ const Users = () => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
         await userService.deleteUser(userId);
-        fetchUsers();
+        fetchAllUsers();
       } catch (err) {
         alert(err.response?.data?.message || 'Failed to delete user');
       }
     }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedRole('');
+    setSelectedStatus('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
   };
 
   const handleCancel = () => {
@@ -114,6 +192,51 @@ const Users = () => {
               Add New User
             </button>
           )}
+        </div>
+
+        {/* Search and Filters */}
+        <SearchAndFilters
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          clients={[]}
+          showClientFilter={false}
+          states={[
+            { value: '', label: 'All Roles' },
+            { value: 'admin', label: 'Admin' },
+            { value: 'receptionist', label: 'Receptionist' },
+            { value: 'designer', label: 'Designer' },
+            { value: 'worker', label: 'Worker' },
+            { value: 'financial', label: 'Financial' },
+          ]}
+          selectedState={selectedRole}
+          onStateChange={setSelectedRole}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          onClearFilters={handleClearFilters}
+          searchPlaceholder="Search by username, name, or email..."
+        />
+        
+        {/* Status Filter (separate since it's not a state but a boolean) */}
+        <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <label style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-primary, #111827)' }}>
+            Status:
+          </label>
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            style={{
+              padding: '0.5rem',
+              border: '1px solid var(--border-medium, #d1d5db)',
+              borderRadius: '8px',
+              fontSize: '1rem',
+            }}
+          >
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
 
         {showForm && (
@@ -199,12 +322,13 @@ const Users = () => {
         {error && <div style={styles.error}>{error}</div>}
 
         {loading ? (
-          <div style={styles.loading}>Loading...</div>
+          <Loading message="Loading users..." size="medium" />
         ) : (
           <div style={styles.tableContainer}>
             <table style={styles.table}>
               <thead>
                 <tr>
+                  <th style={styles.th}>Date</th>
                   <th style={styles.th}>Username</th>
                   <th style={styles.th}>Full Name</th>
                   <th style={styles.th}>Email</th>
@@ -223,6 +347,7 @@ const Users = () => {
                 ) : (
                   users.map((user) => (
                     <tr key={user._id}>
+                      <td style={styles.td}>{formatDateTime(user.createdAt || user.date)}</td>
                       <td style={styles.td}>{user.username}</td>
                       <td style={styles.td}>{user.fullName}</td>
                       <td style={styles.td}>{user.email || '-'}</td>
@@ -264,6 +389,17 @@ const Users = () => {
             </table>
           </div>
         )}
+
+        {/* Pagination */}
+        {!loading && users.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </div>
     </div>
   );
@@ -302,7 +438,7 @@ const getStatusStyle = (isActive) => {
 const styles = {
   container: {
     minHeight: 'calc(100vh - 80px)',
-    backgroundColor: '#ecf0f1',
+    backgroundColor: 'var(--bg-primary, #f0fdfd)',
     padding: '2rem',
   },
   content: {
@@ -317,16 +453,18 @@ const styles = {
   },
   title: {
     fontSize: '2rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
   },
   addButton: {
-    backgroundColor: '#27ae60',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.75rem 1.5rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   formOverlay: {
     position: 'fixed',
@@ -341,17 +479,18 @@ const styles = {
     zIndex: 1000,
   },
   formContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: 'var(--surface, #fff)',
     padding: '2rem',
-    borderRadius: '8px',
+    borderRadius: '12px',
     width: '90%',
     maxWidth: '500px',
     maxHeight: '90vh',
     overflow: 'auto',
+    boxShadow: 'var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1))',
   },
   formTitle: {
     fontSize: '1.5rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
     marginBottom: '1.5rem',
   },
   form: {
@@ -365,13 +504,13 @@ const styles = {
   },
   label: {
     marginBottom: '0.5rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
     fontWeight: '500',
   },
   input: {
     padding: '0.75rem',
-    border: '1px solid #bdc3c7',
-    borderRadius: '4px',
+    border: '1px solid var(--border-medium, #d1d5db)',
+    borderRadius: '8px',
     fontSize: '1rem',
   },
   formButtons: {
@@ -381,23 +520,27 @@ const styles = {
   },
   submitButton: {
     flex: 1,
-    backgroundColor: '#27ae60',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.75rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#95a5a6',
+    backgroundColor: 'var(--gray-400, #9ca3af)',
     color: '#fff',
     padding: '0.75rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   error: {
     backgroundColor: '#e74c3c',
@@ -413,17 +556,18 @@ const styles = {
     color: '#7f8c8d',
   },
   tableContainer: {
-    backgroundColor: '#fff',
-    borderRadius: '8px',
+    backgroundColor: 'var(--surface, #fff)',
+    borderRadius: '12px',
     overflow: 'hidden',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    boxShadow: 'var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05))',
+    border: '1px solid var(--border-light, #e5e7eb)',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
   },
   th: {
-    backgroundColor: '#34495e',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '1rem',
     textAlign: 'left',
@@ -431,7 +575,7 @@ const styles = {
   },
   td: {
     padding: '1rem',
-    borderBottom: '1px solid #ecf0f1',
+    borderBottom: '1px solid var(--border-light, #e5e7eb)',
   },
   noData: {
     textAlign: 'center',
@@ -439,39 +583,51 @@ const styles = {
     color: '#7f8c8d',
   },
   activateButton: {
-    backgroundColor: '#27ae60',
+    backgroundColor: 'var(--success, #10b981)',
     color: '#fff',
     padding: '0.5rem 1rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     marginRight: '0.5rem',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   deactivateButton: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: 'var(--error, #ef4444)',
     color: '#fff',
     padding: '0.5rem 1rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     marginRight: '0.5rem',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   editButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.5rem 1rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     marginRight: '0.5rem',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   deleteButton: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: 'var(--error, #ef4444)',
     color: '#fff',
     padding: '0.5rem 1rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
 };
 

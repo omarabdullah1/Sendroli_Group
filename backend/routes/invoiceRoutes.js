@@ -10,16 +10,25 @@ const {
 } = require('../controllers/invoiceController');
 
 const { protect, authorize } = require('../middleware/auth');
+const { searchLimiter } = require('../middleware/rateLimiter');
 
 // Protect all routes
 router.use(protect);
+
+// Apply search limiter conditionally for GET requests with search parameter
+const conditionalSearchLimiter = (req, res, next) => {
+  if (req.method === 'GET' && req.query.search && req.query.search.trim() !== '') {
+    return searchLimiter(req, res, next);
+  }
+  next();
+};
 
 // Stats route (must be before :id route)
 router.get('/stats', authorize('admin'), getInvoiceStats);
 
 // Invoice CRUD routes
 router.route('/')
-  .get(getInvoices)
+  .get(conditionalSearchLimiter, getInvoices)
   .post(authorize('admin', 'worker', 'designer'), createInvoice);
 
 router.route('/:id')

@@ -2,8 +2,8 @@ import axios from 'axios';
 
 // Base URL
 // For local development, fallback to localhost
-// In Vercel preview or production, set REACT_APP_API_URL in environment variables
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// In Vercel preview or production, set VITE_API_URL in environment variables
+const API_URL = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 // Debug: Log the API URL being used
 console.log('🔧 API Base URL:', API_URL);
@@ -34,10 +34,17 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     // Unauthorized - clear local storage and redirect to login
+    // But only if we're not on a public page
     if (error.response?.status === 401) {
+      const currentPath = window.location.pathname;
+      const publicRoutes = ['/', '/login', '/unauthorized'];
+      const isPublicRoute = publicRoutes.includes(currentPath);
+      
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      if (window.location.pathname !== '/login') {
+      
+      // Only redirect to login if we're on a protected route
+      if (!isPublicRoute && currentPath !== '/login') {
         window.location.href = '/login';
       }
     }
