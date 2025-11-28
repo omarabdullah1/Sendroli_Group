@@ -2,31 +2,134 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import invoiceService from '../../services/invoiceService';
+import clientService from '../../services/clientService';
+import Loading from '../Loading';
+import SearchAndFilters from '../SearchAndFilters';
+import Pagination from '../Pagination';
 import './Invoices.css';
 
 const InvoiceList = () => {
-  const [invoices, setInvoices] = useState([]);
+  const [allInvoices, setAllInvoices] = useState([]); // Store all fetched invoices
+  const [invoices, setInvoices] = useState([]); // Displayed invoices (filtered + paginated)
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage] = useState(10);
   const { user } = useAuth();
 
   useEffect(() => {
-    loadInvoices();
-  }, [filter]);
+    fetchClients();
+    fetchAllInvoices();
+  }, []);
 
-  const loadInvoices = async () => {
+  useEffect(() => {
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [selectedStatus, selectedClient, startDate, endDate, searchTerm]);
+
+  useEffect(() => {
+    applyFiltersAndPagination();
+  }, [allInvoices, selectedStatus, selectedClient, startDate, endDate, searchTerm, currentPage]);
+
+  const fetchClients = async () => {
     try {
-      const params = filter ? { status: filter } : {};
-      const response = await invoiceService.getInvoices(params);
-      const data = response.data || [];
-      setInvoices(data);
+      const response = await clientService.getClients();
+      setClients(response.data || []);
+    } catch (err) {
+      console.error('Failed to fetch clients:', err);
+    }
+  };
+
+  // Fetch all invoices once
+  const fetchAllInvoices = async () => {
+    try {
+      setLoading(true);
+      const response = await invoiceService.getInvoices({ limit: 10000 });
+      setAllInvoices(response.data || []);
+      setError('');
     } catch (err) {
       setError('Failed to load invoices');
       console.error(err);
+      setAllInvoices([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Apply filters and pagination on client-side
+  const applyFiltersAndPagination = () => {
+    try {
+      let filteredInvoices = [...allInvoices];
+      
+      // Status filter
+      if (selectedStatus) {
+        filteredInvoices = filteredInvoices.filter(invoice => 
+          invoice.status === selectedStatus
+        );
+      }
+      
+      // Client filter
+      if (selectedClient) {
+        filteredInvoices = filteredInvoices.filter(invoice =>
+          invoice.client?._id === selectedClient || 
+          invoice.clientSnapshot?.name?.toLowerCase().includes(selectedClient.toLowerCase())
+        );
+      }
+      
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        filteredInvoices = filteredInvoices.filter(invoice => {
+          const invoiceNumber = invoice.invoiceNumber || invoice._id?.slice(-6) || '';
+          const clientName = invoice.client?.name || invoice.clientSnapshot?.name || '';
+          return (
+            invoiceNumber.toLowerCase().includes(searchLower) ||
+            clientName.toLowerCase().includes(searchLower)
+          );
+        });
+      }
+      
+      // Date range filter
+      if (startDate || endDate) {
+        filteredInvoices = filteredInvoices.filter(invoice => {
+          const invoiceDate = new Date(invoice.invoiceDate || invoice.createdAt);
+          if (startDate && invoiceDate < new Date(startDate)) return false;
+          if (endDate && invoiceDate > new Date(endDate + 'T23:59:59')) return false;
+          return true;
+        });
+      }
+
+      // Calculate pagination
+      const total = filteredInvoices.length;
+      setTotalItems(total);
+      setTotalPages(Math.ceil(total / itemsPerPage) || 1);
+      
+      // Apply pagination
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
+
+      setInvoices(paginatedInvoices);
+    } catch (err) {
+      console.error('Error applying filters:', err);
+      setInvoices([]);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedClient('');
+    setSelectedStatus('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
   };
 
   const handleDelete = async (id) => {
@@ -36,7 +139,7 @@ const InvoiceList = () => {
 
     try {
       await invoiceService.deleteInvoice(id);
-      setInvoices(invoices.filter((invoice) => invoice._id !== id));
+      fetchAllInvoices(); // Reload all data
     } catch (err) {
       setError('Failed to delete invoice');
       console.error(err);
@@ -52,30 +155,61 @@ const InvoiceList = () => {
     });
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '-';
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch (error) {
+      return '-';
+    }
+  };
+
+  if (loading) return <Loading message="Loading invoices..." size="medium" />;
   if (error) return <div className="error">{error}</div>;
 
   return (
     <div className="invoice-list">
       <div className="list-header">
         <h1>Invoices</h1>
-        {['admin', 'worker', 'designer'].includes(user?.role) && (
+        {['admin', 'designer'].includes(user?.role) && (
           <Link to="/invoices/new" className="btn-primary">
             Add Invoice
           </Link>
         )}
       </div>
 
-      <div className="filter-bar">
-        <label>Filter by status:</label>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="">All</option>
-          <option value="draft">Draft</option>
-          <option value="sent">Sent</option>
-          <option value="paid">Paid</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
+      {/* Search and Filters */}
+      <SearchAndFilters
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        clients={clients}
+        selectedClient={selectedClient}
+        onClientChange={setSelectedClient}
+        states={[
+          { value: '', label: 'All Status' },
+          { value: 'draft', label: 'Draft' },
+          { value: 'sent', label: 'Sent' },
+          { value: 'paid', label: 'Paid' },
+          { value: 'cancelled', label: 'Cancelled' },
+        ]}
+        selectedState={selectedStatus}
+        onStateChange={setSelectedStatus}
+        startDate={startDate}
+        onStartDateChange={setStartDate}
+        endDate={endDate}
+        onEndDateChange={setEndDate}
+        onClearFilters={handleClearFilters}
+        searchPlaceholder="Search by invoice number or client name..."
+      />
 
       {invoices.length === 0 ? (
         <div className="empty-state">
@@ -89,6 +223,7 @@ const InvoiceList = () => {
                 <th>Invoice #</th>
                 <th>Client</th>
                 <th>Date</th>
+                <th>Created</th>
                 <th>Orders</th>
                 <th>Subtotal</th>
                 <th>Total</th>
@@ -103,6 +238,7 @@ const InvoiceList = () => {
                   <td>#{invoice._id.slice(-6).toUpperCase()}</td>
                   <td>{invoice.client?.name || invoice.clientSnapshot?.name || 'N/A'}</td>
                   <td>{formatDate(invoice.invoiceDate)}</td>
+                  <td>{formatDateTime(invoice.createdAt || invoice.date)}</td>
                   <td>{invoice.orderCount || 0}</td>
                   <td>{invoice.subtotal?.toFixed(2) || '0.00'} EGP</td>
                   <td>{invoice.total?.toFixed(2) || '0.00'} EGP</td>
@@ -117,7 +253,7 @@ const InvoiceList = () => {
                       View
                     </Link>
                     
-                    {['worker', 'admin', 'designer'].includes(user?.role) && (
+                    {['admin', 'designer'].includes(user?.role) && (
                       <Link to={`/invoices/edit/${invoice._id}`} className="btn-edit">
                         Edit
                       </Link>
@@ -137,6 +273,17 @@ const InvoiceList = () => {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Pagination */}
+      {!loading && invoices.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       )}
     </div>
   );

@@ -1,13 +1,28 @@
 import { useEffect, useState } from 'react';
+import Loading from '../components/Loading';
+import SearchAndFilters from '../components/SearchAndFilters';
+import Pagination from '../components/Pagination';
 import { useAuth } from '../context/AuthContext';
 import clientService from '../services/clientService';
 import orderService from '../services/orderService';
+import { formatDateTime } from '../utils/dateUtils';
+import './Orders.css';
 
 const Orders = () => {
-  const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]); // Store all fetched orders
+  const [orders, setOrders] = useState([]); // Displayed orders (filtered + paginated)
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage] = useState(10);
   const [showForm, setShowForm] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
   const [showDesignModal, setShowDesignModal] = useState(false);
@@ -32,12 +47,23 @@ const Orders = () => {
   const canEdit = user?.role === 'admin' || user?.role === 'receptionist' || user?.role === 'designer';
   const canDelete = user?.role === 'admin';
   const canAdd = user?.role === 'admin' || user?.role === 'receptionist';
-  const canEditStatus = user?.role === 'designer' || user?.role === 'admin';
+  const canEditStatus = user?.role === 'designer' || user?.role === 'admin' || user?.role === 'worker';
 
   useEffect(() => {
-    fetchOrders();
     fetchClients();
   }, []);
+
+  useEffect(() => {
+    fetchAllOrders();
+  }, []);
+
+  useEffect(() => {
+    applyFiltersAndPagination();
+  }, [allOrders, searchTerm, selectedClient, selectedState, startDate, endDate, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [searchTerm, selectedClient, selectedState, startDate, endDate]);
 
   // Show loading if user is not loaded yet (moved after hooks)
   if (authLoading || !user) {
@@ -61,19 +87,85 @@ const Orders = () => {
     }
   };
 
-  const fetchOrders = async () => {
+  // Fetch all orders once (without filters, get a large batch)
+  const fetchAllOrders = async () => {
     try {
       setLoading(true);
-      const response = await orderService.getOrders();
-      // response is already the data object from backend: { success, data: [...orders], totalPages, etc }
-      setOrders(response.data || []);
+      // Fetch with a large limit to get all or most orders
+      const response = await orderService.getOrders({ limit: 10000 });
+      setAllOrders(response.data || []);
       setError('');
     } catch (err) {
       console.error('Failed to fetch orders:', err);
       setError(err.response?.data?.message || 'Failed to fetch orders');
-      setOrders([]);
+      setAllOrders([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Apply filters and pagination on client-side
+  const applyFiltersAndPagination = () => {
+    try {
+      let filteredOrders = [...allOrders];
+      
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        filteredOrders = filteredOrders.filter(order => {
+          const clientName = order.client?.name || order.clientSnapshot?.name || '';
+          const clientPhone = order.client?.phone || order.clientSnapshot?.phone || '';
+          const factoryName = order.client?.factoryName || order.clientSnapshot?.factoryName || '';
+          const orderType = order.type || '';
+          
+          return (
+            clientName.toLowerCase().includes(searchLower) ||
+            clientPhone.toLowerCase().includes(searchLower) ||
+            factoryName.toLowerCase().includes(searchLower) ||
+            orderType.toLowerCase().includes(searchLower) ||
+            order._id?.toLowerCase().includes(searchLower)
+          );
+        });
+      }
+      
+      // Client filter
+      if (selectedClient) {
+        filteredOrders = filteredOrders.filter(order => 
+          order.client?._id === selectedClient || order.client === selectedClient
+        );
+      }
+      
+      // State filter
+      if (selectedState) {
+        filteredOrders = filteredOrders.filter(order => 
+          order.orderState === selectedState
+        );
+      }
+      
+      // Date range filter
+      if (startDate || endDate) {
+        filteredOrders = filteredOrders.filter(order => {
+          const orderDate = new Date(order.createdAt || order.date);
+          if (startDate && orderDate < new Date(startDate)) return false;
+          if (endDate && orderDate > new Date(endDate + 'T23:59:59')) return false;
+          return true;
+        });
+      }
+      
+      // Calculate pagination
+      const total = filteredOrders.length;
+      setTotalItems(total);
+      setTotalPages(Math.ceil(total / itemsPerPage) || 1);
+      
+      // Apply pagination
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
+      
+      setOrders(paginatedOrders);
+    } catch (err) {
+      console.error('Error applying filters:', err);
+      setOrders([]);
     }
   };
 
@@ -81,7 +173,7 @@ const Orders = () => {
     if (!canEditStatus) return;
     try {
       await orderService.updateOrder(orderId, { orderState: newStatus });
-      fetchOrders();
+      fetchAllOrders(); // Reload all data
     } catch (err) {
       // Enhanced error message with material stock details if available
       let errorMessage = err.response?.data?.message || 'Failed to update order';
@@ -123,7 +215,7 @@ const Orders = () => {
         orderState: 'pending',
         notes: '',
       });
-      fetchOrders();
+      fetchAllOrders();
     } catch (err) {
       alert(err.response?.data?.message || 'Operation failed');
     }
@@ -150,7 +242,7 @@ const Orders = () => {
     if (window.confirm('Are you sure you want to delete this order?')) {
       try {
         await orderService.deleteOrder(orderId);
-        fetchOrders();
+        fetchAllOrders();
       } catch (err) {
         alert(err.response?.data?.message || 'Failed to delete order');
       }
@@ -175,10 +267,19 @@ const Orders = () => {
       await orderService.updateOrder(designOrder._id, designFormData);
       setShowDesignModal(false);
       setDesignOrder(null);
-      fetchOrders();
+      fetchAllOrders();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to update design information');
     }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedClient('');
+    setSelectedState('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
   };
 
   const handleDesignCancel = () => {
@@ -206,9 +307,9 @@ const Orders = () => {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="orders-container">
       <div style={styles.content}>
-        <div style={styles.header}>
+        <div style={styles.header} className="orders-header">
           <h1 style={styles.title}>Order Management</h1>
           {canAdd && (
             <button onClick={() => setShowForm(true)} style={styles.addButton}>
@@ -217,9 +318,33 @@ const Orders = () => {
           )}
         </div>
 
+        {/* Search and Filters */}
+        <SearchAndFilters
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          clients={clients}
+          selectedClient={selectedClient}
+          onClientChange={setSelectedClient}
+          states={[
+            { value: '', label: 'All States' },
+            { value: 'pending', label: 'Pending' },
+            { value: 'active', label: 'Active' },
+            { value: 'done', label: 'Done' },
+            { value: 'delivered', label: 'Delivered' },
+          ]}
+          selectedState={selectedState}
+          onStateChange={setSelectedState}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          onClearFilters={handleClearFilters}
+          searchPlaceholder="Search by client name, phone, or order number..."
+        />
+
         {showForm && (
-          <div style={styles.formOverlay}>
-            <div style={styles.formContainer}>
+          <div style={styles.formOverlay} className="orders-form-overlay">
+            <div style={styles.formContainer} className="orders-form-container">
               <h2 style={styles.formTitle}>
                 {editingOrder ? 'Edit Order' : 'Add New Order'}
               </h2>
@@ -337,8 +462,8 @@ const Orders = () => {
         )}
 
         {showDesignModal && (
-          <div style={styles.formOverlay}>
-            <div style={styles.formContainer}>
+          <div style={styles.formOverlay} className="orders-form-overlay">
+            <div style={styles.formContainer} className="orders-form-container">
               <h2 style={styles.formTitle}>Update Design Information</h2>
               <form onSubmit={handleDesignSubmit} style={styles.form}>
                 <div style={styles.formGroup}>
@@ -383,109 +508,114 @@ const Orders = () => {
         {error && <div style={styles.error}>{error}</div>}
 
         {loading ? (
-          <div style={styles.loading}>Loading...</div>
+          <Loading message="Loading orders..." size="medium" />
         ) : (
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
+          <div className="orders-table-section">
+            <div className="table-container">
+              <table className="data-table orders-page-table">
               <thead>
                 <tr>
-                  <th style={styles.th}>Client</th>
-                  <th style={styles.th}>Type</th>
-                  <th style={styles.th}>Sheet Size</th>
-                  <th style={styles.th}>Repeats</th>
-                  <th style={styles.th}>Total Price</th>
-                  <th style={styles.th}>Deposit</th>
-                  <th style={styles.th}>Remaining</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Notes</th>
+                  <th>Date</th>
+                  <th>Client</th>
+                  <th>Type</th>
+                  <th>Sheet Size</th>
+                  <th>Repeats</th>
+                  <th>Total Price</th>
+                  <th>Deposit</th>
+                  <th>Remaining</th>
+                  <th>Status</th>
+                  <th>Notes</th>
                   {(user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin') && (
-                    <th style={styles.th}>Design Link</th>
+                    <th>Design Link</th>
                   )}
-                  <th style={styles.th}>Actions</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.length === 0 ? (
                   <tr>
-                    <td colSpan={user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin' ? "11" : "10"} style={styles.noData}>
+                    <td colSpan={user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin' ? "12" : "11"} className="no-data">
                       No orders found
                     </td>
                   </tr>
                 ) : (
                   orders.map((order) => (
                     <tr key={order._id}>
-                      <td style={styles.td}>
+                      <td>{formatDateTime(order.createdAt || order.date)}</td>
+                      <td>
                         {order.client?.name || order.clientSnapshot?.name}
                       </td>
-                      <td style={styles.td}>{order.type || '-'}</td>
-                      <td style={styles.td}>{order.sheetSize || '-'}</td>
-                      <td style={styles.td}>{order.repeats || 0}</td>
-                      <td style={styles.td}>{order.totalPrice} EGP</td>
-                      <td style={styles.td}>{order.deposit} EGP</td>
-                      <td style={styles.td}>{order.remainingAmount} EGP</td>
-                      <td style={styles.td}>
-                        <span style={getStatusStyle(order.orderState || 'pending')}>
+                      <td>{order.type || '-'}</td>
+                      <td>{order.sheetSize || '-'}</td>
+                      <td>{order.repeats || 0}</td>
+                      <td>{order.totalPrice} EGP</td>
+                      <td>{order.deposit} EGP</td>
+                      <td>{order.remainingAmount} EGP</td>
+                      <td>
+                        <span className="status-badge" style={getStatusStyle(order.orderState || 'pending')}>
                           {order.orderState || 'pending'}
                         </span>
                       </td>
-                      <td style={styles.td}>
-                        <div style={styles.notesCell}>
+                      <td>
+                        <div className="notes-cell">
                           {order.notes ? (
                             <span title={order.notes}>
                               {order.notes.length > 30 ? `${order.notes.substring(0, 30)}...` : order.notes}
                             </span>
                           ) : (
-                            <span style={{color: '#95a5a6', fontStyle: 'italic'}}>No notes</span>
+                            <span className="no-notes">No notes</span>
                           )}
                         </div>
                       </td>
                       {(user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin') && (
-                        <td style={styles.td}>
+                        <td>
                           {order.designLink ? (
                             <a 
                               href={order.designLink} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              style={styles.designLinkButton}
+                              className="btn btn-sm btn-primary"
                             >
                               View Design
                             </a>
                           ) : (
-                            <span style={{color: '#95a5a6', fontStyle: 'italic'}}>No link</span>
+                            <span className="no-link">No link</span>
                           )}
                         </td>
                       )}
-                      <td style={styles.td}>
-                        {canEditStatus && (
-                          <select
-                            value={order.orderState}
-                            onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
-                            style={styles.select}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="active">Active</option>
-                            <option value="done">Done</option>
-                            <option value="delivered">Delivered</option>
-                          </select>
-                        )}
-                        {user?.role === 'designer' && (
-                          <button onClick={() => handleDesignUpdate(order)} style={styles.designButton}>
-                            Design
-                          </button>
-                        )}
-                        {canEdit && user?.role !== 'designer' && (
-                          <button onClick={() => handleEdit(order)} style={styles.editButton}>
-                            Edit
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button onClick={() => handleDelete(order._id)} style={styles.deleteButton}>
-                            Delete
-                          </button>
-                        )}
-                        {!canEditStatus && !canEdit && !canDelete && user?.role !== 'designer' && (
-                          <span style={{color: '#7f8c8d', fontStyle: 'italic'}}>View Only</span>
-                        )}
+                      <td className="actions">
+                        <div className="orders-action-buttons">
+                          {canEditStatus && (
+                            <select
+                              value={order.orderState}
+                              onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
+                              className="btn btn-sm"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="active">Active</option>
+                              <option value="done">Done</option>
+                              <option value="delivered">Delivered</option>
+                            </select>
+                          )}
+                          {user?.role === 'designer' && (
+                            <button onClick={() => handleDesignUpdate(order)} className="btn btn-sm btn-primary">
+                              Design
+                            </button>
+                          )}
+                          {canEdit && user?.role !== 'designer' && (
+                            <button onClick={() => handleEdit(order)} className="btn btn-sm btn-secondary">
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button onClick={() => handleDelete(order._id)} className="btn btn-sm btn-danger">
+                              Delete
+                            </button>
+                          )}
+                          {!canEditStatus && !canEdit && !canDelete && user?.role !== 'designer' && (
+                            <span className="view-only">View Only</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -493,6 +623,18 @@ const Orders = () => {
               </tbody>
             </table>
           </div>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && orders.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
         )}
       </div>
     </div>
@@ -521,7 +663,7 @@ const getStatusStyle = (status) => {
 const styles = {
   container: {
     minHeight: 'calc(100vh - 80px)',
-    backgroundColor: '#ecf0f1',
+    backgroundColor: 'var(--bg-primary, #f0fdfd)',
     padding: '2rem',
   },
   content: {
@@ -536,16 +678,18 @@ const styles = {
   },
   title: {
     fontSize: '2rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
   },
   addButton: {
-    backgroundColor: '#27ae60',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.75rem 1.5rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   formOverlay: {
     position: 'fixed',
@@ -560,17 +704,18 @@ const styles = {
     zIndex: 1000,
   },
   formContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: 'var(--surface, #fff)',
     padding: '2rem',
-    borderRadius: '8px',
+    borderRadius: '12px',
     width: '90%',
     maxWidth: '500px',
     maxHeight: '90vh',
     overflow: 'auto',
+    boxShadow: 'var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1))',
   },
   formTitle: {
     fontSize: '1.5rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
     marginBottom: '1.5rem',
   },
   form: {
@@ -584,19 +729,19 @@ const styles = {
   },
   label: {
     marginBottom: '0.5rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
     fontWeight: '500',
   },
   input: {
     padding: '0.75rem',
-    border: '1px solid #bdc3c7',
-    borderRadius: '4px',
+    border: '1px solid var(--border-medium, #d1d5db)',
+    borderRadius: '8px',
     fontSize: '1rem',
   },
   textarea: {
     padding: '0.75rem',
-    border: '1px solid #bdc3c7',
-    borderRadius: '4px',
+    border: '1px solid var(--border-medium, #d1d5db)',
+    borderRadius: '8px',
     fontSize: '1rem',
     resize: 'vertical',
   },
@@ -607,23 +752,27 @@ const styles = {
   },
   submitButton: {
     flex: 1,
-    backgroundColor: '#27ae60',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.75rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#95a5a6',
+    backgroundColor: 'var(--gray-400, #9ca3af)',
     color: '#fff',
     padding: '0.75rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '1rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   error: {
     backgroundColor: '#e74c3c',
@@ -639,17 +788,18 @@ const styles = {
     color: '#7f8c8d',
   },
   tableContainer: {
-    backgroundColor: '#fff',
-    borderRadius: '8px',
+    backgroundColor: 'var(--surface, #fff)',
+    borderRadius: '12px',
     overflow: 'hidden',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    boxShadow: 'var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05))',
+    border: '1px solid var(--border-light, #e5e7eb)',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
   },
   th: {
-    backgroundColor: '#34495e',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '1rem',
     textAlign: 'left',
@@ -657,7 +807,7 @@ const styles = {
   },
   td: {
     padding: '1rem',
-    borderBottom: '1px solid #ecf0f1',
+    borderBottom: '1px solid var(--border-light, #e5e7eb)',
   },
   noData: {
     textAlign: 'center',
@@ -666,46 +816,56 @@ const styles = {
   },
   select: {
     padding: '0.5rem',
-    border: '1px solid #bdc3c7',
-    borderRadius: '4px',
+    border: '1px solid var(--border-medium, #d1d5db)',
+    borderRadius: '8px',
     fontSize: '0.9rem',
     marginRight: '0.5rem',
   },
   designButton: {
-    backgroundColor: '#9b59b6',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.5rem 1rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     marginRight: '0.5rem',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   designLinkButton: {
-    backgroundColor: '#8e44ad',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.4rem 0.8rem',
-    borderRadius: '4px',
+    borderRadius: '8px',
     textDecoration: 'none',
     fontSize: '0.9rem',
     display: 'inline-block',
-    transition: 'background-color 0.2s',
+    transition: 'all 0.2s ease',
+    fontWeight: '500',
   },
   editButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '0.5rem 1rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     marginRight: '0.5rem',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   deleteButton: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: 'var(--error, #ef4444)',
     color: '#fff',
     padding: '0.5rem 1rem',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   notesCell: {
     maxWidth: '200px',

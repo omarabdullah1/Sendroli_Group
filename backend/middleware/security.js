@@ -53,6 +53,12 @@ const securityMiddleware = (req, res, next) => {
 
 // Input sanitization middleware
 const sanitizeInput = (req, res, next) => {
+  // Skip sanitization for multipart/form-data (file uploads)
+  // Multer handles these requests and req.body might not be available yet
+  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+    return next();
+  }
+  
   // Sanitize common XSS vectors in request body
   if (req.body && typeof req.body === 'object') {
     const sanitizeString = (str) => {

@@ -167,6 +167,14 @@ exports.login = async (req, res) => {
     console.log('🌍 IP Address:', clientIP);
     console.log('🔑 Device Fingerprint:', deviceFingerprint.substring(0, 8) + '...');
 
+    // Determine redirect URL based on role
+    let redirectUrl = '/';
+    if (['admin', 'receptionist', 'designer', 'worker', 'financial'].includes(user.role)) {
+      redirectUrl = '/dashboard';
+    } else if (user.role === 'client') {
+      redirectUrl = '/client-portal';
+    }
+
     res.status(200).json({
       success: true,
       message: 'Login successful - any other active sessions have been terminated',
@@ -177,6 +185,7 @@ exports.login = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         token: token,
+        redirectUrl: redirectUrl,
         sessionInfo: {
           deviceType: deviceType,
           loginTime: new Date(),

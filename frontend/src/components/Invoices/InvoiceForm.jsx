@@ -14,6 +14,7 @@ const InvoiceForm = () => {
   const isEditMode = Boolean(id);
 
   const [loading, setLoading] = useState(false);
+  const [materialsLoading, setMaterialsLoading] = useState(true);
   const [error, setError] = useState('');
   const [clients, setClients] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -75,37 +76,59 @@ const InvoiceForm = () => {
 
   const loadMaterials = async () => {
     try {
-      // Get all materials first
-      const response = await materialService.getAll();
-      console.log('Materials API response:', response);
+      setMaterialsLoading(true);
+      // Get all materials with a high limit to get all materials
+      const response = await materialService.getAll({ limit: 10000 });
       
-      // Handle different response structures
+      // Handle the API response structure
+      // Response structure: { data: { success: true, data: { materials: [...], pagination: {...} } } }
       let data = [];
-      if (response.data) {
+      
+      if (response && response.data) {
+        // Check if it's the standard API response structure
         if (response.data.data && response.data.data.materials) {
-          data = response.data.data.materials;
-        } else if (response.data.materials) {
+          data = response.data.data.materials || [];
+        } 
+        // Check if materials are directly in response.data
+        else if (response.data.materials && Array.isArray(response.data.materials)) {
           data = response.data.materials;
-        } else if (Array.isArray(response.data)) {
+        }
+        // Check if response.data is directly an array
+        else if (Array.isArray(response.data)) {
           data = response.data;
         }
-      } else if (Array.isArray(response)) {
-        data = response;
+        // Check if response.data.success exists and has data
+        else if (response.data.success && response.data.data) {
+          data = response.data.data.materials || response.data.data || [];
+        }
       }
       
-      console.log('Materials data:', data);
+      // Ensure we have an array
+      if (!Array.isArray(data)) {
+        console.warn('Materials data is not an array:', data);
+        data = [];
+      }
       
       // Filter materials that are marked as order types, or use all if none are marked
-      const orderTypeMaterials = data.filter(m => m.isOrderType === true);
+      const orderTypeMaterials = data.filter(m => m && m.isOrderType === true);
       
-      // If no materials are marked as order types, show all materials
-      const materialsToShow = orderTypeMaterials.length > 0 ? orderTypeMaterials : data;
+      // If no materials are marked as order types, show all active materials
+      const materialsToShow = orderTypeMaterials.length > 0 
+        ? orderTypeMaterials 
+        : data.filter(m => m && (m.isActive !== false)); // Only show active materials
       
       setMaterials(materialsToShow);
-      console.log('Loaded materials for orders:', materialsToShow.length, materialsToShow);
+      
+      if (materialsToShow.length === 0) {
+        console.warn('No materials loaded. Check if materials exist in the database and are marked as order types.');
+      }
     } catch (err) {
       console.error('Failed to load materials:', err);
+      console.error('Error details:', err.response?.data || err.message);
       setMaterials([]);
+      setError('Failed to load materials. Please refresh the page.');
+    } finally {
+      setMaterialsLoading(false);
     }
   };
 
@@ -497,7 +520,6 @@ const InvoiceForm = () => {
       const price = parseFloat(order.totalPrice) || 0;
       return sum + price;
     }, 0);
-    console.log('Calculating subtotal:', orders.length, 'orders, subtotal:', subtotal);
     return subtotal;
   };
 
@@ -508,7 +530,6 @@ const InvoiceForm = () => {
     const shipping = parseFloat(formData.shipping) || 0;
     const discount = parseFloat(formData.discount) || 0;
     const total = subtotal + tax + shipping - discount;
-    console.log('Calculating total:', { subtotal, tax, shipping, discount, total });
     return total;
   };
 
@@ -520,7 +541,6 @@ const InvoiceForm = () => {
       return sum + parseFloat(order.deposit || 0);
     }, 0);
     const remaining = invoiceTotal - totalDeposits;
-    console.log('Calculating total remaining:', { invoiceTotal, totalDeposits, remaining });
     return remaining;
   };
 
@@ -699,8 +719,8 @@ const InvoiceForm = () => {
         <div className="form-section orders-section">
           <div className="section-header">
             <h2>Orders ({orders.length})</h2>
-            {/* Admin, worker, and designer can add orders */}
-            {['admin', 'worker', 'designer'].includes(user?.role) && (
+            {/* Admin and designer can add orders */}
+            {['admin', 'designer'].includes(user?.role) && (
               <button
                 type="button"
                 onClick={openAddOrderForm}
@@ -751,8 +771,8 @@ const InvoiceForm = () => {
                           </span>
                         </td>
                         <td className="actions">
-                          {/* Designers, workers, and admin can edit orders */}
-                          {['designer', 'worker', 'admin'].includes(user?.role) && (
+                          {/* Designers and admin can edit orders */}
+                          {['designer', 'admin'].includes(user?.role) && (
                             <button
                               type="button"
                               onClick={() => openEditOrderForm(order)}
@@ -958,8 +978,11 @@ const InvoiceForm = () => {
                     value={orderForm.material}
                     onChange={handleOrderInputChange}
                     required
+                    disabled={materialsLoading}
                   >
-                    <option value="">Select Material</option>
+                    <option value="">
+                      {materialsLoading ? 'Loading materials...' : materials.length === 0 ? 'No materials available' : 'Select Material'}
+                    </option>
                     {materials.map((material) => (
                       <option key={material._id} value={material._id}>
                         {material.name} {material.sellingPrice ? `(${material.sellingPrice} EGP)` : ''}
@@ -1126,7 +1149,7 @@ const InvoiceForm = () => {
 
                 <div className="form-group">
                   <label>Deposit (EGP)</label>
-                  {user?.role === 'admin' ? (
+                  {(user?.role === 'admin' || user?.role === 'designer') ? (
                     <input
                       type="number"
                       name="deposit"

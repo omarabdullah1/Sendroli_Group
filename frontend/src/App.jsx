@@ -4,8 +4,11 @@ import './App.css';
 import DeviceConflictNotification from './components/Auth/DeviceConflictNotification.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
 import Sidebar from './components/Sidebar/Sidebar.jsx';
+import TopHeader from './components/TopHeader/TopHeader.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import Clients from './pages/Clients.jsx';
+import ClientPortal from './pages/ClientPortal.jsx';
+import ClientReports from './pages/ClientReports.jsx';
 import FinancialStats from './pages/FinancialStats.jsx';
 import Home from './pages/Home.jsx';
 import Inventory from './pages/Inventory.jsx';
@@ -17,19 +20,43 @@ import Purchases from './pages/Purchases.jsx';
 import Suppliers from './pages/Suppliers.jsx';
 import Unauthorized from './pages/Unauthorized.jsx';
 import Users from './pages/Users.jsx';
+import WebsiteSettings from './pages/WebsiteSettings.jsx';
+import LandingPage from './pages/Website/LandingPage.jsx';
+import WebsiteLogin from './pages/Website/WebsiteLogin.jsx';
 import './styles/designSystem.css';
+import { SidebarProvider } from './context/SidebarContext';
 
 // Layout component to conditionally show sidebar
 const Layout = ({ children }) => {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/unauthorized';
+  // Website pages: root, website routes, client portal
+  const isWebsitePage = location.pathname === '/' || 
+                        location.pathname.startsWith('/website') || 
+                        location.pathname === '/client-portal';
+  // ERP pages: dashboard and all other protected routes
+  const isERPage = location.pathname.startsWith('/dashboard') || 
+                    location.pathname.startsWith('/clients') ||
+                    location.pathname.startsWith('/orders') ||
+                    location.pathname.startsWith('/invoices') ||
+                    location.pathname.startsWith('/financial-stats') ||
+                    location.pathname.startsWith('/client-reports') ||
+                    location.pathname.startsWith('/users') ||
+                    location.pathname.startsWith('/materials') ||
+                    location.pathname.startsWith('/suppliers') ||
+                    location.pathname.startsWith('/purchases') ||
+                    location.pathname.startsWith('/inventory') ||
+                    location.pathname.startsWith('/website-settings');
 
   return (
     <div className="app-container">
-      {!isAuthPage && <Sidebar />}
-      <main className={`main-content ${!isAuthPage ? 'with-sidebar' : ''}`}>
-        <DeviceConflictNotification />
-        {children}
+      {!isAuthPage && !isWebsitePage && isERPage && <Sidebar />}
+      <main className={`main-content ${!isAuthPage && !isWebsitePage && isERPage ? 'with-sidebar' : ''}`}>
+        {!isAuthPage && !isWebsitePage && isERPage && <TopHeader />}
+        <div className={`content-wrapper ${!isAuthPage && !isWebsitePage && isERPage ? 'with-header' : ''}`}>
+          {!isWebsitePage && <DeviceConflictNotification />}
+          {children}
+        </div>
       </main>
     </div>
   );
@@ -38,17 +65,36 @@ const Layout = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
+      <SidebarProvider>
       <Router future={{
         v7_startTransition: true,
         v7_relativeSplatPath: true
       }}>
         <Layout>
           <Routes>
-            <Route path="/login" element={<Login />} />
+            {/* Public Website - Main Page */}
+            <Route path="/" element={<LandingPage />} />
+            
+            {/* Main Login Page - Website Login */}
+            <Route path="/login" element={<WebsiteLogin />} />
+            <Route path="/website/login" element={<Navigate to="/login" replace />} />
+            
+            {/* Client Portal */}
+            <Route
+              path="/client-portal"
+              element={
+                <PrivateRoute roles={['client']}>
+                  <ClientPortal />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Other Routes */}
             <Route path="/unauthorized" element={<Unauthorized />} />
             
+            {/* ERP Dashboard */}
             <Route
-              path="/"
+              path="/dashboard"
               element={
                 <PrivateRoute>
                   <Home />
@@ -77,7 +123,7 @@ function App() {
             <Route
               path="/invoices/*"
               element={
-                <PrivateRoute roles={['designer', 'worker', 'financial', 'admin']}>
+                <PrivateRoute roles={['designer', 'financial', 'admin']}>
                   <Invoices />
                 </PrivateRoute>
               }
@@ -88,6 +134,15 @@ function App() {
               element={
                 <PrivateRoute roles={['financial', 'admin']}>
                   <FinancialStats />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/client-reports"
+              element={
+                <PrivateRoute roles={['admin', 'financial', 'receptionist']}>
+                  <ClientReports />
                 </PrivateRoute>
               }
             />
@@ -137,10 +192,20 @@ function App() {
               }
             />
 
+            <Route
+              path="/website-settings"
+              element={
+                <PrivateRoute roles={['admin']}>
+                  <WebsiteSettings />
+                </PrivateRoute>
+              }
+            />
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
       </Router>
+      </SidebarProvider>
     </AuthProvider>
   );
 }

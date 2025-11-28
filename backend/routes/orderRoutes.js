@@ -9,9 +9,18 @@ const {
   getFinancialStats,
 } = require('../controllers/orderController');
 const { protect, authorize } = require('../middleware/auth');
+const { searchLimiter } = require('../middleware/rateLimiter');
 
 // All routes require authentication
 router.use(protect);
+
+// Apply search limiter conditionally for GET requests with search parameter
+const conditionalSearchLimiter = (req, res, next) => {
+  if (req.method === 'GET' && req.query.search && req.query.search.trim() !== '') {
+    return searchLimiter(req, res, next);
+  }
+  next();
+};
 
 // Financial statistics route
 router.get('/stats/financial', authorize('financial', 'admin'), getFinancialStats);
@@ -19,8 +28,8 @@ router.get('/stats/financial', authorize('financial', 'admin'), getFinancialStat
 // Main order routes
 router
   .route('/')
-  .get(authorize('designer', 'worker', 'financial', 'admin'), getOrders)
-  .post(authorize('admin'), createOrder);
+  .get(conditionalSearchLimiter, authorize('designer', 'worker', 'financial', 'admin'), getOrders)
+  .post(authorize('admin', 'designer'), createOrder); // Allow designers to create orders (for invoices)
 
 router
   .route('/:id')

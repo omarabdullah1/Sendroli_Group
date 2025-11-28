@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import orderService from '../services/orderService';
+import Loading from '../components/Loading';
 
 const FinancialStats = () => {
   const [stats, setStats] = useState(null);
@@ -26,7 +27,7 @@ const FinancialStats = () => {
   if (loading) {
     return (
       <div style={styles.container}>
-        <div style={styles.loading}>Loading...</div>
+        <Loading message="Loading statistics..." size="medium" />
       </div>
     );
   }
@@ -126,7 +127,7 @@ const getStatusStyle = (status) => {
 const styles = {
   container: {
     minHeight: 'calc(100vh - 80px)',
-    backgroundColor: '#ecf0f1',
+    backgroundColor: 'var(--bg-primary, #f0fdfd)',
     padding: '2rem',
   },
   content: {
@@ -135,12 +136,12 @@ const styles = {
   },
   title: {
     fontSize: '2rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
     marginBottom: '2rem',
   },
   subtitle: {
     fontSize: '1.5rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
     marginTop: '2rem',
     marginBottom: '1rem',
   },
@@ -148,13 +149,13 @@ const styles = {
     textAlign: 'center',
     padding: '2rem',
     fontSize: '1.2rem',
-    color: '#7f8c8d',
+    color: 'var(--text-secondary, #6b7280)',
   },
   error: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: 'var(--error, #ef4444)',
     color: '#fff',
     padding: '1rem',
-    borderRadius: '4px',
+    borderRadius: '8px',
   },
   statsGrid: {
     display: 'grid',
@@ -163,33 +164,35 @@ const styles = {
     marginBottom: '2rem',
   },
   statCard: {
-    backgroundColor: '#fff',
+    backgroundColor: 'var(--surface, #fff)',
     padding: '1.5rem',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    borderRadius: '12px',
+    boxShadow: 'var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05))',
+    border: '1px solid var(--border-light, #e5e7eb)',
   },
   statLabel: {
     fontSize: '0.9rem',
-    color: '#7f8c8d',
+    color: 'var(--text-secondary, #6b7280)',
     marginBottom: '0.5rem',
   },
   statValue: {
     fontSize: '2rem',
-    color: '#2c3e50',
+    color: 'var(--text-primary, #111827)',
     fontWeight: 'bold',
   },
   tableContainer: {
-    backgroundColor: '#fff',
-    borderRadius: '8px',
+    backgroundColor: 'var(--surface, #fff)',
+    borderRadius: '12px',
     overflow: 'hidden',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    boxShadow: 'var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05))',
+    border: '1px solid var(--border-light, #e5e7eb)',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
   },
   th: {
-    backgroundColor: '#34495e',
+    backgroundColor: 'var(--theme-primary, #00CED1)',
     color: '#fff',
     padding: '1rem',
     textAlign: 'left',
@@ -197,12 +200,12 @@ const styles = {
   },
   td: {
     padding: '1rem',
-    borderBottom: '1px solid #ecf0f1',
+    borderBottom: '1px solid var(--border-light, #e5e7eb)',
   },
   noData: {
     textAlign: 'center',
     padding: '2rem',
-    color: '#7f8c8d',
+    color: 'var(--text-secondary, #6b7280)',
   },
 };
 

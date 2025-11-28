@@ -15,12 +15,22 @@
 }
 
 .main-content.with-sidebar {
-  margin-left: var(--sidebar-width);
+  margin-left: 280px;
+  transition: margin-left 0.3s ease;
 }
 
-/* For collapsed sidebar */
-.sidebar.collapsed ~ .main-content.with-sidebar {
-  margin-left: var(--sidebar-collapsed-width);
+/* For collapsed sidebar - adjust main content margin */
+.app-container .sidebar.collapsed ~ .main-content.with-sidebar {
+  margin-left: var(--sidebar-collapsed-width, 80px);
+}
+
+.content-wrapper {
+  min-height: 100vh;
+  transition: padding-top 0.3s ease;
+}
+
+.content-wrapper.with-header {
+  padding-top: var(--header-height, 80px); /* Use CSS variable to match header height */
 }
 
 /* Auth pages (no sidebar) */

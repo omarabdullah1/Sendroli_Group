@@ -1,0 +1,257 @@
+/* Orders page responsive styles */
+
+.orders-table-section {
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+  border: 1px solid var(--border-light, #e5e7eb);
+  width: 100%;
+}
+
+.table-container {
+  overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  /* Custom scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-primary, #00CED1) #f1f1f1;
+}
+
+/* Webkit scrollbar styling (Chrome, Safari, Edge) */
+.table-container::-webkit-scrollbar {
+  height: 12px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: var(--theme-primary, #00CED1);
+  border-radius: 10px;
+  border: 2px solid #f1f1f1;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #00b8bb;
+}
+
+.data-table.orders-page-table {
+  width: 100%;
+  min-width: 1200px; /* Ensure table is wide enough to trigger horizontal scroll */
+  border-collapse: collapse;
+}
+
+.data-table.orders-page-table tbody tr:hover {
+  background-color: var(--surface-hover, #f9fafb);
+}
+
+.data-table.orders-page-table th {
+  white-space: nowrap;
+  background-color: var(--theme-primary, #00CED1);
+  color: #fff;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.data-table.orders-page-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: #7f8c8d;
+}
+
+.notes-cell {
+  max-width: 200px;
+  word-wrap: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.no-notes,
+.no-link,
+.view-only {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  display: inline-block;
+}
+
+.actions {
+  text-align: center;
+  min-width: 200px;
+}
+
+.actions .btn {
+  margin: 0 2px;
+  margin-bottom: 4px;
+}
+
+/* Button styles to match Purchases */
+.btn {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.btn-primary {
+  background-color: var(--theme-primary, #00CED1);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #00b8bb;
+}
+
+.btn-secondary {
+  background-color: #6b7280;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #4b5563;
+}
+
+.btn-danger {
+  background-color: var(--error, #ef4444);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .data-table.orders-page-table {
+    min-width: 1200px; /* Keep wide to ensure scrolling on medium screens */
+  }
+}
+
+@media (max-width: 1024px) {
+  .data-table.orders-page-table {
+    min-width: 1000px; /* Still wide enough to scroll on tablets */
+  }
+}
+
+@media (max-width: 768px) {
+  .orders-container {
+    padding: 1rem;
+  }
+
+  .data-table.orders-page-table {
+    font-size: 0.875rem;
+    min-width: 900px; /* Wide enough to scroll on mobile */
+  }
+
+  .data-table.orders-page-table th,
+  .data-table.orders-page-table td {
+    padding: 0.75rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .orders-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .orders-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .orders-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .orders-actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .orders-container {
+    padding: 0.5rem;
+  }
+
+  .data-table.orders-page-table {
+    font-size: 0.75rem;
+    min-width: 800px; /* Still wide enough to scroll on small mobile */
+  }
+  
+  .table-container::-webkit-scrollbar {
+    height: 8px; /* Smaller scrollbar on mobile */
+  }
+}
+
+  .data-table.orders-page-table th,
+  .data-table.orders-page-table td {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .orders-header h1 {
+    font-size: 1.25rem;
+  }
+}
+
+/* Action buttons responsive */
+@media (max-width: 768px) {
+  .orders-action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .orders-action-buttons button,
+  .orders-action-buttons select {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* Form overlay responsive */
+@media (max-width: 768px) {
+  .orders-form-overlay {
+    padding: 0.5rem;
+  }
+
+  .orders-form-container {
+    width: 95%;
+    max-width: none;
+    padding: 1.5rem;
+  }
+}
+

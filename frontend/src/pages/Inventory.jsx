@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { inventoryService } from '../services/inventoryService';
 import { materialService } from '../services/materialService';
+import Loading from '../components/Loading';
 import './Inventory.css';
 
 const Inventory = () => {
@@ -62,10 +63,7 @@ const Inventory = () => {
   if (loading && materials.length === 0) {
     return (
       <div className="inventory-page">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading inventory...</p>
-        </div>
+        <Loading message="Loading inventory..." size="medium" />
       </div>
     );
   }

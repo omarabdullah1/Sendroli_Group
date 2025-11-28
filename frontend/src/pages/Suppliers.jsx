@@ -3,10 +3,14 @@ import SupplierForm from '../components/Suppliers/SupplierForm';
 import SupplierList from '../components/Suppliers/SupplierList';
 import { useAuth } from '../context/AuthContext';
 import { supplierService } from '../services/supplierService';
+import Loading from '../components/Loading';
+import SearchAndFilters from '../components/SearchAndFilters';
+import Pagination from '../components/Pagination';
 import './Suppliers.css';
 
 const Suppliers = () => {
-  const [suppliers, setSuppliers] = useState([]);
+  const [allSuppliers, setAllSuppliers] = useState([]); // Store all fetched suppliers
+  const [suppliers, setSuppliers] = useState([]); // Displayed suppliers (filtered + paginated)
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
@@ -16,25 +20,111 @@ const Suppliers = () => {
     page: 1,
     limit: 10
   });
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchSuppliers();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
+    fetchAllSuppliers();
+  }, []);
 
-  const fetchSuppliers = async () => {
+  useEffect(() => {
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [filters.search, selectedStatus, startDate, endDate]);
+
+  useEffect(() => {
+    applyFiltersAndPagination();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allSuppliers, filters.search, selectedStatus, startDate, endDate, currentPage]);
+
+  // Fetch all suppliers once
+  const fetchAllSuppliers = async () => {
     try {
       setLoading(true);
-      const response = await supplierService.getAll(filters);
-      setSuppliers(response.data.data.suppliers);
-      setPagination(response.data.data.pagination);
+      const response = await supplierService.getAll({ limit: 10000 });
+      setAllSuppliers(response.data.data.suppliers || []);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
+      setAllSuppliers([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Apply filters and pagination on client-side
+  const applyFiltersAndPagination = () => {
+    try {
+      let filteredSuppliers = [...allSuppliers];
+      
+      // Search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredSuppliers = filteredSuppliers.filter(supplier => {
+          const name = supplier.name || '';
+          const contactPerson = supplier.contactPerson || '';
+          const phone = supplier.phone || '';
+          const email = supplier.email || '';
+          
+          return (
+            name.toLowerCase().includes(searchLower) ||
+            contactPerson.toLowerCase().includes(searchLower) ||
+            phone.toLowerCase().includes(searchLower) ||
+            email.toLowerCase().includes(searchLower)
+          );
+        });
+      }
+      
+      // Status filter
+      if (selectedStatus) {
+        const isActive = selectedStatus === 'active';
+        filteredSuppliers = filteredSuppliers.filter(supplier => supplier.isActive === isActive);
+      }
+      
+      // Date range filter
+      if (startDate || endDate) {
+        filteredSuppliers = filteredSuppliers.filter(supplier => {
+          const supplierDate = new Date(supplier.createdAt || supplier.date);
+          if (startDate && supplierDate < new Date(startDate)) return false;
+          if (endDate && supplierDate > new Date(endDate + 'T23:59:59')) return false;
+          return true;
+        });
+      }
+      
+      // Calculate pagination
+      const total = filteredSuppliers.length;
+      const totalPages = Math.ceil(total / itemsPerPage) || 1;
+      setPagination({ 
+        current: currentPage, 
+        pages: totalPages, 
+        total: total 
+      });
+      
+      // Apply pagination
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedSuppliers = filteredSuppliers.slice(startIndex, endIndex);
+      
+      setSuppliers(paginatedSuppliers);
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      setSuppliers([]);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      search: '',
+      page: 1,
+      limit: 10
+    });
+    setSelectedStatus('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
   };
 
   const handleCreateSupplier = () => {
@@ -51,7 +141,7 @@ const Suppliers = () => {
     if (window.confirm('Are you sure you want to delete this supplier? This action cannot be undone.')) {
       try {
         await supplierService.delete(supplierId);
-        fetchSuppliers();
+        fetchAllSuppliers();
       } catch (error) {
         console.error('Error deleting supplier:', error);
         alert('Failed to delete supplier. Please try again.');
@@ -89,10 +179,7 @@ const Suppliers = () => {
   if (loading && suppliers.length === 0) {
     return (
       <div className="suppliers-page">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading suppliers...</p>
-        </div>
+        <Loading message="Loading suppliers..." size="medium" />
       </div>
     );
   }
@@ -110,27 +197,32 @@ const Suppliers = () => {
               className="btn btn-primary"
               onClick={handleCreateSupplier}
             >
-              <i className="icon-plus"></i> Add Supplier
+              Add Supplier
             </button>
           )}
         </div>
       </div>
 
       <div className="page-content">
-        <div className="filters-section">
-          <div className="filters-grid">
-            <div className="filter-group">
-              <label>Search Suppliers</label>
-              <input
-                type="text"
-                placeholder="Search by supplier or contact person name..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="search-input"
-              />
-            </div>
-          </div>
-        </div>
+        {/* Search and Filters */}
+        <SearchAndFilters
+          searchValue={filters.search}
+          onSearchChange={(value) => handleFilterChange('search', value)}
+          showClientFilter={false}
+          states={[
+            { value: '', label: 'All Status' },
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+          ]}
+          selectedState={selectedStatus}
+          onStateChange={setSelectedStatus}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          onClearFilters={handleClearFilters}
+          searchPlaceholder="Search by supplier or contact person name..."
+        />
 
         <div className="suppliers-stats">
           <div className="stat-card">
@@ -153,36 +245,15 @@ const Suppliers = () => {
             userRole={user?.role}
           />
           
+          {/* Pagination */}
           {pagination.pages > 1 && (
-            <div className="pagination">
-              <button 
-                className="page-btn"
-                onClick={() => handlePageChange(pagination.current - 1)}
-                disabled={pagination.current === 1}
-              >
-                Previous
-              </button>
-              
-              <div className="page-numbers">
-                {[...Array(pagination.pages)].map((_, index) => (
-                  <button
-                    key={index + 1}
-                    className={`page-btn ${pagination.current === index + 1 ? 'active' : ''}`}
-                    onClick={() => handlePageChange(index + 1)}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-              </div>
-              
-              <button 
-                className="page-btn"
-                onClick={() => handlePageChange(pagination.current + 1)}
-                disabled={pagination.current === pagination.pages}
-              >
-                Next
-              </button>
-            </div>
+            <Pagination
+              currentPage={pagination.current}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => handlePageChange(page)}
+            />
           )}
         </div>
       </div>
