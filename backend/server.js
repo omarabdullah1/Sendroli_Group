@@ -86,6 +86,8 @@ const allowedOrigins = [
   'http://localhost:3001',             // local dev (alternative port)
   'http://localhost:5173',             // Vite dev server
   'https://sendroli-group.vercel.app', // production frontend
+  'https://sendroli-group-backend.vercel.app', // backend domain
+  'https://sendroli-group-backend-f63q14cur-oos-projects-e7124c64.vercel.app', // actual backend URL
   process.env.FRONTEND_URL,            // optional env var
 ];
 
@@ -94,7 +96,7 @@ app.use(cors({
     if (!origin) return callback(null, true); // allow Postman, mobile apps, etc.
 
     // Allow all Vercel preview URLs dynamically
-    if (origin.includes('.vercel.app') || allowedOrigins.includes(origin)) {
+    if (origin && (origin.includes('.vercel.app') || allowedOrigins.includes(origin))) {
       return callback(null, true);
     }
 
