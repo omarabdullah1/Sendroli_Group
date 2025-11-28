@@ -11,14 +11,30 @@ const fallbackSettings = {
   logo: {
     altText: 'Sendroli Factory'
   },
+  branding: {
+    gradientStart: '#1976d2',
+    gradientEnd: '#42a5f5'
+  },
   hero: {
     title: 'Sendroli Factory Management',
     subtitle: 'Professional Manufacturing Solutions',
-    description: 'Leading provider of high-quality manufacturing and printing services with state-of-the-art technology and exceptional customer service.'
+    description: 'Leading provider of high-quality manufacturing and printing services with state-of-the-art technology and exceptional customer service.',
+    ctaText: 'Get Started',
+    ctaLink: '#contact'
   },
   about: {
     title: 'About Sendroli Factory',
     description: 'We are a premier manufacturing company specializing in high-quality production services. Our experienced team and modern equipment ensure exceptional results for all your manufacturing needs.',
+    mission: 'To provide exceptional manufacturing solutions with quality and precision.',
+    vision: 'To be the leading manufacturing partner for businesses worldwide.',
+    features: [
+      { icon: '⚡', title: 'Fast Production', description: 'Quick turnaround times without compromising quality' },
+      { icon: '🎯', title: 'Precision Quality', description: 'State-of-the-art equipment for perfect results' },
+      { icon: '🤝', title: 'Customer Focus', description: 'Dedicated support throughout your project' }
+    ]
+  },
+  whyChooseUs: {
+    title: 'Why Choose Us',
     features: [
       { icon: '⚡', title: 'Fast Production', description: 'Quick turnaround times without compromising quality' },
       { icon: '🎯', title: 'Precision Quality', description: 'State-of-the-art equipment for perfect results' },
@@ -45,7 +61,10 @@ const fallbackSettings = {
       icon: '✅'
     }
   ],
-  portfolio: [],
+  portfolio: {
+    title: 'Our Portfolio',
+    items: []
+  },
   contact: {
     title: 'Get In Touch',
     description: 'Ready to start your next project? Contact us today for a consultation.',

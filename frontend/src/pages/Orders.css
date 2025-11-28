@@ -214,7 +214,6 @@
   .table-container::-webkit-scrollbar {
     height: 8px; /* Smaller scrollbar on mobile */
   }
-}
 
   .data-table.orders-page-table th,
   .data-table.orders-page-table td {
