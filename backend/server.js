@@ -86,8 +86,16 @@ const allowedOrigins = [
   'http://localhost:3001',             // local dev (alternative port)
   'http://localhost:5173',             // Vite dev server
   'https://sendroli-group.vercel.app', // production frontend
+  'https://frontend-henna-beta.vercel.app', // previous frontend deployment
+  'https://frontend-jtay92k1x-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-akxcmv8bn-oos-projects-e7124c64.vercel.app', // current frontend deployment
   'https://sendroli-group-backend.vercel.app', // backend domain
-  'https://sendroli-group-backend-f63q14cur-oos-projects-e7124c64.vercel.app', // actual backend URL
+  'https://sendroli-group-backend-f63q14cur-oos-projects-e7124c64.vercel.app', // old backend URL
+  'https://backend-7tui5kf7o-oos-projects-e7124c64.vercel.app', // previous backend URL
+  'https://backend-1x9bpv4nz-oos-projects-e7124c64.vercel.app', // previous backend URL
+  'https://backend-a4ooem4q5-oos-projects-e7124c64.vercel.app', // previous backend URL
+  'https://backend-f0oex5lw8-oos-projects-e7124c64.vercel.app', // current backend URL
+  'https://backend-qk8m8ukfa-oos-projects-e7124c64.vercel.app', // previous backend URL
   process.env.FRONTEND_URL,            // optional env var
 ];
 
@@ -95,18 +103,36 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true); // allow Postman, mobile apps, etc.
 
-    // Allow all Vercel preview URLs dynamically
-    if (origin && (origin.includes('.vercel.app') || allowedOrigins.includes(origin))) {
+    // Allow all Vercel preview URLs dynamically and localhost
+    if (origin && (origin.includes('.vercel.app') || origin.includes('localhost') || allowedOrigins.includes(origin))) {
+      console.log(`✅ CORS allowed for origin: ${origin}`);
       return callback(null, true);
     }
 
+    console.log(`❌ CORS denied for origin: ${origin}`);
     callback(new Error(`CORS not allowed for origin: ${origin}`));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
+  optionsSuccessStatus: 200 // For legacy browser support
 }));
 
 // Apply rate limiting to all API routes
 app.use('/api/', apiLimiter);
+
+// Handle preflight requests
+app.options('*', (req, res) => {
+  const origin = req.get('Origin');
+  if (origin && (origin.includes('.vercel.app') || origin.includes('localhost'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-requested-with');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  }
+  res.sendStatus(200);
+});
 
 // Routes
 const authRoutes = require('./routes/authRoutes');

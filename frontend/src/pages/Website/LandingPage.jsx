@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Loading from '../../components/Loading';
+import CachedImage from '../../components/CachedImage';
 import Logo from '../../components/Logo';
+import PageLoader from '../../components/PageLoader';
 import { useAuth } from '../../context/AuthContext';
 import websiteService from '../../services/websiteService';
+import imageCache from '../../utils/imageCache';
 import './LandingPage.css';
 
 // Fallback data when API is not available
@@ -77,45 +79,121 @@ const fallbackSettings = {
 const LandingPage = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [settings, setSettings] = useState(null);
+  const [settings, setSettings] = useState(fallbackSettings);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [preloadingImages, setPreloadingImages] = useState(false);
+
+  // Utility function to check if image URL is valid
+  const isValidImageUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    
+    // Skip localhost URLs from old development data
+    if (url.includes('localhost:5000') || url.includes('http://localhost')) {
+      console.warn('Skipping old localhost image URL:', url);
+      return false;
+    }
+    
+    // Check for data URLs or valid HTTP/HTTPS URLs
+    return url.startsWith('data:') || 
+           url.startsWith('https://') || 
+           url.startsWith('http://') ||
+           url.startsWith('/');
+  };
 
   useEffect(() => {
+    // Start with fallback data, then try to load from API
+    setSettings(fallbackSettings);
     fetchSettings();
   }, []);
 
   const fetchSettings = async () => {
     try {
       const response = await websiteService.getSettings();
-      setSettings(response.data);
-      setError(null);
+      if (response && response.data) {
+        setSettings(response.data);
+        setError(null);
+        
+        // Preload critical images
+        await preloadCriticalImages(response.data);
+      } else {
+        throw new Error('No data received');
+      }
     } catch (error) {
       console.warn('API not available, using fallback data:', error);
-      setSettings(fallbackSettings);
       setError('API not available - showing demo content');
+      
+      // Still preload fallback images
+      await preloadCriticalImages(fallbackSettings);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <Loading message="Loading..." size="large" fullScreen />
-    );
-  }
+  const preloadCriticalImages = async (settingsData) => {
+    setPreloadingImages(true);
+    try {
+      const imagesToPreload = [];
+      
+      // Collect critical images
+      if (settingsData.hero?.backgroundImage) {
+        imagesToPreload.push(settingsData.hero.backgroundImage);
+      }
+      
+      // Collect service images
+      if (settingsData.services) {
+        settingsData.services.forEach(service => {
+          if (service.image && isValidImageUrl(service.image)) {
+            imagesToPreload.push(service.image);
+          }
+        });
+      }
+      
+      // Collect feature images
+      if (settingsData.whyChooseUs?.features) {
+        settingsData.whyChooseUs.features.forEach(feature => {
+          if (feature.image && isValidImageUrl(feature.image)) {
+            imagesToPreload.push(feature.image);
+          }
+        });
+      }
+      
+      // Collect gallery images (first 6 for performance)
+      if (settingsData.portfolio?.items) {
+        settingsData.portfolio.items.slice(0, 6).forEach(item => {
+          if (item.image && isValidImageUrl(item.image)) {
+            imagesToPreload.push(item.image);
+          }
+        });
+      }
+      
+      if (imagesToPreload.length > 0) {
+        await imageCache.preloadBatch(imagesToPreload);
+        console.log(`Preloaded ${imagesToPreload.length} images`);
+      }
+    } catch (error) {
+      console.warn('Error preloading images:', error);
+    } finally {
+      setPreloadingImages(false);
+    }
+  };
 
   // Always show content, either from API or fallback
   const currentSettings = settings || fallbackSettings;
 
   return (
-    <div className="landing-page">
-      {/* Error banner for development */}
-      {error && process.env.NODE_ENV === 'development' && (
-        <div className="error-banner" style={{background: '#fff3cd', padding: '10px', textAlign: 'center', fontSize: '14px', color: '#856404'}}>
-          ⚠️ {error}
-        </div>
-      )}
+    <PageLoader
+      loading={loading || preloadingImages}
+      loadingMessage={preloadingImages ? "Loading images..." : "Loading..."}
+      onLoadComplete={() => console.log('LandingPage loaded completely')}
+    >
+      <div className="landing-page">
+        {/* Error banner for development */}
+        {error && process.env.NODE_ENV === 'development' && (
+          <div className="error-banner" style={{background: '#fff3cd', padding: '10px', textAlign: 'center', fontSize: '14px', color: '#856404'}}>
+            ⚠️ {error}
+          </div>
+        )}
       
       {/* Navigation */}
       <nav className="website-nav">
@@ -180,7 +258,7 @@ const LandingPage = () => {
         id="hero" 
         className="hero-section"
         style={{
-          backgroundImage: currentSettings.hero?.backgroundImage 
+          backgroundImage: currentSettings.hero?.backgroundImage && isValidImageUrl(currentSettings.hero.backgroundImage)
             ? `url(${currentSettings.hero.backgroundImage}), linear-gradient(135deg, ${currentSettings.branding?.gradientStart || '#1976d2'}, ${currentSettings.branding?.gradientEnd || '#42a5f5'})`
             : `linear-gradient(135deg, ${currentSettings.branding?.gradientStart || '#1976d2'}, ${currentSettings.branding?.gradientEnd || '#42a5f5'})`,
           backgroundSize: 'cover',
@@ -231,8 +309,12 @@ const LandingPage = () => {
                   {/* Background Image */}
                   {(service.image || service.icon) && (
                     <div className="service-card-image-wrapper">
-                      {service.image ? (
-                        <img src={service.image} alt={service.title} className="service-card-bg-image" />
+                      {service.image && isValidImageUrl(service.image) ? (
+                        <CachedImage 
+                          src={service.image} 
+                          alt={service.title} 
+                          className="service-card-bg-image"
+                        />
                       ) : (
                         <div className="service-card-icon-bg">
                           <span className="service-emoji-large">{service.icon}</span>
@@ -266,8 +348,12 @@ const LandingPage = () => {
                 {/* Background Image */}
                 {(feature.image || feature.icon) && (
                   <div className="feature-card-image-wrapper">
-                    {feature.image ? (
-                      <img src={feature.image} alt={feature.title} className="feature-card-bg-image" />
+                    {feature.image && isValidImageUrl(feature.image) ? (
+                      <CachedImage 
+                        src={feature.image} 
+                        alt={feature.title} 
+                        className="feature-card-bg-image"
+                      />
                     ) : (
                       <div className="feature-card-icon-bg">
                         <span className="feature-emoji-large">{feature.icon}</span>
@@ -299,8 +385,8 @@ const LandingPage = () => {
             <div className="portfolio-grid">
               {settings.portfolio.items.map((item, index) => (
                 <div key={index} className="portfolio-card">
-                  {item.image && (
-                    <img src={item.image} alt={item.title} />
+                  {item.image && isValidImageUrl(item.image) && (
+                    <CachedImage src={item.image} alt={item.title} />
                   )}
                   <div className="portfolio-info">
                     <h3>{item.title}</h3>
@@ -378,7 +464,13 @@ const LandingPage = () => {
               </div>
               {currentSettings.contact?.qrCode && (
                 <div className="qr-code">
-                  <img src={currentSettings.contact.qrCode} alt="QR Code" />
+                {currentSettings.contact.qrCode && isValidImageUrl(currentSettings.contact.qrCode) && (
+                  <CachedImage 
+                    src={currentSettings.contact.qrCode} 
+                    alt="QR Code" 
+                    className="qr-code-image"
+                  />
+                )}
                   <p>Scan to connect</p>
                 </div>
               )}
@@ -399,6 +491,7 @@ const LandingPage = () => {
         </div>
       </footer>
     </div>
+    </PageLoader>
   );
 };
 

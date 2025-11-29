@@ -7,21 +7,28 @@ const inventoryController = require('../controllers/inventoryController');
 router.use(protect);
 
 // Daily inventory routes - allow workers to submit counts
-router.route('/daily/:date?')
-  .get(authorize('admin', 'worker'), inventoryController.getDailyInventory);
-
-router.route('/daily')
+router
+  .route('/daily')
   .post(authorize('admin', 'worker'), inventoryController.submitDailyCount);
 
+router
+  .route('/daily/:date?')
+  .get(authorize('admin', 'worker'), inventoryController.getDailyInventory);
+
 // Wastage routes - admin only (must come before parameterized routes)
-router.route('/wastage')
+router
+  .route('/wastage')
   .get(authorize('admin'), inventoryController.getWastageReport)
   .post(authorize('admin'), inventoryController.recordWastage);
 
 // Withdrawal routes - allow workers to withdraw materials (must come before parameterized routes)
-router.post('/withdraw', authorize('admin', 'worker'), inventoryController.withdrawMaterial);
+router
+  .route('/withdraw')
+  .post(authorize('admin', 'worker'), inventoryController.withdrawMaterial);
 
-router.get('/withdrawals', authorize('admin', 'worker'), inventoryController.getWithdrawals);
+router
+  .route('/withdrawals')
+  .get(authorize('admin', 'worker'), inventoryController.getWithdrawals);
 
 // Material inventory history - admin only (parameterized route must come last)
 router.route('/:materialId/history')

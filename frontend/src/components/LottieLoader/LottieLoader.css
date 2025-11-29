@@ -1,0 +1,87 @@
+/* Lottie Loader Styles */
+.lottie-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.lottie-loader-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+}
+
+.lottie-animation {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+}
+
+/* Size variants */
+.lottie-loader-small .lottie-animation {
+  width: 40px;
+  height: 40px;
+}
+
+.lottie-loader-medium .lottie-animation {
+  width: 80px;
+  height: 80px;
+}
+
+.lottie-loader-large .lottie-animation {
+  width: 120px;
+  height: 120px;
+}
+
+.lottie-loader-xlarge .lottie-animation {
+  width: 160px;
+  height: 160px;
+}
+
+.lottie-message {
+  font-size: var(--font-size-sm);
+  color: var(--gray-600);
+  text-align: center;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+.lottie-loader-fullscreen .lottie-message {
+  font-size: var(--font-size-lg);
+  color: var(--gray-700);
+}
+
+/* Animation transitions */
+.lottie-loader {
+  opacity: 0;
+  animation: fadeIn 0.3s ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .lottie-loader-large .lottie-animation {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .lottie-loader-xlarge .lottie-animation {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .lottie-loader {
+    padding: 1rem;
+  }
+}

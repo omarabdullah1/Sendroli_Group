@@ -3,7 +3,13 @@
    ============================================ */
 
 .dashboard-container {
-  padding: 2rem;
+  padding: 2rem 6rem;
+  background: var(--bg-primary);
+  min-height: calc(100vh - var(--header-height, 80px));
+}
+
+.enhanced-dashboard {
+  padding: 2rem 3rem;
   background: var(--bg-primary);
   min-height: calc(100vh - var(--header-height, 80px));
 }
@@ -13,7 +19,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
+  padding: 2rem;
+  background: var(--surface, #fff);
+  border-radius: var(--radius-xl, 12px);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, .05));
+  border: 1px solid var(--border-light, #e5e7eb);
 }
 
 .welcome-section {
@@ -98,16 +109,17 @@
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  padding: 0.5rem 0;
 }
 
 .kpi-card {
   background: #ffffff;
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 2rem;
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   border: 1px solid #e5e7eb;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -189,7 +201,8 @@
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 1.5rem;
+  gap: 2rem;
+  padding: 0.5rem 0;
 }
 
 .dashboard-card {
@@ -201,7 +214,7 @@
 }
 
 .card-header {
-  padding: 1.5rem;
+  padding: 2rem;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
@@ -230,7 +243,7 @@
 }
 
 .card-body {
-  padding: 1.5rem;
+  padding: 2rem;
 }
 
 /* ========== ORDERS LIST ========== */
@@ -244,7 +257,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
+  padding: 1.5rem;
   background: #f9fafb;
   border-radius: 8px;
   transition: all 0.2s ease;
@@ -351,7 +364,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
+  padding: 1.5rem;
   background: #fef2f2;
   border-radius: 8px;
   border-left: 3px solid #ef4444;
@@ -388,14 +401,14 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 1.5rem 1rem;
+  padding: 2rem 1.5rem;
   background: var(--surface);
   border-radius: var(--radius-lg);
   text-decoration: none;
   color: var(--text-primary);
   transition: all var(--transition-base);
   border: 1px solid var(--border-light);
-  min-height: 100px;
+  min-height: 120px;
 }
 
 .action-card:hover {
@@ -473,6 +486,10 @@
 
 /* ========== RESPONSIVE ========== */
 @media (max-width: 1024px) {
+  .enhanced-dashboard {
+    padding: 1.5rem 2rem;
+  }
+
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -484,13 +501,18 @@
 
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 1rem;
+    padding: 1rem 2rem;
+  }
+
+  .enhanced-dashboard {
+    padding: 1.5rem 1.5rem;
   }
 
   .dashboard-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 1rem;
+    padding: 1.5rem;
   }
 
   .header-actions {
@@ -504,5 +526,19 @@
 
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .kpi-card {
+    padding: 1.5rem;
+  }
+
+  .card-header,
+  .card-body {
+    padding: 1.5rem;
+  }
+
+  .action-card {
+    padding: 1.5rem 1rem;
+    min-height: 100px;
   }
 }

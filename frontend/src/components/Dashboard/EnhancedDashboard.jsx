@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import clientService from '../../services/clientService';
-import orderService from '../../services/orderService';
 import { materialService } from '../../services/materialService';
+import orderService from '../../services/orderService';
 import Loading from '../Loading';
+import PageLoader from '../PageLoader';
 import './EnhancedDashboard.css';
 
 const EnhancedDashboard = () => {
@@ -87,7 +88,8 @@ const EnhancedDashboard = () => {
       if (user?.role === 'admin') {
         try {
           const materialsResponse = await materialService.getAll();
-          const materials = materialsResponse.data || [];
+          const materialsData = materialsResponse.data;
+          const materials = Array.isArray(materialsData) ? materialsData : (materialsData?.materials || []);
           data.stats.totalMaterials = materials.length || 0;
           
           // Find low stock materials
@@ -148,10 +150,16 @@ const EnhancedDashboard = () => {
     );
   }
 
+  // Return content wrapped in PageLoader
   return (
-    <div className="dashboard-container">
-      {/* Welcome Header */}
-      <div className="dashboard-header">
+    <PageLoader
+      loading={loading}
+      loadingMessage="Loading dashboard data..."
+      onLoadComplete={() => console.log('Dashboard loaded')}
+    >
+      <div className="enhanced-dashboard">
+        {/* Welcome Header */}
+        <div className="dashboard-header">
         <div className="welcome-section">
           <h1 className="dashboard-title">
             Welcome back, {user?.fullName || user?.username}
@@ -420,7 +428,8 @@ const EnhancedDashboard = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </PageLoader>
   );
 };
 

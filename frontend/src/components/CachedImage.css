@@ -1,0 +1,53 @@
+/* Cached Image Component Styles */
+.cached-image {
+  transition: opacity 0.3s ease-in-out;
+}
+
+.cached-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gray-100);
+  border-radius: 8px;
+  min-height: 100px;
+  min-width: 100px;
+}
+
+.cached-image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--gray-50);
+  border: 2px dashed var(--gray-300);
+  border-radius: 8px;
+  padding: 1rem;
+  min-height: 100px;
+  min-width: 100px;
+  color: var(--gray-500);
+}
+
+.image-error-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.6;
+}
+
+.image-error-text {
+  font-size: var(--font-size-sm);
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .cached-image-placeholder,
+  .cached-image-error {
+    min-height: 80px;
+    min-width: 80px;
+  }
+  
+  .image-error-icon {
+    font-size: 1.5rem;
+  }
+}

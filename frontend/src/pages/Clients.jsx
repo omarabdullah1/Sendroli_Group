@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
+import Loading from '../components/Loading';
+import PageLoader from '../components/PageLoader';
+import Pagination from '../components/Pagination';
+import SearchAndFilters from '../components/SearchAndFilters';
 import { useAuth } from '../context/AuthContext';
 import clientService from '../services/clientService';
-import Loading from '../components/Loading';
-import SearchAndFilters from '../components/SearchAndFilters';
-import Pagination from '../components/Pagination';
 import { formatDateTime } from '../utils/dateUtils';
 
 const Clients = () => {
@@ -165,7 +166,12 @@ const Clients = () => {
   };
 
   return (
-    <div style={styles.container}>
+    <PageLoader
+      loading={loading}
+      loadingMessage="Loading clients..."
+      onLoadComplete={() => console.log('Clients page loaded')}
+    >
+      <div style={styles.container}>
       <div style={styles.content}>
         <div style={styles.header}>
           <h1 style={styles.title}>Client Management</h1>
@@ -329,6 +335,7 @@ const Clients = () => {
         )}
       </div>
     </div>
+    </PageLoader>
   );
 };
 

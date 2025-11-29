@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
+import Loading from '../components/Loading';
 import MaterialForm from '../components/Materials/MaterialForm';
 import MaterialList from '../components/Materials/MaterialList';
+import PageLoader from '../components/PageLoader';
+import Pagination from '../components/Pagination';
+import SearchAndFilters from '../components/SearchAndFilters';
 import { useAuth } from '../context/AuthContext';
 import { materialService } from '../services/materialService';
 import { supplierService } from '../services/supplierService';
-import Loading from '../components/Loading';
-import SearchAndFilters from '../components/SearchAndFilters';
-import Pagination from '../components/Pagination';
 import './Materials.css';
 
 const Materials = () => {
@@ -247,7 +248,12 @@ const Materials = () => {
   }
 
   return (
-    <div className="materials-page">
+    <PageLoader
+      loading={loading}
+      loadingMessage="Loading materials..."
+      onLoadComplete={() => console.log('Materials page loaded')}
+    >
+      <div className="materials-page">
       <div className="page-header">
         <div className="header-content">
           <div className="header-title">
@@ -366,6 +372,7 @@ const Materials = () => {
         />
       )}
     </div>
+    </PageLoader>
   );
 };
 

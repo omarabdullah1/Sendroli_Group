@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import CachedImage from '../components/CachedImage';
+import PageLoader from '../components/PageLoader';
 import { useAuth } from '../context/AuthContext';
 import websiteService from '../services/websiteService';
 import './WebsiteSettings.css';
@@ -15,6 +17,56 @@ const WebsiteSettings = () => {
   // Check if user is admin
   const isAdmin = user?.role === 'admin';
 
+  // Utility function to fix old localhost URLs
+  const fixImageUrl = (url) => {
+    if (!url) return '';
+    
+    // If it's a localhost URL from old development data, return empty string
+    // This will hide the broken image
+    if (url.includes('localhost:5000') || url.includes('http://localhost')) {
+      console.warn('Detected old localhost URL, hiding image:', url);
+      return '';
+    }
+    
+    return url;
+  };
+
+  // Recursively fix all image URLs in settings object
+  const fixImageUrlsInSettings = (obj) => {
+    if (!obj) return obj;
+    
+    const fixed = JSON.parse(JSON.stringify(obj)); // Deep clone
+    
+    const processObject = (item) => {
+      if (typeof item === 'string' && (item.includes('localhost:5000') || item.includes('http://localhost'))) {
+        return '';
+      }
+      
+      if (typeof item === 'object' && item !== null) {
+        if (Array.isArray(item)) {
+          return item.map(processObject);
+        } else {
+          const processed = {};
+          for (const [key, value] of Object.entries(item)) {
+            // Common image field names
+            if ((key === 'image' || key === 'backgroundImage' || key === 'icon' || key.includes('Image')) && 
+                typeof value === 'string' && (value.includes('localhost:5000') || value.includes('http://localhost'))) {
+              processed[key] = '';
+              console.warn(`Fixed old localhost URL in ${key}:`, value);
+            } else {
+              processed[key] = processObject(value);
+            }
+          }
+          return processed;
+        }
+      }
+      
+      return item;
+    };
+    
+    return processObject(fixed);
+  };
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -22,7 +74,11 @@ const WebsiteSettings = () => {
   const fetchSettings = async () => {
     try {
       const response = await websiteService.getSettings();
-      setSettings(response.data);
+      const rawSettings = response.data;
+      
+      // Fix old localhost URLs in the settings
+      const fixedSettings = fixImageUrlsInSettings(rawSettings);
+      setSettings(fixedSettings);
     } catch (error) {
       console.error('Error fetching settings:', error);
       setMessage({ type: 'error', text: 'Failed to load website settings' });
@@ -149,12 +205,17 @@ const WebsiteSettings = () => {
       if (response.data.fullUrl && response.data.fullUrl.startsWith('http')) {
         imageUrl = response.data.fullUrl;
       } else if (response.data.url) {
-        // Get the backend URL from API URL
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        const backendUrl = apiUrl.replace('/api', '');
-        imageUrl = response.data.url.startsWith('http') 
-          ? response.data.url 
-          : `${backendUrl}${response.data.url}`;
+        // Check if it's already a data URL (base64)
+        if (response.data.url.startsWith('data:')) {
+          imageUrl = response.data.url;
+        } else if (response.data.url.startsWith('http')) {
+          imageUrl = response.data.url;
+        } else {
+          // Get the backend URL from API URL for relative paths
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+          const backendUrl = apiUrl.replace('/api', '');
+          imageUrl = `${backendUrl}${response.data.url}`;
+        }
       } else {
         throw new Error('Invalid upload response: no URL provided');
       }
@@ -218,36 +279,34 @@ const WebsiteSettings = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="website-settings-container">
-        <div className="loading-spinner"></div>
-      </div>
-    );
-  }
-
-  if (!settings) {
-    return (
-      <div className="website-settings-container">
-        <div className="error-message">Failed to load settings</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="website-settings-container">
-      <div className="settings-header">
-        <h1>Website Settings</h1>
-        <p>Manage your public website content and appearance</p>
-      </div>
+    <PageLoader
+      loading={loading}
+      loadingMessage="Loading website settings..."
+      onLoadComplete={() => console.log('Website settings loaded')}
+    >
+      <div className="website-settings-container">
+        {!settings && !loading ? (
+          <div className="error-message">Failed to load settings</div>
+        ) : !isAdmin && !loading ? (
+          <div className="access-denied">
+            <h2>Access Denied</h2>
+            <p>You don't have permission to access this page. Only administrators can modify website settings.</p>
+          </div>
+        ) : settings && !loading ? (
+          <>
+            <div className="settings-header">
+              <h1>Website Settings</h1>
+              <p>Manage your public website content and appearance</p>
+            </div>
 
-      {message.text && (
-        <div className={`message-alert ${message.type}`}>
-          {message.text}
-        </div>
-      )}
+            {message.text && (
+              <div className={`message-alert ${message.type}`}>
+                {message.text}
+              </div>
+            )}
 
-      <div className="settings-tabs">
+            <div className="settings-tabs">
         <button
           className={`tab-btn ${activeTab === 'hero' ? 'active' : ''}`}
           onClick={() => setActiveTab('hero')}
@@ -346,20 +405,17 @@ const WebsiteSettings = () => {
                     <span>📁 Choose Background Image</span>
                   )}
                 </label>
-                {settings.hero.backgroundImage && (
+                {settings.hero.backgroundImage && settings.hero.backgroundImage.trim() !== '' && (
                   <div className="image-preview-container">
                     <div className="image-preview">
                       <span className="preview-label">Current:</span>
-                      <img 
+                      <CachedImage 
                         key={`hero-bg-${Date.now()}`}
                         src={settings.hero.backgroundImage} 
-                        alt="Hero background preview" 
+                        alt="Hero background preview"
+                        className="preview-image"
                         onError={(e) => { 
                           console.error('Failed to load hero background image:', settings.hero.backgroundImage);
-                          e.target.style.display = 'none'; 
-                        }} 
-                        onLoad={() => {
-                          console.log('Hero background image loaded successfully:', settings.hero.backgroundImage);
                         }}
                       />
                       <button
@@ -504,7 +560,7 @@ const WebsiteSettings = () => {
                             <span>📁 Choose Image</span>
                           )}
                         </label>
-                        {service.image && (
+                        {service.image && service.image.trim() !== '' && (
                           <div className="image-preview-container">
                             <div className="image-preview">
                               <span className="preview-label">Current:</span>
@@ -683,7 +739,7 @@ const WebsiteSettings = () => {
                             <span>📁 Choose Image</span>
                           )}
                         </label>
-                        {feature.image && (
+                        {feature.image && feature.image.trim() !== '' && (
                           <div className="image-preview-container">
                             <div className="image-preview">
                               <span className="preview-label">Current:</span>
@@ -949,7 +1005,10 @@ const WebsiteSettings = () => {
           Preview Website
         </a>
       </div>
-    </div>
+          </>
+        ) : null}
+      </div>
+    </PageLoader>
   );
 };
 

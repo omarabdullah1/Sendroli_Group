@@ -13,25 +13,40 @@ exports.uploadImage = async (req, res) => {
       });
     }
 
-    // Return the file path - will be served from /uploads
-    // Frontend will need to construct full URL or use relative path
-    const filePath = `/uploads/${req.file.filename}`;
-    
-    // Construct full URL if needed (for production)
-    const baseUrl = req.protocol + '://' + req.get('host');
-    const fullUrl = baseUrl + filePath;
-    
-    res.status(200).json({
-      success: true,
-      message: 'File uploaded successfully',
-      data: {
-        url: filePath, // Relative path for frontend to use
-        fullUrl: fullUrl, // Full URL if needed
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        size: req.file.size
-      }
-    });
+    // In production (Vercel), return base64 data URL since filesystem is read-only
+    if (process.env.NODE_ENV === 'production') {
+      const base64 = req.file.buffer.toString('base64');
+      const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
+      
+      res.status(200).json({
+        success: true,
+        message: 'File uploaded successfully',
+        data: {
+          url: dataUrl, // Base64 data URL for production
+          filename: `${Date.now()}-${req.file.originalname}`,
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        }
+      });
+    } else {
+      // Development: Return file path
+      const filePath = `/uploads/${req.file.filename}`;
+      const baseUrl = req.protocol + '://' + req.get('host');
+      const fullUrl = baseUrl + filePath;
+      
+      res.status(200).json({
+        success: true,
+        message: 'File uploaded successfully',
+        data: {
+          url: filePath, // Relative path for frontend to use
+          fullUrl: fullUrl, // Full URL if needed
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          size: req.file.size
+        }
+      });
+    }
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({

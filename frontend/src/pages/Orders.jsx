@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import Loading from '../components/Loading';
-import SearchAndFilters from '../components/SearchAndFilters';
+import PageLoader from '../components/PageLoader';
 import Pagination from '../components/Pagination';
+import SearchAndFilters from '../components/SearchAndFilters';
 import { useAuth } from '../context/AuthContext';
 import clientService from '../services/clientService';
 import orderService from '../services/orderService';
@@ -307,7 +308,12 @@ const Orders = () => {
   };
 
   return (
-    <div style={styles.container} className="orders-container">
+    <PageLoader
+      loading={loading}
+      loadingMessage="Loading orders..."
+      onLoadComplete={() => console.log('Orders page loaded')}
+    >
+      <div style={styles.container} className="orders-container">
       <div style={styles.content}>
         <div style={styles.header} className="orders-header">
           <h1 style={styles.title}>Order Management</h1>
@@ -638,6 +644,7 @@ const Orders = () => {
         )}
       </div>
     </div>
+    </PageLoader>
   );
 };
 
