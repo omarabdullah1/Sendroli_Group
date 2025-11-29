@@ -1,4 +1,5 @@
 // Sendroli Factory Management System - Main App Component
+import { Component } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import './App.css';
 import DeviceConflictNotification from './components/Auth/DeviceConflictNotification.jsx';
@@ -6,25 +7,48 @@ import PrivateRoute from './components/PrivateRoute.jsx';
 import Sidebar from './components/Sidebar/Sidebar.jsx';
 import TopHeader from './components/TopHeader/TopHeader.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
-import Clients from './pages/Clients.jsx';
+import { SidebarProvider } from './context/SidebarContext';
 import ClientPortal from './pages/ClientPortal.jsx';
 import ClientReports from './pages/ClientReports.jsx';
+import Clients from './pages/Clients.jsx';
 import FinancialStats from './pages/FinancialStats.jsx';
 import Home from './pages/Home.jsx';
 import Inventory from './pages/Inventory.jsx';
 import Invoices from './pages/Invoices.jsx';
-import Login from './pages/Login.jsx';
 import Materials from './pages/Materials.jsx';
+import MaterialWithdrawal from './pages/MaterialWithdrawal.jsx';
 import Orders from './pages/Orders.jsx';
 import Purchases from './pages/Purchases.jsx';
 import Suppliers from './pages/Suppliers.jsx';
 import Unauthorized from './pages/Unauthorized.jsx';
 import Users from './pages/Users.jsx';
-import WebsiteSettings from './pages/WebsiteSettings.jsx';
 import LandingPage from './pages/Website/LandingPage.jsx';
 import WebsiteLogin from './pages/Website/WebsiteLogin.jsx';
+import WebsiteSettings from './pages/WebsiteSettings.jsx';
 import './styles/designSystem.css';
-import { SidebarProvider } from './context/SidebarContext';
+
+// Error Boundary Component
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 // Layout component to conditionally show sidebar
 const Layout = ({ children }) => {
@@ -46,6 +70,7 @@ const Layout = ({ children }) => {
                     location.pathname.startsWith('/suppliers') ||
                     location.pathname.startsWith('/purchases') ||
                     location.pathname.startsWith('/inventory') ||
+                    location.pathname.startsWith('/material-withdrawal') ||
                     location.pathname.startsWith('/website-settings');
 
   return (
@@ -186,8 +211,17 @@ function App() {
             <Route
               path="/inventory"
               element={
-                <PrivateRoute roles={['admin']}>
+                <PrivateRoute roles={['admin', 'worker']}>
                   <Inventory />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/material-withdrawal"
+              element={
+                <PrivateRoute roles={['admin', 'worker']}>
+                  <MaterialWithdrawal />
                 </PrivateRoute>
               }
             />

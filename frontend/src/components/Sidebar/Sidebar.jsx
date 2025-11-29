@@ -81,7 +81,8 @@ const Sidebar = () => {
       collapsible: true,
       items: [
         { path: '/materials', label: 'Materials', icon: '🎨', roles: ['admin'] },
-        { path: '/inventory', label: 'Stock Management', icon: '📊', roles: ['admin'] },
+        { path: '/inventory', label: 'Stock Management', icon: '📊', roles: ['admin', 'worker'] },
+        { path: '/material-withdrawal', label: 'Material Withdrawal', icon: '📤', roles: ['admin', 'worker'] },
         { path: '/suppliers', label: 'Suppliers', icon: '🏭', roles: ['admin'] },
         { path: '/purchases', label: 'Purchases', icon: '🛍️', roles: ['admin'] },
       ],
@@ -115,7 +116,7 @@ const Sidebar = () => {
       menu.push(salesSection);
     }
     
-    if (user.role === 'admin') {
+    if (user.role === 'admin' || user.role === 'worker') {
       menu.push(inventorySection);
     }
     

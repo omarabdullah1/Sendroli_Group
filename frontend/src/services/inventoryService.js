@@ -14,5 +14,11 @@ export const inventoryService = {
   getWastageReport: (params = {}) => api.get('/inventory/wastage', { params }),
   
   // Record wastage
-  recordWastage: (data) => api.post('/inventory/wastage', data)
+  recordWastage: (data) => api.post('/inventory/wastage', data),
+  
+  // Withdraw material (one piece)
+  withdrawMaterial: (data) => api.post('/inventory/withdraw', data),
+  
+  // Get withdrawals history
+  getWithdrawals: (params = {}) => api.get('/inventory/withdrawals', { params })
 };

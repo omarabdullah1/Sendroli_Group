@@ -87,7 +87,7 @@ const Inventory = () => {
                 max={new Date().toISOString().split('T')[0]}
               />
             </div>
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'worker') && (
               <button 
                 className="btn btn-primary"
                 onClick={handleStartDailyCount}
@@ -175,7 +175,7 @@ const Inventory = () => {
                         <th>System Stock</th>
                         <th>Actual Count</th>
                         <th>Difference</th>
-                        <th>Wastage</th>
+                        {user?.role === 'admin' && <th>Wastage</th>}
                         <th>Counted By</th>
                         <th>Time</th>
                       </tr>
@@ -191,9 +191,11 @@ const Inventory = () => {
                             <td className={count.difference !== 0 ? 'difference' : ''}>
                               {count.difference > 0 ? '+' : ''}{count.difference}
                             </td>
-                            <td className={wastage > 0 ? 'wastage-positive' : wastage < 0 ? 'wastage-negative' : ''}>
-                              {wastage > 0 ? `${wastage.toFixed(2)} (loss)` : wastage < 0 ? `${Math.abs(wastage).toFixed(2)} (gain)` : '0'}
-                            </td>
+                            {user?.role === 'admin' && (
+                              <td className={wastage > 0 ? 'wastage-positive' : wastage < 0 ? 'wastage-negative' : ''}>
+                                {wastage > 0 ? `${wastage.toFixed(2)} (loss)` : wastage < 0 ? `${Math.abs(wastage).toFixed(2)} (gain)` : '0'}
+                              </td>
+                            )}
                             <td>{count.countedBy?.fullName}</td>
                             <td>{new Date(count.createdAt).toLocaleTimeString()}</td>
                           </tr>
@@ -212,6 +214,7 @@ const Inventory = () => {
       {showCountForm && (
         <DailyCountForm
           materials={materials}
+          user={user}
           onSubmit={async (counts) => {
             try {
               await inventoryService.submitDailyCount({ counts });
@@ -230,7 +233,7 @@ const Inventory = () => {
 };
 
 // Simple Daily Count Form Component
-const DailyCountForm = ({ materials, onSubmit, onClose }) => {
+const DailyCountForm = ({ materials, user, onSubmit, onClose }) => {
   const [counts, setCounts] = useState(
     materials.map(material => ({
       materialId: material._id,
@@ -303,12 +306,12 @@ const DailyCountForm = ({ materials, onSubmit, onClose }) => {
                     marginTop: '10px'
                   }}>
                     <div><strong>Difference:</strong> {counts[index].actualStock - material.currentStock} {material.unit}</div>
-                    {counts[index].actualStock < material.currentStock && (
+                    {user?.role === 'admin' && counts[index].actualStock < material.currentStock && (
                       <div style={{ color: '#856404' }}>
                         <strong>Wastage:</strong> {material.currentStock - counts[index].actualStock} {material.unit}
                       </div>
                     )}
-                    {counts[index].actualStock > material.currentStock && (
+                    {user?.role === 'admin' && counts[index].actualStock > material.currentStock && (
                       <div style={{ color: '#155724' }}>
                         <strong>Surplus:</strong> {counts[index].actualStock - material.currentStock} {material.unit}
                       </div>

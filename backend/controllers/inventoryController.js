@@ -1,5 +1,7 @@
 const Inventory = require('../models/Inventory');
 const Material = require('../models/Material');
+const User = require('../models/User');
+const { createNotification } = require('./notificationController');
 
 // Get daily inventory count
 exports.getDailyInventory = async (req, res, next) => {
@@ -71,6 +73,29 @@ exports.submitDailyCount = async (req, res, next) => {
             wastage,
             difference: actualStock - systemStock
           });
+          
+          // Send notification to admin if wastage detected (actual stock < system stock)
+          if (wastage > 0) {
+            try {
+              // Get all admin users
+              const adminUsers = await User.find({ role: 'admin', isActive: true });
+              
+              // Send notification to each admin
+              for (const admin of adminUsers) {
+                await createNotification(admin._id, {
+                  title: 'Inventory Wastage Detected',
+                  message: `Wastage detected for ${material.name}: ${wastage.toFixed(2)} ${material.unit}. System stock: ${systemStock}, Actual count: ${actualStock}`,
+                  type: 'inventory',
+                  relatedId: material._id,
+                  relatedType: 'material',
+                  actionUrl: `/inventory`
+                });
+              }
+            } catch (notifError) {
+              console.error('Error sending wastage notification:', notifError);
+              // Don't fail the request if notification fails
+            }
+          }
         }
         
         inventoryRecords.push({
@@ -234,6 +259,111 @@ exports.recordWastage = async (req, res, next) => {
       success: true,
       data: wastageRecord,
       message: 'Wastage recorded successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Withdraw material (one piece at a time)
+exports.withdrawMaterial = async (req, res, next) => {
+  try {
+    const { materialId, notes } = req.body;
+    
+    const material = await Material.findById(materialId);
+    if (!material) {
+      return res.status(404).json({
+        success: false,
+        message: 'Material not found'
+      });
+    }
+    
+    // Check if material has stock
+    if (material.currentStock <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Material is out of stock'
+      });
+    }
+    
+    const previousStock = material.currentStock;
+    const newStock = Math.max(0, previousStock - 1); // Withdraw one piece
+    
+    // Create withdrawal record
+    const withdrawalRecord = await Inventory.create({
+      material: materialId,
+      previousStock,
+      systemStock: previousStock,
+      actualStock: newStock,
+      type: 'usage',
+      reason: 'Material withdrawal',
+      notes: notes || `Withdrawn by ${req.user.fullName}`,
+      countedBy: req.user.id
+    });
+    
+    // Update material stock
+    material.currentStock = newStock;
+    material.updatedBy = req.user.id;
+    await material.save();
+    
+    res.status(201).json({
+      success: true,
+      data: {
+        ...withdrawalRecord.toObject(),
+        material: {
+          _id: material._id,
+          name: material.name,
+          unit: material.unit,
+          currentStock: newStock
+        }
+      },
+      message: 'Material withdrawn successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get withdrawal history
+exports.getWithdrawals = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    
+    let query = { type: 'usage', reason: 'Material withdrawal' };
+    
+    // If not admin, only show their own withdrawals
+    if (req.user.role !== 'admin') {
+      query.countedBy = req.user.id;
+    }
+    
+    // Date range filter
+    if (req.query.startDate && req.query.endDate) {
+      query.date = {
+        $gte: new Date(req.query.startDate),
+        $lte: new Date(req.query.endDate)
+      };
+    }
+    
+    const total = await Inventory.countDocuments(query);
+    const withdrawals = await Inventory.find(query)
+      .populate('material', 'name unit category')
+      .populate('countedBy', 'fullName')
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        withdrawals,
+        pagination: {
+          current: page,
+          pages: Math.ceil(total / limit),
+          total
+        }
+      }
     });
   } catch (error) {
     next(error);
