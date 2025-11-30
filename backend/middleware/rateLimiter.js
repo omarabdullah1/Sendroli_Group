@@ -67,7 +67,7 @@ const apiLimiter = rateLimit({
 // Strict rate limiting for authentication endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 50 : 15, // Increased for production: 15 attempts per 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_AUTH_MAX) || (process.env.NODE_ENV === 'development' ? 50 : 30), // Configurable: default 30 attempts per 15 minutes in production
   skipSuccessfulRequests: true, // Don't count successful requests
   message: {
     success: false,
