@@ -140,6 +140,41 @@
   font-size: 14px;
 }
 
+.conflict-details {
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 3px;
+  margin: 10px 0;
+  text-align: left;
+}
+
+.conflict-details small {
+  color: #495057;
+  line-height: 1.4;
+}
+
+.btn-force-login {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background 0.3s;
+}
+
+.btn-force-login:hover {
+  background: #c82333;
+}
+
+.btn-force-login:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
 .error-message.device-warning {
   background: #fff8e1;
   color: #f57c00;

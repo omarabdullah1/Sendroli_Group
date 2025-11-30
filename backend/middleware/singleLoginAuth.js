@@ -105,7 +105,8 @@ const singleLoginAuth = async (req, res, next) => {
         sessionInfo: {
           ipAddress: currentIP,
           lastActivity: new Date(),
-          loginTime: user.sessionInfo.loginTime
+          loginTime: user.sessionInfo.loginTime,
+          sessionVersion: user.sessionInfo.sessionVersion,
         }
       };
 

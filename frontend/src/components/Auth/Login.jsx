@@ -11,6 +11,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState('');
+  const [deviceConflict, setDeviceConflict] = useState(null);
   const { login, deviceConflictError, clearDeviceConflictError } = useAuth();
   const navigate = useNavigate();
 
@@ -48,11 +49,13 @@ const Login = () => {
     });
     // Clear error when user starts typing
     if (error) setError('');
+    if (deviceConflict) setDeviceConflict(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setDeviceConflict(null);
     setLoading(true);
 
     try {
@@ -60,6 +63,12 @@ const Login = () => {
       
       if (response.success) {
         console.log('🎉 Single login successful for device:', deviceInfo);
+        // Show warning if provided in response
+        if (response.data?.warning) {
+          console.warn('⚠️ Login warning:', response.data.warning);
+          // Could show a toast notification here
+          alert(response.data.warning); // Temporary alert for warning
+        }
         navigate('/dashboard');
       }
     } catch (err) {
@@ -67,21 +76,44 @@ const Login = () => {
       const errorCode = err.response?.data?.code;
       
       if (errorCode === 'DEVICE_CONFLICT') {
-        setError('Another device is currently logged in with this account. This login will invalidate the previous session.');
-        // Small delay then try login anyway since it will invalidate other session
-        setTimeout(async () => {
-          try {
-            const retryResponse = await login(formData.username, formData.password);
-            if (retryResponse.success) {
-              navigate('/dashboard');
-            }
-          } catch (retryErr) {
-            setError(retryErr.response?.data?.message || 'Login failed after device conflict');
-          }
-        }, 2000);
+        setDeviceConflict({
+          message: errorMessage,
+          conflictInfo: err.response?.data?.conflictInfo
+        });
       } else {
         setError(errorMessage);
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForceLogin = async () => {
+    console.log('🔄 Force login button clicked');
+    setError('');
+    setLoading(true);
+
+    try {
+      console.log('🚀 Calling login with force=true');
+      const response = await login(formData.username, formData.password, true); // force=true
+      console.log('✅ Force login response:', response);
+      
+      if (response.status === 'force_login_success') {
+        console.log('🎉 Force login successful for device:', deviceInfo);
+        // Show warning if provided in response
+        if (response.warning) {
+          console.warn('⚠️ Force login warning:', response.warning);
+          // Could show a toast or alert here
+        }
+        navigate('/dashboard');
+      } else {
+        console.log('❌ Force login failed - unexpected response:', response);
+        setError('Force login failed - unexpected response');
+      }
+    } catch (err) {
+      console.error('💥 Force login error:', err);
+      const errorMessage = err.response?.data?.message || 'Force login failed';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -99,11 +131,26 @@ const Login = () => {
         </div>
 
         {/* Device Conflict Alert */}
-        {deviceConflictError && (
+        {deviceConflict && (
           <div className="device-conflict-alert">
-            <strong>⚠️ Session Invalidated</strong>
-            <p>{deviceConflictError}</p>
-            <p>Please login again to continue.</p>
+            <strong>⚠️ Another Device Active</strong>
+            <p>{deviceConflict.message}</p>
+            <div className="conflict-details">
+              <small>
+                <strong>Existing session:</strong><br/>
+                Device: {deviceConflict.conflictInfo?.existingDevice || 'Unknown'}<br/>
+                IP: {deviceConflict.conflictInfo?.existingIP}<br/>
+                Login Time: {deviceConflict.conflictInfo?.loginTime ? new Date(deviceConflict.conflictInfo.loginTime).toLocaleString() : 'Unknown'}
+              </small>
+            </div>
+            <button 
+              type="button" 
+              onClick={handleForceLogin} 
+              disabled={loading}
+              className="btn-force-login"
+            >
+              {loading ? 'Forcing Login...' : 'Force Login Here'}
+            </button>
           </div>
         )}
 
@@ -139,8 +186,8 @@ const Login = () => {
               disabled={loading}
             />
           </div>
-          <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? 'Logging in...' : 'Login (Single Device)'}
+          <button type="submit" disabled={loading || deviceConflict} className="btn-primary">
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
@@ -148,7 +195,7 @@ const Login = () => {
         <div className="security-notice">
           <small>
             🔒 <strong>Security Notice:</strong> Only one device can be logged in at a time. 
-            Logging in here will automatically logout other devices.
+            Use "Force Login Here" to terminate other sessions.
           </small>
         </div>
 

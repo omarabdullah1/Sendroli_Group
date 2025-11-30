@@ -150,6 +150,57 @@
   text-align: center;
 }
 
+.device-conflict-alert {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.device-conflict-alert h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.device-conflict-alert p {
+  margin: 0 0 1rem 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.force-login-btn {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: #fff;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.force-login-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c82333, #a02622);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+}
+
+.force-login-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.force-login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .login-btn {
   width: 100%;
   padding: 1rem;

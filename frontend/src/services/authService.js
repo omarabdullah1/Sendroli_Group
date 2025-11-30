@@ -2,32 +2,45 @@ import api from './api';
 
 const authService = {
   // Login user with single device restriction
-  login: async (username, password) => {
-    console.log('🚀 Frontend: Attempting single login with:', { username, password: '***' });
+  login: async (username, password, force = false) => {
+    console.log('🚀 Frontend: Attempting login with:', { username, password: '***', force });
     console.log('🌐 API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5000/api');
 
     try {
+      console.log('📤 Frontend: Sending request to /auth/login with:', { username, password: '***', force });
       // Send login request
-      const response = await api.post('/auth/login', { username, password });
-      console.log('✅ Frontend: Single login response received:', response.data);
+      const response = await api.post('/auth/login', { username, password, force });
+      console.log('📥 Frontend: Raw response:', response);
+      console.log('✅ Frontend: Login response received:', response.data);
 
-      if (response.data.success) {
-        const { token, ...userData } = response.data.data;
+      if (response.data.success || response.data.status === 'force_login_success') {
+        console.log('💾 Frontend: Processing successful login response');
+        // Handle different response structures for regular vs force login
+        const userData = response.data.data || response.data;
+        const token = response.data.token || userData.token;
 
-        // Store token and user data
+        console.log('🧹 Frontend: Clearing old stored data');
+        // Clear any existing stored data first (important for force login)
+        authService.clearStoredAuth();
+
+        console.log('💾 Frontend: Storing new token and user data');
+        // Store new token and user data
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(userData));
-        console.log('💾 Frontend: User data stored in localStorage');
-        console.log('🔐 Frontend: Single login token stored');
+        console.log('🔐 Frontend: Login token stored');
+        console.log('📊 Frontend: Session version:', userData.sessionInfo?.sessionVersion);
+      } else {
+        console.log('⚠️ Frontend: Login response not successful:', response.data);
       }
 
       return response.data;
     } catch (error) {
+      console.error('❌ Frontend: Login error:', error);
       // Handle network or server errors
       if (!error.response) {
         console.error('❌ Frontend: Network or CORS error', error);
       } else {
-        console.error('❌ Frontend: Single login error', error.response.data);
+        console.error('❌ Frontend: Login error response:', error.response.data);
       }
       throw error;
     }
@@ -75,17 +88,6 @@ const authService = {
     }
   },
 
-  // Get user profile with session info
-  getProfile: async () => {
-    try {
-      const response = await api.get('/auth/profile');
-      return response.data;
-    } catch (error) {
-      console.error('❌ Frontend: Error fetching user profile', error.response?.data || error);
-      throw error;
-    }
-  },
-
   // Check if user is logged in
   isAuthenticated: () => {
     const token = localStorage.getItem('token');
@@ -93,10 +95,16 @@ const authService = {
     return !!(token && user);
   },
 
-  // Get stored token
-  getToken: () => {
-    return localStorage.getItem('token');
-  }
+  // Validate current session
+  validateSession: async () => {
+    try {
+      const response = await api.get('/auth/validate-session');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Frontend: Error validating session', error.response?.data || error);
+      throw error;
+    }
+  },
 };
 
 export default authService;

@@ -49,15 +49,12 @@ exports.register = async (req, res) => {
   }
 };
 
-// @desc    Login user with strict single device restriction
+// @desc    Login user - handles existing sessions securely
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    console.log('=== STRICT SINGLE LOGIN REQUEST RECEIVED ===');
-    console.log('Request body:', req.body);
-    
-    const { username, password } = req.body;
+    const { username, password, force = false } = req.body;
 
     // Validate input
     if (!username || !password) {
@@ -67,8 +64,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check for user (include password and session info)
-    const user = await User.findOne({ username }).select('+password +activeToken +sessionInfo');
+    // Find user and include session fields
+    const user = await User.findOne({ username }).select('+password +activeToken +sessionInfo +deviceInfo');
 
     if (!user) {
       return res.status(401).json({
@@ -85,9 +82,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if password matches
+    // Verify password
     const isMatch = await user.matchPassword(password);
-
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -95,51 +91,48 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Extract device and network information
+    // Gather device and session information
     const clientIP = getClientIP(req);
     const userAgent = req.headers['user-agent'] || 'Unknown Device';
     const deviceFingerprint = generateDeviceFingerprint(clientIP, userAgent);
     const deviceType = getDeviceType(userAgent);
+    const loginTime = new Date();
 
-    console.log('🔍 Device Information:', {
-      clientIP,
-      deviceType,
-      deviceFingerprint: deviceFingerprint.substring(0, 8) + '...',
-    });
+    // Check for existing active session
+    const hasExistingSession = user.activeToken && user.sessionInfo && user.sessionInfo.isValid;
 
-    // Check if user already has an active session
-    if (user.activeToken && user.sessionInfo && user.sessionInfo.isValid) {
+    let deviceConflict = false;
+    let conflictInfo = null;
+
+    if (hasExistingSession) {
+      // Check if this is a different device/IP
       const existingFingerprint = user.sessionInfo.deviceFingerprint;
       const existingIP = user.sessionInfo.ipAddress;
-      
-      console.log('⚠️  Existing active session detected:');
-      console.log('Current device:', deviceFingerprint.substring(0, 8) + '...');
-      console.log('Existing device:', existingFingerprint?.substring(0, 8) + '...');
-      console.log('Current IP:', clientIP);
-      console.log('Existing IP:', existingIP);
-      
-      // If trying to login from a different device/IP, deny access
+
       if (existingFingerprint !== deviceFingerprint || existingIP !== clientIP) {
-        return res.status(403).json({
-          success: false,
-          message: `Another device is currently logged in from IP ${existingIP}. Please logout from the other device first or wait for the session to expire.`,
-          code: 'DEVICE_CONFLICT',
-          conflictInfo: {
-            existingDevice: user.sessionInfo.userAgent ? getDeviceType(user.sessionInfo.userAgent) : 'Unknown',
-            existingIP: existingIP,
-            loginTime: user.sessionInfo.loginTime,
-          }
-        });
+        deviceConflict = true;
+        conflictInfo = {
+          existingDevice: user.sessionInfo.userAgent ? getDeviceType(user.sessionInfo.userAgent) : 'Unknown',
+          existingIP: existingIP,
+          loginTime: user.sessionInfo.loginTime,
+        };
+
+        // If not forcing login, block the request
+        if (!force) {
+          return res.status(409).json({
+            success: false,
+            code: 'DEVICE_CONFLICT',
+            message: 'You are already logged in from another device. Use force login to override.',
+            conflictInfo: conflictInfo,
+          });
+        }
       }
     }
 
-    // FORCE LOGOUT from any existing sessions (this is the key change!)
-    console.log('🔒 Forcefully invalidating any existing sessions...');
-
-    // Generate new token
+    // Generate new JWT token
     const token = generateToken(user._id);
 
-    // Update user with new session info - THIS INVALIDATES ALL OTHER SESSIONS
+    // Atomically update user with new session (clears old session)
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
       {
@@ -148,56 +141,67 @@ exports.login = async (req, res) => {
           ipAddress: clientIP,
           userAgent: userAgent,
           deviceFingerprint: deviceFingerprint,
-          loginTime: new Date(),
-          lastActivity: new Date(),
+          loginTime: loginTime,
+          lastActivity: loginTime,
           isValid: true,
+          sessionVersion: (user.sessionInfo?.sessionVersion || 0) + 1,
         },
         deviceInfo: {
           userAgent: userAgent,
           deviceName: deviceType,
-          loginTime: new Date(),
+          loginTime: loginTime,
           ipAddress: clientIP,
-        }
+        },
       },
-      { new: true }
+      { new: true, runValidators: true }
     );
 
-    console.log('✅ Strict single login successful for user:', user.username);
-    console.log('🏠 Device Type:', deviceType);
-    console.log('🌍 IP Address:', clientIP);
-    console.log('🔑 Device Fingerprint:', deviceFingerprint.substring(0, 8) + '...');
+    // Prepare user data for response (exclude sensitive fields)
+    const userResponse = {
+      _id: updatedUser._id,
+      username: updatedUser.username,
+      role: updatedUser.role,
+      fullName: updatedUser.fullName,
+      email: updatedUser.email,
+    };
 
-    // Determine redirect URL based on role
-    let redirectUrl = '/';
-    if (['admin', 'receptionist', 'designer', 'worker', 'financial'].includes(user.role)) {
-      redirectUrl = '/dashboard';
-    } else if (user.role === 'client') {
-      redirectUrl = '/client-portal';
+    // If force login was used, return specific response format
+    if (force && deviceConflict) {
+      return res.status(200).json({
+        status: 'force_login_success',
+        message: 'Force login successful. Previous session has been terminated.',
+        token: token,
+        user: userResponse,
+        sessionInfo: {
+          deviceType: deviceType,
+          loginTime: loginTime,
+          ipAddress: clientIP,
+          sessionVersion: updatedUser.sessionInfo.sessionVersion,
+        },
+      });
+    }
+
+    // Normal login response
+    const response = {
+      token,
+      user: userResponse,
+    };
+
+    // Include warning if old session was cleared (for normal login with existing session)
+    if (hasExistingSession && !deviceConflict) {
+      response.warning = 'We detected an active session on another device and logged it out for your security.';
     }
 
     res.status(200).json({
       success: true,
-      message: 'Login successful - any other active sessions have been terminated',
-      data: {
-        _id: user._id,
-        username: user.username,
-        role: user.role,
-        fullName: user.fullName,
-        email: user.email,
-        token: token,
-        redirectUrl: redirectUrl,
-        sessionInfo: {
-          deviceType: deviceType,
-          loginTime: new Date(),
-          ipAddress: clientIP,
-        }
-      },
+      data: response,
     });
+
   } catch (error) {
-    console.log('💥 Strict single login error:', error.message);
+    console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: 'Server error during login',
     });
   }
 };
@@ -220,6 +224,7 @@ exports.logout = async (req, res) => {
         loginTime: null,
         lastActivity: null,
         isValid: false,
+        sessionVersion: 0, // Reset session version
       },
       deviceInfo: {
         userAgent: null,
@@ -263,33 +268,21 @@ exports.getMe = async (req, res) => {
   }
 };
 
-// @desc    Get user profile with strict session validation
-// @route   GET /api/auth/profile
+// @desc    Validate current session
+// @route   GET /api/auth/validate-session
 // @access  Private
-exports.getProfile = async (req, res) => {
+exports.validateSession = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('+sessionInfo');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
+    // The middleware already validates the session, so if we reach here, it's valid
     res.status(200).json({
       success: true,
+      message: 'Session is valid',
       data: {
-        user: user,
-        currentSession: {
-          ipAddress: req.user.sessionInfo?.ipAddress,
-          lastActivity: req.user.sessionInfo?.lastActivity,
-          loginTime: user.sessionInfo?.loginTime,
-          sessionActive: true,
-          sessionValid: user.sessionInfo?.isValid || false
-        }
-      },
-      message: 'Profile retrieved successfully with strict session validation'
+        sessionValid: true,
+        sessionVersion: req.user.sessionInfo.sessionVersion,
+        lastActivity: req.user.sessionInfo.lastActivity,
+        loginTime: req.user.sessionInfo.loginTime
+      }
     });
   } catch (error) {
     res.status(500).json({

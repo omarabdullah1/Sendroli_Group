@@ -67,6 +67,10 @@ const userSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+      sessionVersion: {
+        type: Number,
+        default: 0,
+      },
     },
     deviceInfo: {
       userAgent: {

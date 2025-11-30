@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, logout, getMe, getProfile } = require('../controllers/authController');
+const { register, login, logout, getMe, validateSession } = require('../controllers/authController');
 const { protect, authorize } = require('../middleware/auth');
 const { singleLoginAuth } = require('../middleware/singleLoginAuth');
 const { authLimiter, adminLimiter } = require('../middleware/rateLimiter');
@@ -17,7 +17,7 @@ router.post('/register', protect, authorize('admin'), adminLimiter, register);
 // Me endpoint with single login protection
 router.get('/me', singleLoginAuth, getMe);
 
-// Profile endpoint to test single login system
-router.get('/profile', singleLoginAuth, getProfile);
+// Session validation endpoint
+router.get('/validate-session', singleLoginAuth, validateSession);
 
 module.exports = router;

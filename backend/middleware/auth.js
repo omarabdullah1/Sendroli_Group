@@ -22,8 +22,8 @@ exports.protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Get user from token
-    req.user = await User.findById(decoded.id);
+    // Get user from token (include activeToken for validation)
+    req.user = await User.findById(decoded.id).select('+activeToken +sessionInfo');
 
     if (!req.user) {
       return res.status(401).json({
@@ -38,6 +38,27 @@ exports.protect = async (req, res, next) => {
         message: 'User account is inactive',
       });
     }
+
+    // Check if the token matches the active token (security measure)
+    if (req.user.activeToken !== token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Session has been invalidated. Please login again.',
+      });
+    }
+
+    // Check if session is still valid
+    if (!req.user.sessionInfo || !req.user.sessionInfo.isValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Session is no longer valid. Please login again.',
+      });
+    }
+
+    // Update last activity
+    await User.findByIdAndUpdate(req.user._id, {
+      'sessionInfo.lastActivity': new Date()
+    });
 
     next();
   } catch (error) {

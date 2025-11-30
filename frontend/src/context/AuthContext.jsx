@@ -22,7 +22,19 @@ export const AuthProvider = ({ children }) => {
     if (!user) return;
 
     try {
-      await authService.getProfile();
+      const sessionValidation = await authService.validateSession();
+      
+      // Check if session version has changed (indicating force logout)
+      const storedUser = authService.getCurrentUser();
+      if (storedUser && storedUser.sessionInfo && 
+          sessionValidation.data.sessionVersion !== storedUser.sessionInfo.sessionVersion) {
+        console.log('Session version mismatch - force logout detected');
+        handleForceLogout('Your session has been terminated from another device');
+        return;
+      }
+      
+      // Update last activity
+      console.log('Session validated successfully');
     } catch (error) {
       const errorCode = error.response?.data?.code;
       const errorMessage = error.response?.data?.message;
@@ -63,8 +75,8 @@ export const AuthProvider = ({ children }) => {
       clearInterval(sessionCheckIntervalRef.current);
     }
     
-    // Check session every 30 seconds
-    sessionCheckIntervalRef.current = setInterval(checkSessionValidity, 30000);
+    // Check session every 10 seconds for faster force logout detection
+    sessionCheckIntervalRef.current = setInterval(checkSessionValidity, 10000);
   };
 
   // Stop session monitoring
@@ -81,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       if (storedUser) {
         try {
           // Verify the stored session is still valid
-          await authService.getProfile();
+          await authService.getMe();
           setUser(storedUser);
           startSessionMonitoring();
         } catch (error) {
@@ -101,14 +113,19 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const login = async (username, password) => {
+  const login = async (username, password, force = false) => {
+    console.log('🔐 AuthContext: login called with force =', force);
     try {
       setDeviceConflictError(null);
-      const userData = await authService.login(username, password);
-      setUser(userData.data);
+      console.log('📡 AuthContext: calling authService.login');
+      const userData = await authService.login(username, password, force);
+      console.log('📡 AuthContext: authService.login returned:', userData);
+      setUser(userData.data || userData);
       startSessionMonitoring();
+      console.log('✅ AuthContext: login successful');
       return userData;
     } catch (error) {
+      console.log('❌ AuthContext: login failed:', error);
       // Handle device conflict errors during login
       const errorCode = error.response?.data?.code;
       const errorMessage = error.response?.data?.message;
