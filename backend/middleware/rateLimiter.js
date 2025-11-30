@@ -15,7 +15,7 @@ const rateLimit = require('express-rate-limit');
  * - General API: 1000 requests per 15 minutes
  * - Search: 200 requests per minute
  * - Admin: 50 operations per minute
- * - Auth: 5 login attempts per 15 minutes (unchanged for security)
+ * - Auth: 15 login attempts per 15 minutes (increased for production usability)
  * - Password: 3 attempts per hour (unchanged for security)
  */
 const RATE_LIMIT_CONFIG = {
@@ -49,11 +49,17 @@ const apiLimiter = rateLimit({
   legacyHeaders: false, // Disable X-RateLimit-* headers
   handler: (req, res) => {
     console.warn(`Rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
+    // Calculate seconds until reset
+    const resetTime = req.rateLimit.resetTime;
+    const retryAfter = typeof resetTime === 'number' && resetTime > 1000000000 
+      ? resetTime - Math.floor(Date.now() / 1000)  // If it's a Unix timestamp in seconds
+      : Math.ceil((resetTime - Date.now()) / 1000); // If it's a Date or milliseconds
+    
     res.status(429).json({
       success: false,
       message: 'Too many requests from this IP, please try again later.',
       error: 'RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.round(req.rateLimit.resetTime / 1000)
+      retryAfter: Math.max(1, retryAfter)
     });
   }
 });
@@ -61,7 +67,7 @@ const apiLimiter = rateLimit({
 // Strict rate limiting for authentication endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login attempts per window
+  max: process.env.NODE_ENV === 'development' ? 50 : 15, // Increased for production: 15 attempts per 15 minutes
   skipSuccessfulRequests: true, // Don't count successful requests
   message: {
     success: false,
@@ -72,11 +78,17 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   handler: (req, res) => {
     console.warn(`Auth rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
+    // Calculate seconds until reset
+    const resetTime = req.rateLimit.resetTime;
+    const retryAfter = typeof resetTime === 'number' && resetTime > 1000000000 
+      ? resetTime - Math.floor(Date.now() / 1000)  // If it's a Unix timestamp in seconds
+      : Math.ceil((resetTime - Date.now()) / 1000); // If it's a Date or milliseconds
+    
     res.status(429).json({
       success: false,
       message: 'Too many login attempts from this IP, please try again after 15 minutes.',
       error: 'AUTH_RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.round(req.rateLimit.resetTime / 1000),
+      retryAfter: Math.max(1, retryAfter), // Ensure at least 1 second
       lockoutTime: '15 minutes'
     });
   },
@@ -100,11 +112,17 @@ const passwordLimiter = rateLimit({
   legacyHeaders: false,
   handler: (req, res) => {
     console.warn(`Password rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
+    // Calculate seconds until reset
+    const resetTime = req.rateLimit.resetTime;
+    const retryAfter = typeof resetTime === 'number' && resetTime > 1000000000 
+      ? resetTime - Math.floor(Date.now() / 1000)  // If it's a Unix timestamp in seconds
+      : Math.ceil((resetTime - Date.now()) / 1000); // If it's a Date or milliseconds
+    
     res.status(429).json({
       success: false,
       message: 'Too many password-related attempts from this IP, please try again after 1 hour.',
       error: 'PASSWORD_RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.round(req.rateLimit.resetTime / 1000),
+      retryAfter: Math.max(1, retryAfter),
       lockoutTime: '1 hour'
     });
   }
@@ -123,11 +141,17 @@ const adminLimiter = rateLimit({
   legacyHeaders: false,
   handler: (req, res) => {
     console.warn(`Admin rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
+    // Calculate seconds until reset
+    const resetTime = req.rateLimit.resetTime;
+    const retryAfter = typeof resetTime === 'number' && resetTime > 1000000000 
+      ? resetTime - Math.floor(Date.now() / 1000)  // If it's a Unix timestamp in seconds
+      : Math.ceil((resetTime - Date.now()) / 1000); // If it's a Date or milliseconds
+    
     res.status(429).json({
       success: false,
       message: 'Too many administrative operations, please slow down.',
       error: 'ADMIN_RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.round(req.rateLimit.resetTime / 1000)
+      retryAfter: Math.max(1, retryAfter)
     });
   }
 });
@@ -146,11 +170,17 @@ const searchLimiter = rateLimit({
   legacyHeaders: false,
   handler: (req, res) => {
     console.warn(`Search rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
+    // Calculate seconds until reset
+    const resetTime = req.rateLimit.resetTime;
+    const retryAfter = typeof resetTime === 'number' && resetTime > 1000000000 
+      ? resetTime - Math.floor(Date.now() / 1000)  // If it's a Unix timestamp in seconds
+      : Math.ceil((resetTime - Date.now()) / 1000); // If it's a Date or milliseconds
+    
     res.status(429).json({
       success: false,
       message: 'Too many search requests. Please wait a moment before searching again.',
       error: 'SEARCH_RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.round(req.rateLimit.resetTime / 1000)
+      retryAfter: Math.max(1, retryAfter)
     });
   },
   // Skip rate limiting if no search query parameter
