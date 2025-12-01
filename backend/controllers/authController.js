@@ -49,12 +49,12 @@ exports.register = async (req, res) => {
   }
 };
 
-// @desc    Login user - handles existing sessions securely
+// @desc    Login user - automatically clears existing sessions and creates new one
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { username, password, force = false } = req.body;
+    const { username, password } = req.body;
 
     // Validate input
     if (!username || !password) {
@@ -91,52 +91,28 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Gather device and session information
+    // Gather device and session information for new session
     const clientIP = getClientIP(req);
     const userAgent = req.headers['user-agent'] || 'Unknown Device';
     const deviceFingerprint = generateDeviceFingerprint(clientIP, userAgent);
     const deviceType = getDeviceType(userAgent);
     const loginTime = new Date();
 
-    // Check for existing active session
+    // Check if user has an existing active session (regardless of device)
     const hasExistingSession = user.activeToken && user.sessionInfo && user.sessionInfo.isValid;
 
-    let deviceConflict = false;
-    let conflictInfo = null;
-
-    if (hasExistingSession) {
-      // Check if this is a different device/IP
-      const existingFingerprint = user.sessionInfo.deviceFingerprint;
-      const existingIP = user.sessionInfo.ipAddress;
-
-      if (existingFingerprint !== deviceFingerprint || existingIP !== clientIP) {
-        deviceConflict = true;
-        conflictInfo = {
-          existingDevice: user.sessionInfo.userAgent ? getDeviceType(user.sessionInfo.userAgent) : 'Unknown',
-          existingIP: existingIP,
-          loginTime: user.sessionInfo.loginTime,
-        };
-
-        // If not forcing login, block the request
-        if (!force) {
-          return res.status(409).json({
-            success: false,
-            code: 'DEVICE_CONFLICT',
-            message: 'You are already logged in from another device. Use force login to override.',
-            conflictInfo: conflictInfo,
-          });
-        }
-      }
-    }
-
-    // Generate new JWT token
+    // Generate new JWT token (always generate fresh token to prevent reuse)
     const token = generateToken(user._id);
 
-    // Atomically update user with new session (clears old session)
+    // Atomically update user with new session (this automatically invalidates old token and session)
+    // Using atomic update ensures no race conditions and prevents multiple active sessions
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
       {
+        // Overwrite activeToken with new token (invalidates old token)
         activeToken: token,
+        
+        // Completely replace sessionInfo with new session data
         sessionInfo: {
           ipAddress: clientIP,
           userAgent: userAgent,
@@ -144,8 +120,10 @@ exports.login = async (req, res) => {
           loginTime: loginTime,
           lastActivity: loginTime,
           isValid: true,
-          sessionVersion: (user.sessionInfo?.sessionVersion || 0) + 1,
+          sessionVersion: (user.sessionInfo?.sessionVersion || 0) + 1, // Increment version to invalidate old sessions
         },
+        
+        // Overwrite deviceInfo with new device data
         deviceInfo: {
           userAgent: userAgent,
           deviceName: deviceType,
@@ -153,7 +131,11 @@ exports.login = async (req, res) => {
           ipAddress: clientIP,
         },
       },
-      { new: true, runValidators: true }
+      { 
+        new: true, 
+        runValidators: true,
+        // Use findOneAndUpdate for atomic operation with better concurrency handling
+      }
     );
 
     // Prepare user data for response (exclude sensitive fields)
@@ -165,37 +147,18 @@ exports.login = async (req, res) => {
       email: updatedUser.email,
     };
 
-    // If force login was used, return specific response format
-    if (force && deviceConflict) {
-      return res.status(200).json({
-        status: 'force_login_success',
-        message: 'Force login successful. Previous session has been terminated.',
-        token: token,
-        user: userResponse,
-        sessionInfo: {
-          deviceType: deviceType,
-          loginTime: loginTime,
-          ipAddress: clientIP,
-          sessionVersion: updatedUser.sessionInfo.sessionVersion,
-        },
-      });
-    }
-
-    // Normal login response
+    // Build response object
     const response = {
-      token,
+      token: token,
       user: userResponse,
     };
 
-    // Include warning if old session was cleared (for normal login with existing session)
-    if (hasExistingSession && !deviceConflict) {
+    // Add warning message if old session was cleared
+    if (hasExistingSession) {
       response.warning = 'We detected an active session on another device and logged it out for your security.';
     }
 
-    res.status(200).json({
-      success: true,
-      data: response,
-    });
+    res.status(200).json(response);
 
   } catch (error) {
     console.error('Login error:', error);
