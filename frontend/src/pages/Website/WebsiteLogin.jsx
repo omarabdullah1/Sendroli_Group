@@ -49,9 +49,16 @@ const WebsiteLogin = () => {
           alert(response.data.warning); // Temporary alert for warning
         }
         
-        const userData = response.data;
-        const role = userData.role;
-        const redirectUrl = userData.redirectUrl;
+        // Handle different response structures
+        const userData = response.user || response.data || response;
+        const role = userData?.role;
+        const redirectUrl = userData?.redirectUrl;
+        
+        if (!role) {
+          console.error('❌ No role found in response:', response);
+          setError('Login failed - invalid user data');
+          return;
+        }
         
         // Role-based redirect
         if (['admin', 'receptionist', 'designer', 'worker', 'financial'].includes(role)) {
@@ -70,7 +77,20 @@ const WebsiteLogin = () => {
       const errorMessage = err.response?.data?.message || err.message || 'Invalid username or password';
       const errorCode = err.response?.data?.code;
       
-      if (errorCode === 'DEVICE_CONFLICT') {
+      // Handle session conflict (409 status with ACTIVE_SESSION code)
+      if (err.response?.status === 409 && errorCode === 'ACTIVE_SESSION') {
+        const sessionInfo = err.response?.data?.sessionInfo || {};
+        setDeviceConflict({
+          message: errorMessage,
+          conflictInfo: {
+            existingDevice: sessionInfo.deviceName || sessionInfo.deviceType,
+            existingIP: sessionInfo.ipAddress,
+            loginTime: sessionInfo.loginTime,
+            lastActivity: sessionInfo.lastActivity
+          }
+        });
+      } else if (errorCode === 'DEVICE_CONFLICT') {
+        // Legacy support for old error code
         setDeviceConflict({
           message: errorMessage,
           conflictInfo: err.response?.data?.conflictInfo
@@ -93,16 +113,23 @@ const WebsiteLogin = () => {
       const response = await authLogin(formData.username, formData.password, true); // force=true
       console.log('✅ Force login response:', response);
       
-      if (response.status === 'force_login_success') {
+      if (response.success) {
         console.log('🎉 Force login successful');
-        // Show warning if provided in response
-        if (response.data?.warning) {
-          console.warn('⚠️ Force login warning:', response.data.warning);
-          // Could show a toast or alert here
-          alert(response.data.warning); // Temporary alert for warning
+        
+        // Get user data from response
+        const userData = response.user || response.data || response;
+        const role = userData?.role;
+        
+        if (!role) {
+          console.error('❌ No role found in force login response:', response);
+          setError('Force login failed - invalid user data');
+          return;
         }
-        const userData = response.data;
-        const role = userData.role;
+        
+        // Show force login message if provided
+        if (response.message) {
+          console.log('📝 Force login message:', response.message);
+        }
         
         // Role-based redirect
         if (['admin', 'receptionist', 'designer', 'worker', 'financial'].includes(role)) {

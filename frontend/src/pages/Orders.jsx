@@ -36,7 +36,6 @@ const Orders = () => {
     client: '',
     type: '',
     repeats: 0,
-    sheetSize: '',
     totalPrice: 0,
     deposit: 0,
     orderState: 'pending',
@@ -210,7 +209,6 @@ const Orders = () => {
         client: '',
         type: '',
         repeats: 0,
-        sheetSize: '',
         totalPrice: 0,
         deposit: 0,
         orderState: 'pending',
@@ -229,7 +227,6 @@ const Orders = () => {
       client: order.client?._id || order.client || '',
       type: order.type || '',
       repeats: order.repeats || 0,
-      sheetSize: order.sheetSize || '',
       totalPrice: order.totalPrice || 0,
       deposit: order.deposit || 0,
       orderState: order.orderState || 'pending',
@@ -299,7 +296,6 @@ const Orders = () => {
       client: '',
       type: '',
       repeats: 0,
-      sheetSize: '',
       totalPrice: 0,
       deposit: 0,
       orderState: 'pending',
@@ -391,22 +387,6 @@ const Orders = () => {
                     onChange={(e) => setFormData({ ...formData, repeats: parseInt(e.target.value) })}
                     style={styles.input}
                   />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Sheet Size</label>
-                  <select
-                    value={formData.sheetSize}
-                    onChange={(e) => setFormData({ ...formData, sheetSize: e.target.value })}
-                    style={styles.input}
-                  >
-                    <option value="">Select Size</option>
-                    <option value="A4">A4</option>
-                    <option value="A3">A3</option>
-                    <option value="A2">A2</option>
-                    <option value="A1">A1</option>
-                    <option value="A0">A0</option>
-                  </select>
                 </div>
 
                 <div style={styles.formGroup}>
@@ -524,7 +504,6 @@ const Orders = () => {
                   <th>Date</th>
                   <th>Client</th>
                   <th>Type</th>
-                  <th>Sheet Size</th>
                   <th>Repeats</th>
                   <th>Total Price</th>
                   <th>Deposit</th>
@@ -540,7 +519,7 @@ const Orders = () => {
               <tbody>
                 {orders.length === 0 ? (
                   <tr>
-                    <td colSpan={user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin' ? "12" : "11"} className="no-data">
+                    <td colSpan={user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin' ? "11" : "10"} className="no-data">
                       No orders found
                     </td>
                   </tr>
@@ -552,7 +531,6 @@ const Orders = () => {
                         {order.client?.name || order.clientSnapshot?.name}
                       </td>
                       <td>{order.type || '-'}</td>
-                      <td>{order.sheetSize || '-'}</td>
                       <td>{order.repeats || 0}</td>
                       <td>{order.totalPrice} EGP</td>
                       <td>{order.deposit} EGP</td>

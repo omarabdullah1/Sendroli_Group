@@ -15,7 +15,8 @@ const websiteService = {
   updateSettings: async (settings) => {
     try {
       const response = await api.put('/website/settings', settings);
-      return response.data;
+      console.log('🔌 Service raw response:', response.data);
+      return response.data; // This should be { success: true, data: {...}, message: ... }
     } catch (error) {
       throw error.response?.data || error.message;
     }
@@ -51,20 +52,20 @@ const websiteService = {
     }
   },
 
-  // Add portfolio item
-  addPortfolioItem: async (item) => {
+  // Add gallery item
+  addGalleryItem: async (item) => {
     try {
-      const response = await api.post('/website/portfolio', item);
+      const response = await api.post('/website/gallery', item);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
 
-  // Delete portfolio item
-  deletePortfolioItem: async (itemId) => {
+  // Delete gallery item
+  deleteGalleryItem: async (itemId) => {
     try {
-      const response = await api.delete(`/website/portfolio/${itemId}`);
+      const response = await api.delete(`/website/gallery/${itemId}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

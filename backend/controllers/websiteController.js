@@ -69,6 +69,10 @@ exports.getWebsiteSettings = async (req, res) => {
       });
     }
 
+    console.log('📤 Sending settings response');
+    console.log('🖼️ Gallery in response:', settings.gallery);
+    console.log('📊 Gallery items count:', settings.gallery?.items?.length || 0);
+
     res.status(200).json({
       success: true,
       data: settings,
@@ -86,33 +90,88 @@ exports.getWebsiteSettings = async (req, res) => {
 // @access  Private/Admin
 exports.updateWebsiteSettings = async (req, res) => {
   try {
+    console.log('📝 Update request received');
+    console.log('🖼️ Gallery in request:', JSON.stringify(req.body.gallery, null, 2));
+    console.log('📊 Gallery items in request:', req.body.gallery?.items?.length || 0);
+    
     let settings = await WebsiteSettings.findOne();
 
     if (!settings) {
-      settings = await WebsiteSettings.create({
+      console.log('🆕 Creating new settings document');
+      settings = new WebsiteSettings({
         ...req.body,
         updatedBy: req.user.id,
       });
+      await settings.save();
     } else {
-      settings = await WebsiteSettings.findOneAndUpdate(
-        {},
-        {
-          ...req.body,
-          updatedBy: req.user.id,
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
+      console.log('🔄 Updating existing settings document');
+      console.log('📋 Current gallery in DB before update:', JSON.stringify(settings.gallery, null, 2));
+      
+      // Initialize gallery if it doesn't exist
+      if (!settings.gallery) {
+        console.log('🎨 Initializing gallery field');
+        settings.gallery = {
+          title: 'Our Gallery',
+          items: []
+        };
+      }
+      
+      // Update all fields from request body
+      Object.keys(req.body).forEach(key => {
+        console.log(`🔧 Setting ${key}:`, typeof req.body[key]);
+        settings[key] = req.body[key];
+      });
+      
+      // Special handling for gallery to ensure it's properly saved
+      if (req.body.gallery) {
+        console.log('🔄 Explicitly setting gallery from request');
+        console.log('🎯 Gallery data to set:', JSON.stringify(req.body.gallery, null, 2));
+        
+        // Clear existing gallery and set new one
+        settings.gallery = undefined;
+        settings.gallery = {
+          title: req.body.gallery.title || 'Our Gallery',
+          items: req.body.gallery.items || []
+        };
+        
+        console.log('✅ Gallery set to:', JSON.stringify(settings.gallery, null, 2));
+        settings.markModified('gallery');
+        settings.markModified('gallery.items');
+      }
+      
+      settings.updatedBy = req.user.id;
+      
+      // Save and immediately refetch to verify persistence
+      await settings.save();
+      console.log('💾 Document saved, refetching...');
+      
+      // Refetch to confirm save
+      settings = await WebsiteSettings.findById(settings._id);
+    }
+
+    console.log('✅ Final document retrieved');
+    console.log('🖼️ Gallery in final document:', JSON.stringify(settings.gallery, null, 2));
+    console.log('📊 Final gallery items count:', settings.gallery?.items?.length || 0);
+
+    // Convert to object and verify gallery is present
+    const responseData = settings.toObject();
+    console.log('📤 Response data gallery:', JSON.stringify(responseData.gallery, null, 2));
+    console.log('📋 Response data keys:', Object.keys(responseData));
+    
+    // Double-check gallery presence
+    if (!responseData.gallery) {
+      console.error('❌ CRITICAL: Gallery missing from response data!');
+      // Force include gallery in response
+      responseData.gallery = settings.gallery || { title: 'Our Gallery', items: [] };
     }
 
     res.status(200).json({
       success: true,
-      data: settings,
+      data: responseData,
       message: 'Website settings updated successfully',
     });
   } catch (error) {
+    console.error('❌ Error in updateWebsiteSettings:', error);
     res.status(400).json({
       success: false,
       message: error.message,
@@ -219,10 +278,10 @@ exports.deleteService = async (req, res) => {
   }
 };
 
-// @desc    Add portfolio item
-// @route   POST /api/website/portfolio
+// @desc    Add gallery item
+// @route   POST /api/website/gallery
 // @access  Private/Admin
-exports.addPortfolioItem = async (req, res) => {
+exports.addGalleryItem = async (req, res) => {
   try {
     const settings = await WebsiteSettings.findOne();
 
@@ -233,13 +292,13 @@ exports.addPortfolioItem = async (req, res) => {
       });
     }
 
-    settings.portfolio.items.push(req.body);
+    settings.gallery.items.push(req.body);
     await settings.save();
 
     res.status(201).json({
       success: true,
-      data: settings.portfolio.items,
-      message: 'Portfolio item added successfully',
+      data: settings.gallery.items,
+      message: 'Gallery item added successfully',
     });
   } catch (error) {
     res.status(400).json({
@@ -249,10 +308,10 @@ exports.addPortfolioItem = async (req, res) => {
   }
 };
 
-// @desc    Delete portfolio item
-// @route   DELETE /api/website/portfolio/:id
+// @desc    Delete gallery item
+// @route   DELETE /api/website/gallery/:id
 // @access  Private/Admin
-exports.deletePortfolioItem = async (req, res) => {
+exports.deleteGalleryItem = async (req, res) => {
   try {
     const settings = await WebsiteSettings.findOne();
 
@@ -263,13 +322,13 @@ exports.deletePortfolioItem = async (req, res) => {
       });
     }
 
-    settings.portfolio.items.pull(req.params.id);
+    settings.gallery.items.pull(req.params.id);
     await settings.save();
 
     res.status(200).json({
       success: true,
-      data: settings.portfolio.items,
-      message: 'Portfolio item deleted successfully',
+      data: settings.gallery.items,
+      message: 'Gallery item deleted successfully',
     });
   } catch (error) {
     res.status(400).json({

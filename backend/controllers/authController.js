@@ -49,12 +49,12 @@ exports.register = async (req, res) => {
   }
 };
 
-// @desc    Login user - automatically clears existing sessions and creates new one
+// @desc    Login user with session conflict detection and forced login support
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, force } = req.body;
 
     // Validate input
     if (!username || !password) {
@@ -91,6 +91,26 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Check if user has an existing active session
+    const hasActiveSession = user.activeToken && user.sessionInfo && user.sessionInfo.isValid;
+
+    // If active session exists and force flag is not set, return conflict
+    if (hasActiveSession && !force) {
+      return res.status(409).json({
+        success: false,
+        message: 'Active session detected',
+        code: 'ACTIVE_SESSION',
+        sessionInfo: {
+          deviceName: user.deviceInfo?.deviceName || 'Unknown Device',
+          deviceType: getDeviceType(user.sessionInfo.userAgent),
+          loginTime: user.sessionInfo.loginTime,
+          lastActivity: user.sessionInfo.lastActivity,
+          ipAddress: user.sessionInfo.ipAddress,
+          // Don't expose full userAgent for security
+        },
+      });
+    }
+
     // Gather device and session information for new session
     const clientIP = getClientIP(req);
     const userAgent = req.headers['user-agent'] || 'Unknown Device';
@@ -98,14 +118,10 @@ exports.login = async (req, res) => {
     const deviceType = getDeviceType(userAgent);
     const loginTime = new Date();
 
-    // Check if user has an existing active session (regardless of device)
-    const hasExistingSession = user.activeToken && user.sessionInfo && user.sessionInfo.isValid;
-
-    // Generate new JWT token (always generate fresh token to prevent reuse)
+    // Generate new JWT token
     const token = generateToken(user._id);
 
-    // Atomically update user with new session (this automatically invalidates old token and session)
-    // Using atomic update ensures no race conditions and prevents multiple active sessions
+    // Atomically update user with new session (invalidates old session if force=true)
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
       {
@@ -134,7 +150,6 @@ exports.login = async (req, res) => {
       { 
         new: true, 
         runValidators: true,
-        // Use findOneAndUpdate for atomic operation with better concurrency handling
       }
     );
 
@@ -149,13 +164,24 @@ exports.login = async (req, res) => {
 
     // Build response object
     const response = {
+      success: true,
       token: token,
       user: userResponse,
+      sessionInfo: {
+        loginTime: loginTime,
+        deviceName: deviceType,
+        ipAddress: clientIP,
+      },
     };
 
-    // Add warning message if old session was cleared
-    if (hasExistingSession) {
-      response.warning = 'We detected an active session on another device and logged it out for your security.';
+    // Add message if previous session was forcefully terminated
+    if (hasActiveSession && force) {
+      response.message = 'Previous session terminated. New session created.';
+      response.previousSession = {
+        deviceName: user.deviceInfo?.deviceName || 'Unknown Device',
+        loginTime: user.sessionInfo.loginTime,
+        lastActivity: user.sessionInfo.lastActivity,
+      };
     }
 
     res.status(200).json(response);

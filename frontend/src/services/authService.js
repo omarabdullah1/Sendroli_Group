@@ -15,9 +15,15 @@ const authService = {
 
       if (response.data.success || response.data.status === 'force_login_success') {
         console.log('💾 Frontend: Processing successful login response');
-        // Handle different response structures for regular vs force login
-        const userData = response.data.data || response.data;
-        const token = response.data.token || userData.token;
+        
+        // Extract token and user data properly
+        const token = response.data.token;
+        const user = response.data.user || response.data.data;
+        
+        if (!token || !user) {
+          console.error('❌ Missing token or user data in response:', response.data);
+          throw new Error('Invalid login response structure');
+        }
 
         console.log('🧹 Frontend: Clearing old stored data');
         // Clear any existing stored data first (important for force login)
@@ -26,9 +32,10 @@ const authService = {
         console.log('💾 Frontend: Storing new token and user data');
         // Store new token and user data
         localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('user', JSON.stringify(user));
         console.log('🔐 Frontend: Login token stored');
-        console.log('📊 Frontend: Session version:', userData.sessionInfo?.sessionVersion);
+        console.log('👤 Frontend: User stored:', user);
+        console.log('📊 Frontend: Session version:', response.data.sessionInfo?.sessionVersion);
       } else {
         console.log('⚠️ Frontend: Login response not successful:', response.data);
       }

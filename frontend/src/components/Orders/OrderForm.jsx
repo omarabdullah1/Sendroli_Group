@@ -10,7 +10,6 @@ const OrderForm = () => {
   const [formData, setFormData] = useState({
     client: '',
     repeats: '',
-    size: '',
     type: '',
     price: '',
     deposit: '',
@@ -48,7 +47,6 @@ const OrderForm = () => {
       setFormData({
         client: order.client._id,
         repeats: order.repeats,
-        size: order.sheetSize || order.size,
         type: order.type,
         price: order.totalPrice || order.price,
         deposit: order.deposit,

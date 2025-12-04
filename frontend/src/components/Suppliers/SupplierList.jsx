@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supplierService } from '../../services/supplierService';
 import { formatDateTime } from '../../utils/dateUtils';
+import { useDragScroll } from '../../hooks/useDragScroll';
 import Loading from '../Loading';
 import './SupplierList.css';
 
@@ -11,6 +12,7 @@ const SupplierList = ({ onEdit, onDelete }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [selectedSuppliers, setSelectedSuppliers] = useState([]);
+  const tableRef = useDragScroll();
 
   const fetchSuppliers = async () => {
     try {
@@ -136,9 +138,10 @@ const SupplierList = ({ onEdit, onDelete }) => {
         </div>
       ) : (
         <>
-          <div className="table-container">
-            <table className="suppliers-table">
-              <thead>
+          <div className="table-wrapper">
+            <div className="table-container" ref={tableRef}>
+              <table className="data-table">
+                <thead>
                 <tr>
                   <th>
                     <input
@@ -233,7 +236,8 @@ const SupplierList = ({ onEdit, onDelete }) => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
 
           {/* Pagination */}

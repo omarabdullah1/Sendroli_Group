@@ -118,23 +118,34 @@ export const AuthProvider = ({ children }) => {
     try {
       setDeviceConflictError(null);
       console.log('📡 AuthContext: calling authService.login');
-      const userData = await authService.login(username, password, force);
-      console.log('📡 AuthContext: authService.login returned:', userData);
-      setUser(userData.data || userData);
+      const response = await authService.login(username, password, force);
+      console.log('📡 AuthContext: authService.login returned:', response);
+      
+      // Extract user object from response
+      const userObject = response.user || response.data?.user || response.data;
+      console.log('👤 AuthContext: Setting user:', userObject);
+      setUser(userObject);
       startSessionMonitoring();
       console.log('✅ AuthContext: login successful');
-      return userData;
+      return response;
     } catch (error) {
       console.log('❌ AuthContext: login failed:', error);
-      // Handle device conflict errors during login
+      // Handle session conflict errors during login
       const errorCode = error.response?.data?.code;
       const errorMessage = error.response?.data?.message;
       
-      if (errorCode === 'DEVICE_CONFLICT') {
+      // Handle both new ACTIVE_SESSION and legacy DEVICE_CONFLICT codes
+      if (errorCode === 'ACTIVE_SESSION' || errorCode === 'DEVICE_CONFLICT') {
+        const sessionInfo = error.response?.data?.sessionInfo;
         setDeviceConflictError({
           message: errorMessage,
           code: errorCode,
-          conflictInfo: error.response?.data?.conflictInfo || null
+          conflictInfo: sessionInfo ? {
+            existingDevice: sessionInfo.deviceName || sessionInfo.deviceType,
+            existingIP: sessionInfo.ipAddress,
+            loginTime: sessionInfo.loginTime,
+            lastActivity: sessionInfo.lastActivity
+          } : error.response?.data?.conflictInfo || null
         });
       }
       throw error;

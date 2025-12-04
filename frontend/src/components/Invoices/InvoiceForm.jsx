@@ -5,6 +5,7 @@ import clientService from '../../services/clientService';
 import invoiceService from '../../services/invoiceService';
 import { materialService } from '../../services/materialService';
 import orderService from '../../services/orderService';
+import { useDragScroll } from '../../hooks/useDragScroll';
 import './Invoices.css';
 
 const InvoiceForm = () => {
@@ -12,6 +13,7 @@ const InvoiceForm = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isEditMode = Boolean(id);
+  const tableRef = useDragScroll();
 
   const [loading, setLoading] = useState(false);
   const [materialsLoading, setMaterialsLoading] = useState(true);
@@ -732,8 +734,12 @@ const InvoiceForm = () => {
           </div>
 
           {orders.length > 0 && (
-            <div className="orders-table-container">
-              <table className="orders-table">
+            <div className="table-wrapper">
+              <div className="scroll-indicator">
+                ← Scroll to see all columns →
+              </div>
+              <div className="table-container orders-table-container" ref={tableRef}>
+                <table className="orders-table">
                 <thead>
                   <tr>
                     <th>Client</th>
@@ -798,6 +804,7 @@ const InvoiceForm = () => {
                 </tbody>
               </table>
             </div>
+          </div>
           )}
         </div>
 

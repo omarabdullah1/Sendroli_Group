@@ -5,6 +5,7 @@ import Loading from '../components/Loading';
 import SearchAndFilters from '../components/SearchAndFilters';
 import Pagination from '../components/Pagination';
 import { formatDateTime } from '../utils/dateUtils';
+import { useDragScroll } from '../hooks/useDragScroll';
 
 const Users = () => {
   const { user } = useAuth();
@@ -23,6 +24,7 @@ const Users = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const tableRef = useDragScroll();
   const [formData, setFormData] = useState({
     username: '',
     fullName: '',
@@ -324,8 +326,12 @@ const Users = () => {
         {loading ? (
           <Loading message="Loading users..." size="medium" />
         ) : (
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
+          <div className="table-wrapper">
+            <div className="scroll-indicator">
+              ← Scroll to see all columns →
+            </div>
+            <div className="table-container" ref={tableRef}>
+              <table className="data-table">
               <thead>
                 <tr>
                   <th style={styles.th}>Date</th>
@@ -388,6 +394,7 @@ const Users = () => {
               </tbody>
             </table>
           </div>
+        </div>
         )}
 
         {/* Pagination */}

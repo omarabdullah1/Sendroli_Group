@@ -63,8 +63,8 @@ const fallbackSettings = {
       icon: '✅'
     }
   ],
-  portfolio: {
-    title: 'Our Portfolio',
+  gallery: {
+    title: 'Our Gallery',
     items: []
   },
   contact: {
@@ -111,6 +111,9 @@ const LandingPage = () => {
     try {
       const response = await websiteService.getSettings();
       if (response && response.data) {
+        console.log('🔍 Settings fetched:', response.data);
+        console.log('🖼️ Gallery data:', response.data.gallery);
+        console.log('📊 Gallery items count:', response.data.gallery?.items?.length || 0);
         setSettings(response.data);
         setError(null);
         
@@ -159,8 +162,8 @@ const LandingPage = () => {
       }
       
       // Collect gallery images (first 6 for performance)
-      if (settingsData.portfolio?.items) {
-        settingsData.portfolio.items.slice(0, 6).forEach(item => {
+      if (settingsData.gallery?.items) {
+        settingsData.gallery.items.slice(0, 6).forEach(item => {
           if (item.image && isValidImageUrl(item.image)) {
             imagesToPreload.push(item.image);
           }
@@ -206,7 +209,9 @@ const LandingPage = () => {
             <li><a href="#about">About</a></li>
             <li><a href="#services">Services</a></li>
             <li><a href="#why-choose-us">Why Us</a></li>
-            <li><a href="#portfolio">Portfolio</a></li>
+            {settings.gallery?.items && settings.gallery.items.length > 0 && (
+              <li><a href="#gallery">Gallery</a></li>
+            )}
             <li><a href="#contact">Contact</a></li>
           </ul>
           {isAuthenticated && user ? (
@@ -377,104 +382,143 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Portfolio Section */}
-      <section id="portfolio" className="portfolio-section">
-        <div className="container">
-          <h2 className="section-title">{settings.portfolio.title}</h2>
-          {settings.portfolio.items.length > 0 ? (
-            <div className="portfolio-grid">
-              {settings.portfolio.items.map((item, index) => (
-                <div key={index} className="portfolio-card">
-                  {item.image && isValidImageUrl(item.image) && (
-                    <CachedImage src={item.image} alt={item.title} />
-                  )}
-                  <div className="portfolio-info">
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                    {item.category && (
-                      <span className="portfolio-category">{item.category}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+      {/* Gallery Section - Horizontal Sliding Gallery */}
+      {(() => {
+        const hasGalleryItems = settings.gallery?.items && settings.gallery.items.length > 0;
+        console.log('🎨 Gallery render check:', {
+          hasGallery: !!settings.gallery,
+          hasItems: !!settings.gallery?.items,
+          itemsLength: settings.gallery?.items?.length || 0,
+          willRender: hasGalleryItems,
+          items: settings.gallery?.items
+        });
+        return hasGalleryItems;
+      })() && (
+        <section id="gallery" className="gallery-section">
+          <div className="container">
+            <h2 className="section-title">{settings.gallery?.title || 'Our Gallery'}</h2>
+            <div className="gallery-slider-container">
+              <div className="gallery-slider">
+                {settings.gallery.items.map((item, index) => {
+                  console.log(`🖼️ Rendering gallery item ${index}:`, {
+                    title: item.title,
+                    hasImage: !!item.image,
+                    imageUrl: item.image,
+                    isValid: item.image ? isValidImageUrl(item.image) : false
+                  });
+                  return (
+                    <div key={index} className="gallery-slide">
+                      <div className="gallery-card">
+                        {item.image && isValidImageUrl(item.image) ? (
+                          <CachedImage src={item.image} alt={item.title || 'Gallery image'} className="gallery-image" />
+                        ) : (
+                          <div className="gallery-placeholder">
+                            {item.image ? '❌ Invalid image' : '📷 No image'}
+                          </div>
+                        )}
+                        <div className="gallery-overlay">
+                          <div className="gallery-info">
+                            {item.title && <h3>{item.title}</h3>}
+                            {item.description && <p>{item.description}</p>}
+                            {item.category && (
+                              <span className="gallery-category">{item.category}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          ) : (
-            <div className="portfolio-placeholder">
-              <p>Portfolio coming soon! We're working on showcasing our best projects.</p>
-            </div>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
       {/* Contact Section */}
       <section id="contact" className="contact-section">
         <div className="container">
           <h2 className="section-title">Get In Touch</h2>
           <div className="contact-content">
-            <div className="contact-info">
-              <div className="contact-item">
-                <div className="contact-icon">📞</div>
-                <div>
-                  <h4>Phone</h4>
-                  <a href={`tel:${currentSettings.contact?.phone || '+20 123 456 7890'}`}>{currentSettings.contact?.phone || '+20 123 456 7890'}</a>
+            {/* Contact Info and Social Side by Side */}
+            <div className="contact-left">
+              <div className="contact-info">
+                <div className="contact-item">
+                  <div className="contact-icon">📞</div>
+                  <div>
+                    <h4>Phone</h4>
+                    <a href={`tel:${currentSettings.contact?.phone || '+20 123 456 7890'}`}>{currentSettings.contact?.phone || '+20 123 456 7890'}</a>
+                  </div>
+                </div>
+                <div className="contact-item">
+                  <div className="contact-icon">💬</div>
+                  <div>
+                    <h4>WhatsApp</h4>
+                    <a href={`https://wa.me/${(currentSettings.contact?.whatsapp || '+20 123 456 7890').replace(/[^0-9]/g, '')}`}>
+                      {currentSettings.contact?.whatsapp || '+20 123 456 7890'}
+                    </a>
+                  </div>
+                </div>
+                <div className="contact-item">
+                  <div className="contact-icon">✉️</div>
+                  <div>
+                    <h4>Email</h4>
+                    <a href={`mailto:${currentSettings.contact?.email || 'info@sendrolifactory.com'}`}>{currentSettings.contact?.email || 'info@sendrolifactory.com'}</a>
+                  </div>
                 </div>
               </div>
-              <div className="contact-item">
-                <div className="contact-icon">💬</div>
-                <div>
-                  <h4>WhatsApp</h4>
-                  <a href={`https://wa.me/${(currentSettings.contact?.whatsapp || '+20 123 456 7890').replace(/[^0-9]/g, '')}`}>
-                    {currentSettings.contact?.whatsapp || '+20 123 456 7890'}
-                  </a>
+              
+              <div className="contact-social">
+                <h3>Follow Us</h3>
+                <div className="social-links">
+                  {currentSettings.contact?.facebook && (
+                    <a href={currentSettings.contact.facebook} target="_blank" rel="noopener noreferrer">
+                      <span className="social-icon">👥</span> Facebook
+                    </a>
+                  )}
+                  {currentSettings.contact?.instagram && (
+                    <a href={currentSettings.contact.instagram} target="_blank" rel="noopener noreferrer">
+                      <span className="social-icon">📷</span> Instagram
+                    </a>
+                  )}
+                  {currentSettings.contact?.linkedin && (
+                    <a href={currentSettings.contact.linkedin} target="_blank" rel="noopener noreferrer">
+                      <span className="social-icon">💼</span> LinkedIn
+                    </a>
+                  )}
                 </div>
-              </div>
-              <div className="contact-item">
-                <div className="contact-icon">✉️</div>
-                <div>
-                  <h4>Email</h4>
-                  <a href={`mailto:${currentSettings.contact?.email || 'info@sendrolifactory.com'}`}>{currentSettings.contact?.email || 'info@sendrolifactory.com'}</a>
-                </div>
-              </div>
-              <div className="contact-item">
-                <div className="contact-icon">📍</div>
-                <div>
-                  <h4>Address</h4>
-                  <p>{currentSettings.contact?.address || 'Cairo, Egypt'}</p>
-                </div>
+                {currentSettings.contact?.qrCode && (
+                  <div className="qr-code">
+                  {currentSettings.contact.qrCode && isValidImageUrl(currentSettings.contact.qrCode) && (
+                    <CachedImage 
+                      src={currentSettings.contact.qrCode} 
+                      alt="QR Code" 
+                      className="qr-code-image"
+                    />
+                  )}
+                    <p>Scan to connect</p>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="contact-social">
-              <h3>Follow Us</h3>
-              <div className="social-links">
-                {currentSettings.contact?.facebook && (
-                  <a href={currentSettings.contact.facebook} target="_blank" rel="noopener noreferrer">
-                    <span className="social-icon">📛</span> Facebook
-                  </a>
-                )}
-                {currentSettings.contact?.instagram && (
-                  <a href={currentSettings.contact.instagram} target="_blank" rel="noopener noreferrer">
-                    <span className="social-icon">📷</span> Instagram
-                  </a>
-                )}
-                {currentSettings.contact?.linkedin && (
-                  <a href={currentSettings.contact.linkedin} target="_blank" rel="noopener noreferrer">
-                    <span className="social-icon">💼</span> LinkedIn
-                  </a>
-                )}
+            
+            {/* Interactive Map - Right Side */}
+            <div className="contact-map">
+              <h3>{currentSettings.contact?.mapLocation || 'Find Us'}</h3>
+              <div className="map-container">
+                <iframe
+                  src={currentSettings.contact?.mapEmbedUrl || "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d220790.48587489217!2d31.04534893359375!3d30.064742000000003!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14583fa60b21beeb%3A0x79dfb296e8423bba!2sCairo%2C%20Egypt!5e0!3m2!1sen!2sus!4v1701234567890!5m2!1sen!2sus"}
+                  width="100%"
+                  height="300"
+                  style={{ border: 0, borderRadius: '10px' }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title={`${currentSettings.contact?.mapLocation || 'Company'} Location`}
+                ></iframe>
               </div>
-              {currentSettings.contact?.qrCode && (
-                <div className="qr-code">
-                {currentSettings.contact.qrCode && isValidImageUrl(currentSettings.contact.qrCode) && (
-                  <CachedImage 
-                    src={currentSettings.contact.qrCode} 
-                    alt="QR Code" 
-                    className="qr-code-image"
-                  />
-                )}
-                  <p>Scan to connect</p>
-                </div>
-              )}
             </div>
+          </div>
           </div>
         </div>
       </section>

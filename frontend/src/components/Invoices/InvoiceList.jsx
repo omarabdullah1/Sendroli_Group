@@ -6,6 +6,7 @@ import clientService from '../../services/clientService';
 import Loading from '../Loading';
 import SearchAndFilters from '../SearchAndFilters';
 import Pagination from '../Pagination';
+import { useDragScroll } from '../../hooks/useDragScroll';
 import './Invoices.css';
 
 const InvoiceList = () => {
@@ -24,6 +25,7 @@ const InvoiceList = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
   const { user } = useAuth();
+  const tableRef = useDragScroll();
 
   useEffect(() => {
     fetchClients();
@@ -216,62 +218,64 @@ const InvoiceList = () => {
           <p>No invoices found. Create your first invoice!</p>
         </div>
       ) : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Invoice #</th>
-                <th>Client</th>
-                <th>Date</th>
-                <th>Created</th>
-                <th>Orders</th>
-                <th>Subtotal</th>
-                <th>Total</th>
-                <th>Remaining</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((invoice) => (
-                <tr key={invoice._id}>
-                  <td>#{invoice._id.slice(-6).toUpperCase()}</td>
-                  <td>{invoice.client?.name || invoice.clientSnapshot?.name || 'N/A'}</td>
-                  <td>{formatDate(invoice.invoiceDate)}</td>
-                  <td>{formatDateTime(invoice.createdAt || invoice.date)}</td>
-                  <td>{invoice.orderCount || 0}</td>
-                  <td>{invoice.subtotal?.toFixed(2) || '0.00'} EGP</td>
-                  <td>{invoice.total?.toFixed(2) || '0.00'} EGP</td>
-                  <td>{invoice.totalRemaining?.toFixed(2) || '0.00'} EGP</td>
-                  <td>
-                    <span className={`status-badge status-${invoice.status}`}>
-                      {invoice.status}
-                    </span>
-                  </td>
-                  <td className="actions">
-                    <Link to={`/invoices/${invoice._id}`} className="btn-view">
-                      View
-                    </Link>
-                    
-                    {['admin', 'designer'].includes(user?.role) && (
-                      <Link to={`/invoices/edit/${invoice._id}`} className="btn-edit">
-                        Edit
-                      </Link>
-                    )}
-                    
-                    {user?.role === 'admin' && (
-                      <button
-                        onClick={() => handleDelete(invoice._id)}
-                        className="btn-delete"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </td>
+        <div className="table-wrapper">
+          <div className="table-container" ref={tableRef}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Client</th>
+                  <th>Date</th>
+                  <th>Created</th>
+                  <th>Orders</th>
+                  <th>Subtotal</th>
+                  <th>Total</th>
+                  <th>Remaining</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {invoices.map((invoice) => (
+                  <tr key={invoice._id}>
+                    <td>#{invoice._id.slice(-6).toUpperCase()}</td>
+                    <td>{invoice.client?.name || invoice.clientSnapshot?.name || 'N/A'}</td>
+                    <td>{formatDate(invoice.invoiceDate)}</td>
+                    <td>{formatDateTime(invoice.createdAt || invoice.date)}</td>
+                    <td>{invoice.orderCount || 0}</td>
+                    <td>{invoice.subtotal?.toFixed(2) || '0.00'} EGP</td>
+                    <td>{invoice.total?.toFixed(2) || '0.00'} EGP</td>
+                    <td>{invoice.totalRemaining?.toFixed(2) || '0.00'} EGP</td>
+                    <td>
+                      <span className={`status-badge status-${invoice.status}`}>
+                        {invoice.status}
+                      </span>
+                    </td>
+                    <td className="actions">
+                      <Link to={`/invoices/${invoice._id}`} className="btn-view">
+                        View
+                      </Link>
+                      
+                      {['admin', 'designer'].includes(user?.role) && (
+                        <Link to={`/invoices/edit/${invoice._id}`} className="btn-edit">
+                          Edit
+                        </Link>
+                      )}
+                      
+                      {user?.role === 'admin' && (
+                        <button
+                          onClick={() => handleDelete(invoice._id)}
+                          className="btn-delete"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

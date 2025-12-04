@@ -30,10 +30,6 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       min: [1, 'Repeats must be at least 1'],
     },
-    sheetSize: {
-      type: String,
-      trim: true,
-    },
     sheetWidth: {
       type: Number,
       min: [0, 'Sheet width must be positive'],

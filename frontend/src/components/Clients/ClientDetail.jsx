@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import clientService from '../../services/clientService';
 import { orderService } from '../../services/orderService';
+import { useDragScroll } from '../../hooks/useDragScroll';
 import './Clients.css';
 
 const ClientDetail = () => {
@@ -10,6 +11,7 @@ const ClientDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { id } = useParams();
+  const tableRef = useDragScroll();
 
   useEffect(() => {
     loadClientData();
@@ -74,8 +76,12 @@ const ClientDetail = () => {
         {orders.length === 0 ? (
           <p>No orders found for this client.</p>
         ) : (
-          <div className="table-container">
-            <table className="data-table">
+          <div className="table-wrapper">
+            <div className="scroll-indicator">
+              ← Scroll to see all columns →
+            </div>
+            <div className="table-container" ref={tableRef}>
+              <table className="data-table">
               <thead>
                 <tr>
                   <th>Type</th>
@@ -110,6 +116,7 @@ const ClientDetail = () => {
               </tbody>
             </table>
           </div>
+        </div>
         )}
       </div>
 

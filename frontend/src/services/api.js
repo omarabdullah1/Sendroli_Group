@@ -1,9 +1,8 @@
 import axios from 'axios';
 
 // Base URL
-// For local development, fallback to localhost
-// In Vercel preview or production, set VITE_API_URL in environment variables
-const API_URL = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// TEMPORARILY HARDCODED FOR DEBUGGING - USING LATEST BACKEND DEPLOYMENT
+const API_URL = 'https://backend-j5nqrw1sp-oos-projects-e7124c64.vercel.app/api';
 
 // Debug: Log the API URL being used
 console.log('🔧 API Base URL:', API_URL);

@@ -75,7 +75,20 @@ const Login = () => {
       const errorMessage = err.response?.data?.message || 'Login failed';
       const errorCode = err.response?.data?.code;
       
-      if (errorCode === 'DEVICE_CONFLICT') {
+      // Handle session conflict (409 status with ACTIVE_SESSION code)
+      if (err.response?.status === 409 && errorCode === 'ACTIVE_SESSION') {
+        const sessionInfo = err.response?.data?.sessionInfo || {};
+        setDeviceConflict({
+          message: errorMessage,
+          conflictInfo: {
+            existingDevice: sessionInfo.deviceName || sessionInfo.deviceType,
+            existingIP: sessionInfo.ipAddress,
+            loginTime: sessionInfo.loginTime,
+            lastActivity: sessionInfo.lastActivity
+          }
+        });
+      } else if (errorCode === 'DEVICE_CONFLICT') {
+        // Legacy support for old error code
         setDeviceConflict({
           message: errorMessage,
           conflictInfo: err.response?.data?.conflictInfo

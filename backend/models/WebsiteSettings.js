@@ -76,11 +76,11 @@ const websiteSettingsSchema = new mongoose.Schema(
       ],
     },
 
-    // Portfolio
-    portfolio: {
+    // Gallery
+    gallery: {
       title: {
         type: String,
-        default: 'Our Portfolio',
+        default: 'Our Gallery',
       },
       items: [
         {
@@ -109,6 +109,17 @@ const websiteSettingsSchema = new mongoose.Schema(
       address: {
         type: String,
         default: 'Cairo, Egypt',
+      },
+      // Map Configuration
+      mapEmbedUrl: {
+        type: String,
+        default: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d220790.48587489217!2d31.04534893359375!3d30.064742000000003!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14583fa60b21beeb%3A0x79dfb296e8423bba!2sCairo%2C%20Egypt!5e0!3m2!1sen!2sus!4v1701234567890!5m2!1sen!2sus',
+        description: 'Google Maps embed URL for the company location. Get from Google Maps -> Share -> Embed a map',
+      },
+      mapLocation: {
+        type: String,
+        default: 'Cairo, Egypt',
+        description: 'Location name displayed above the map',
       },
       qrCode: {
         type: String,

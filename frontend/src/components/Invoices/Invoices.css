@@ -50,17 +50,80 @@
   border: 1px solid var(--border-light, #e5e7eb);
 }
 
+.table-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.scroll-indicator {
+  background: linear-gradient(135deg, var(--theme-primary, #00CED1) 0%, var(--theme-primary-dark, #0099CC) 100%);
+  color: white;
+  padding: 12px 20px;
+  text-align: center;
+  border-radius: var(--radius-lg, 10px) var(--radius-lg, 10px) 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+
+@keyframes scrollPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
 .table-container {
   background: var(--surface, #fff);
   border-radius: var(--radius-lg, 10px);
   box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
   border: 1px solid var(--border-light, #e5e7eb);
   overflow-x: auto;
+  scroll-behavior: smooth;
+  cursor: grab;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-container:active {
+  cursor: grabbing;
+}
+
+/* Custom Scrollbar Styling */
+.table-container::-webkit-scrollbar {
+  height: 12px;
+  background: var(--gray-100, #f3f4f6);
+  border-radius: 0 0 var(--radius-lg, 10px) var(--radius-lg, 10px);
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: var(--gray-100, #f3f4f6);
+  border-radius: 0 0 var(--radius-lg, 10px) var(--radius-lg, 10px);
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--theme-primary, #00CED1) 0%, var(--theme-primary-dark, #0099CC) 100%);
+  border-radius: 6px;
+  border: 2px solid var(--gray-100, #f3f4f6);
+  transition: background 0.3s ease;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-primary-dark, #0099CC);
+}
+
+/* For Firefox */
+.table-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-primary, #00CED1) var(--gray-100, #f3f4f6);
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 1200px;
 }
 
 .data-table th,

@@ -1,7 +1,10 @@
 import { formatDateTime } from '../../utils/dateUtils';
+import { useDragScroll } from '../../hooks/useDragScroll';
 import './MaterialList.css';
 
 const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
+  const tableRef = useDragScroll();
+  
   const getStockStatusClass = (material) => {
     if (material.currentStock <= 0) return 'status-out';
     if (material.currentStock <= material.minStockLevel) return 'status-low';
@@ -31,9 +34,10 @@ const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
 
   return (
     <div className="material-list">
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
+      <div className="table-wrapper">
+        <div className="table-container" ref={tableRef}>
+          <table className="data-table">
+            <thead>
             <tr>
               <th>Date</th>
               <th>Material Name</th>
@@ -100,8 +104,9 @@ const MaterialList = ({ materials, onEdit, onDelete, userRole }) => {
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+            </table>
+          </div>
+        </div>
       
       {materials.length === 0 && (
         <div className="empty-state">

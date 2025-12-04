@@ -206,9 +206,10 @@ const MaterialWithdrawal = () => {
           </div>
 
           {withdrawals.length > 0 ? (
-            <div className="withdrawals-table">
-              <table className="data-table">
-                <thead>
+            <div className="table-wrapper">
+              <div className="withdrawals-table">
+                <table className="data-table">
+                  <thead>
                   <tr>
                     <th>Material</th>
                     <th>Category</th>
@@ -233,7 +234,8 @@ const MaterialWithdrawal = () => {
                     );
                   })}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
           ) : (
             <div className="no-data">

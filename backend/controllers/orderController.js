@@ -108,7 +108,6 @@ exports.createOrder = async (req, res) => {
       clientName,
       clientSnapshot,
       repeats,
-      sheetSize,
       sheetWidth,
       sheetHeight,
       type,
@@ -150,7 +149,6 @@ exports.createOrder = async (req, res) => {
     let orderData = {
       clientName: clientName || null,
       repeats: numRepeats,
-      sheetSize,
       sheetWidth: numSheetWidth,
       sheetHeight: numSheetHeight,
       type,

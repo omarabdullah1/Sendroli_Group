@@ -6,9 +6,11 @@ import { supplierService } from '../services/supplierService';
 import SearchAndFilters from '../components/SearchAndFilters';
 import Pagination from '../components/Pagination';
 import Loading from '../components/Loading';
+import { useDragScroll } from '../hooks/useDragScroll';
 import './Purchases.css';
 
 const Purchases = () => {
+  const tableRef = useDragScroll();
   const [allPurchases, setAllPurchases] = useState([]); // Store all fetched purchases
   const [purchases, setPurchases] = useState([]); // Displayed purchases (filtered + paginated)
   const [suppliers, setSuppliers] = useState([]);
@@ -283,9 +285,10 @@ const Purchases = () => {
         />
 
         <div className="purchases-table-section">
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
+          <div className="table-wrapper">
+            <div className="table-container" ref={tableRef}>
+              <table className="data-table">
+                <thead>
                 <tr>
                   <th>Purchase #</th>
                   <th>Supplier</th>
@@ -383,7 +386,8 @@ const Purchases = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
           
           {purchases.length === 0 && (

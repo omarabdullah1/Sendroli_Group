@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import invoiceService from '../../services/invoiceService';
+import { useDragScroll } from '../../hooks/useDragScroll';
 import './Invoices.css';
 
 const InvoiceDetail = () => {
@@ -11,6 +12,7 @@ const InvoiceDetail = () => {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const tableRef = useDragScroll();
 
   useEffect(() => {
     loadInvoice();
@@ -120,7 +122,12 @@ const InvoiceDetail = () => {
           <h2>Orders ({invoice.orders?.length || 0})</h2>
           {invoice.orders && invoice.orders.length > 0 ? (
             <>
-              <table className="items-table">
+              <div className="table-wrapper">
+                <div className="scroll-indicator">
+                  ← Scroll to see all columns →
+                </div>
+                <div className="table-container" ref={tableRef}>
+                  <table className="items-table">
                 <thead>
                   <tr>
                     <th>Client</th>
@@ -159,6 +166,8 @@ const InvoiceDetail = () => {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
 
               {/* Order Details Section */}
               <div className="orders-details">
