@@ -6,6 +6,7 @@ const {
   markAsRead,
   markAllAsRead,
   deleteNotification,
+  deleteAllRead,
 } = require('../controllers/notificationController');
 const { protect } = require('../middleware/auth');
 
@@ -20,6 +21,9 @@ router.get('/unread-count', getUnreadCount);
 
 // Mark all as read
 router.put('/mark-all-read', markAllAsRead);
+
+// Delete all read notifications (MUST be before /:id route)
+router.delete('/read', deleteAllRead);
 
 // Mark single notification as read
 router.put('/:id/read', markAsRead);
