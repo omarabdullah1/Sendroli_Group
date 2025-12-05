@@ -88,14 +88,34 @@ const allowedOrigins = [
   'https://sendroli-group.vercel.app', // production frontend
   'https://frontend-henna-beta.vercel.app', // previous frontend deployment
   'https://frontend-jtay92k1x-oos-projects-e7124c64.vercel.app', // previous frontend deployment
-  'https://frontend-akxcmv8bn-oos-projects-e7124c64.vercel.app', // current frontend deployment
+  'https://frontend-akxcmv8bn-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-bxmjgqs4u-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-6wmwsg9bp-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-qqsw3mgv0-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-89z23cwr0-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-nonsuj4vl-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-i8px6do1f-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-otgfa832c-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-iopcnl9fi-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-2k41r71wt-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-6ew6iey09-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-cb6ffloy1-oos-projects-e7124c64.vercel.app', // current frontend deployment (Dec 4, 2025 - notification data fix)
   'https://sendroli-group-backend.vercel.app', // backend domain
   'https://sendroli-group-backend-f63q14cur-oos-projects-e7124c64.vercel.app', // old backend URL
   'https://backend-7tui5kf7o-oos-projects-e7124c64.vercel.app', // previous backend URL
   'https://backend-1x9bpv4nz-oos-projects-e7124c64.vercel.app', // previous backend URL
   'https://backend-a4ooem4q5-oos-projects-e7124c64.vercel.app', // previous backend URL
-  'https://backend-f0oex5lw8-oos-projects-e7124c64.vercel.app', // current backend URL
+  'https://backend-f0oex5lw8-oos-projects-e7124c64.vercel.app', // previous backend URL
   'https://backend-qk8m8ukfa-oos-projects-e7124c64.vercel.app', // previous backend URL
+  'https://backend-2le6rx8t3-oos-projects-e7124c64.vercel.app', // previous backend deployment
+  'https://backend-rgtbxidxy-oos-projects-e7124c64.vercel.app', // previous backend deployment
+  'https://backend-9wvram2p5-oos-projects-e7124c64.vercel.app', // previous backend deployment
+  'https://backend-gh76jmfio-oos-projects-e7124c64.vercel.app', // previous backend deployment
+  'https://backend-c6e66lz9i-oos-projects-e7124c64.vercel.app', // previous backend deployment
+  'https://backend-r8tiibfn2-oos-projects-e7124c64.vercel.app', // previous backend deployment
+  'https://backend-3w007fhzi-oos-projects-e7124c64.vercel.app', // previous backend deployment
+  'https://frontend-8tgtx9fcq-oos-projects-e7124c64.vercel.app', // current backend deployment (Dec 4, 2025)
+  'https://frontend-aa7xdqeal-oos-projects-e7124c64.vercel.app', // current frontend deployment (Dec 5, 2025 - Font Awesome icons)
   process.env.FRONTEND_URL,            // optional env var
 ];
 

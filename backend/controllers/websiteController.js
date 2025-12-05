@@ -72,6 +72,8 @@ exports.getWebsiteSettings = async (req, res) => {
     console.log('📤 Sending settings response');
     console.log('🖼️ Gallery in response:', settings.gallery);
     console.log('📊 Gallery items count:', settings.gallery?.items?.length || 0);
+    console.log('🗺️ Map embed URL in GET response:', settings.contact?.mapEmbedUrl);
+    console.log('📍 Map location in GET response:', settings.contact?.mapLocation);
 
     res.status(200).json({
       success: true,
@@ -93,6 +95,8 @@ exports.updateWebsiteSettings = async (req, res) => {
     console.log('📝 Update request received');
     console.log('🖼️ Gallery in request:', JSON.stringify(req.body.gallery, null, 2));
     console.log('📊 Gallery items in request:', req.body.gallery?.items?.length || 0);
+    console.log('🗺️ Map embed URL in request:', req.body.contact?.mapEmbedUrl);
+    console.log('📍 Map location in request:', req.body.contact?.mapLocation);
     
     let settings = await WebsiteSettings.findOne();
 
@@ -139,6 +143,20 @@ exports.updateWebsiteSettings = async (req, res) => {
         settings.markModified('gallery.items');
       }
       
+      // Special handling for contact to ensure nested fields are saved
+      if (req.body.contact) {
+        console.log('🗺️ Explicitly setting contact from request');
+        console.log('📍 Contact data to set:', JSON.stringify(req.body.contact, null, 2));
+        
+        settings.contact = {
+          ...settings.contact,
+          ...req.body.contact
+        };
+        
+        console.log('✅ Contact set to:', JSON.stringify(settings.contact, null, 2));
+        settings.markModified('contact');
+      }
+      
       settings.updatedBy = req.user.id;
       
       // Save and immediately refetch to verify persistence
@@ -152,11 +170,14 @@ exports.updateWebsiteSettings = async (req, res) => {
     console.log('✅ Final document retrieved');
     console.log('🖼️ Gallery in final document:', JSON.stringify(settings.gallery, null, 2));
     console.log('📊 Final gallery items count:', settings.gallery?.items?.length || 0);
+    console.log('🗺️ Map embed URL in final document:', settings.contact?.mapEmbedUrl);
+    console.log('📍 Map location in final document:', settings.contact?.mapLocation);
 
     // Convert to object and verify gallery is present
     const responseData = settings.toObject();
     console.log('📤 Response data gallery:', JSON.stringify(responseData.gallery, null, 2));
     console.log('📋 Response data keys:', Object.keys(responseData));
+    console.log('🗺️ Map embed URL in response:', responseData.contact?.mapEmbedUrl);
     
     // Double-check gallery presence
     if (!responseData.gallery) {

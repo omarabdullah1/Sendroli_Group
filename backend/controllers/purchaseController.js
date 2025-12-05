@@ -1,6 +1,8 @@
 const Purchase = require('../models/Purchase');
 const Material = require('../models/Material');
 const Inventory = require('../models/Inventory');
+const User = require('../models/User');
+const { createNotification } = require('./notificationController');
 
 // Get all purchases
 exports.getAllPurchases = async (req, res, next) => {
@@ -218,6 +220,33 @@ exports.receivePurchase = async (req, res, next) => {
     purchase.notes = notes;
     purchase.updatedBy = req.user.id;
     await purchase.save();
+    
+    // Notify admins about stock addition
+    try {
+      const admins = await User.find({
+        role: 'admin',
+        isActive: true,
+      });
+
+      const materialNames = receivedItems.map(item => {
+        const mat = purchase.items.find(i => i.material._id.toString() === item.materialId);
+        return mat ? mat.material.name : 'Unknown';
+      }).join(', ');
+
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: 'Purchase Received',
+          message: `Purchase order ${purchase.purchaseNumber} received - Materials: ${materialNames}`,
+          icon: 'fa-arrow-right-to-bracket',
+          type: 'inventory',
+          relatedId: purchase._id,
+          relatedType: 'purchase',
+          actionUrl: `/inventory/purchases/${purchase._id}`,
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating purchase notifications:', notifError);
+    }
     
     res.status(200).json({
       success: true,

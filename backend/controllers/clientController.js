@@ -1,4 +1,6 @@
 const Client = require('../models/Client');
+const User = require('../models/User');
+const { createNotification } = require('./notificationController');
 
 // @desc    Get all clients
 // @route   GET /api/clients
@@ -96,6 +98,60 @@ exports.createClient = async (req, res) => {
       createdBy: req.user._id,
     });
 
+    // Notify admins and receptionists about new client
+    try {
+      console.log('🔍 ===== CLIENT CREATE NOTIFICATION START =====');
+      console.log('🔍 Client ID:', client._id.toString());
+      console.log('🔍 Client name:', name);
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
+      });
+      
+      // Find all admin and receptionist users (including current user for testing)
+      const allUsers = await User.find({
+        role: { $in: ['admin', 'receptionist'] },
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total admin/receptionist users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'New Client Added',
+            message: `Client "${name}" (${phone}) added by ${req.user.username}${factoryName ? ' - ' + factoryName : ''}`,
+            icon: 'fa-user-plus',
+            type: 'client',
+            relatedId: client._id,
+            relatedType: 'client',
+            actionUrl: `/clients/${client._id}`,
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
+    }
+
     res.status(201).json({
       success: true,
       data: client,
@@ -158,6 +214,60 @@ exports.updateClient = async (req, res) => {
       }
     );
 
+    // Notify admins and receptionists about client update
+    try {
+      console.log('🔍 ===== CLIENT UPDATE NOTIFICATION START =====');
+      console.log('🔍 Client ID:', client._id.toString());
+      console.log('🔍 Client name:', client.name);
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
+      });
+      
+      // Find all admin and receptionist users (including current user for testing)
+      const allUsers = await User.find({
+        role: { $in: ['admin', 'receptionist'] },
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total admin/receptionist users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'Client Updated',
+            message: `Client "${client.name}" (${client.phone}) updated by ${req.user.username}${client.factoryName ? ' - ' + client.factoryName : ''}`,
+            icon: 'fa-user-edit',
+            type: 'client',
+            relatedId: client._id,
+            relatedType: 'client',
+            actionUrl: `/clients/${client._id}`,
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
+    }
+
     res.status(200).json({
       success: true,
       data: client,
@@ -212,7 +322,65 @@ exports.deleteClient = async (req, res) => {
     // Log the deletion for audit trail
     console.log(`Client ${req.params.id} (${client.name}) deleted by user ${req.user._id} (${req.user.username})`);
 
+    // Store client details before deletion
+    const clientName = client.name;
+    const clientPhone = client.phone;
+    const clientFactory = client.factoryName;
+
     await client.deleteOne();
+    
+    // Notify relevant users about client deletion
+    try {
+      console.log('🔍 ===== CLIENT DELETE NOTIFICATION START =====');
+      console.log('🔍 Client name:', clientName);
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
+      });
+      
+      // Find all admin and receptionist users (including current user for testing)
+      const allUsers = await User.find({
+        role: { $in: ['admin', 'receptionist'] },
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total admin/receptionist users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'Client Deleted',
+            message: `Client "${clientName}" (${clientPhone})${clientFactory ? ' - ' + clientFactory : ''} was deleted by ${req.user.username}`,
+            icon: 'fa-user-xmark',
+            type: 'client',
+            relatedId: null,
+            relatedType: 'client',
+            actionUrl: '/clients',
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
+    }
 
     res.status(200).json({
       success: true,

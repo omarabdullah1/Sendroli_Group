@@ -5,13 +5,21 @@ const Notification = require('../models/Notification');
 // @access  Private
 exports.getNotifications = async (req, res) => {
   try {
-    const { page = 1, limit = 50, unreadOnly = false } = req.query;
+    const { page = 1, limit = 50, filter = 'all', category } = req.query;
     const userId = req.user.id;
 
     let query = { user: userId };
     
-    if (unreadOnly === 'true') {
+    // Filter by read status
+    if (filter === 'unread') {
       query.read = false;
+    } else if (filter === 'read') {
+      query.read = true;
+    }
+
+    // Filter by category/type
+    if (category) {
+      query.type = category;
     }
 
     const notifications = await Notification.find(query)
@@ -24,11 +32,15 @@ exports.getNotifications = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: notifications,
-      unreadCount,
-      total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      data: {
+        notifications,
+        unreadCount,
+        pagination: {
+          total,
+          pages: Math.ceil(total / limit),
+          current: parseInt(page),
+        },
+      },
     });
   } catch (error) {
     console.error('Get notifications error:', error);
@@ -163,6 +175,36 @@ exports.deleteNotification = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting notification',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Delete all read notifications
+// @route   DELETE /api/notifications/read
+// @access  Private
+exports.deleteAllRead = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await Notification.deleteMany({
+      user: userId,
+      read: true,
+    });
+
+    const unreadCount = await Notification.countDocuments({ user: userId, read: false });
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} read notifications deleted`,
+      deletedCount: result.deletedCount,
+      unreadCount,
+    });
+  } catch (error) {
+    console.error('Delete all read error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting read notifications',
       error: error.message,
     });
   }

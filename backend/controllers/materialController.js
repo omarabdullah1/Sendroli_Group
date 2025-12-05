@@ -1,5 +1,7 @@
 const Material = require('../models/Material');
 const Inventory = require('../models/Inventory');
+const User = require('../models/User');
+const { createNotification } = require('./notificationController');
 
 // Get all materials with filtering and pagination
 exports.getAllMaterials = async (req, res, next) => {
@@ -116,6 +118,60 @@ exports.createMaterial = async (req, res, next) => {
     console.log('Created material:', material);
     console.log('Saved selling price:', material.sellingPrice);
     
+    // Notify admins about new material
+    try {
+      console.log('🔍 ===== MATERIAL CREATE NOTIFICATION START =====');
+      console.log('🔍 Material ID:', material._id.toString());
+      console.log('🔍 Material name:', material.name);
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
+      });
+      
+      // Find all admin users (including current user for testing)
+      const allUsers = await User.find({
+        role: 'admin',
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total admin users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'New Material Added',
+            message: `Material "${material.name}" added by ${req.user.username} - Price: ${material.sellingPrice} EGP/${material.unit}, Stock: ${material.currentStock} ${material.unit}`,
+            icon: 'fa-box',
+            type: 'inventory',
+            relatedId: material._id,
+            relatedType: 'material',
+            actionUrl: `/inventory/materials/${material._id}`,
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
+    }
+    
     res.status(201).json({
       success: true,
       data: material,
@@ -174,6 +230,60 @@ exports.updateMaterial = async (req, res, next) => {
     console.log('Updated material from DB:', material);
     console.log('Selling price in updated material:', material.sellingPrice);
     
+    // Notify admins about material update
+    try {
+      console.log('🔍 ===== MATERIAL UPDATE NOTIFICATION START =====');
+      console.log('🔍 Material ID:', material._id.toString());
+      console.log('🔍 Material name:', material.name);
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
+      });
+      
+      // Find all admin users (including current user for testing)
+      const allUsers = await User.find({
+        role: 'admin',
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total admin users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'Material Updated',
+            message: `Material "${material.name}" updated by ${req.user.username} - Price: ${material.sellingPrice} EGP/${material.unit}, Stock: ${material.currentStock} ${material.unit}`,
+            icon: 'fa-box-open',
+            type: 'inventory',
+            relatedId: material._id,
+            relatedType: 'material',
+            actionUrl: `/inventory/materials/${material._id}`,
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
+    }
+    
     res.status(200).json({
       success: true,
       data: material,
@@ -188,17 +298,78 @@ exports.updateMaterial = async (req, res, next) => {
 // Delete material
 exports.deleteMaterial = async (req, res, next) => {
   try {
+    // Get material details before deletion
+    const materialToDelete = await Material.findById(req.params.id);
+    
+    if (!materialToDelete) {
+      return res.status(404).json({
+        success: false,
+        message: 'Material not found'
+      });
+    }
+    
+    const materialName = materialToDelete.name;
+    const materialPrice = materialToDelete.sellingPrice;
+    const materialUnit = materialToDelete.unit;
+    const materialStock = materialToDelete.currentStock;
+    
     const material = await Material.findByIdAndUpdate(
       req.params.id,
       { isActive: false, updatedBy: req.user.id },
       { new: true }
     );
     
-    if (!material) {
-      return res.status(404).json({
-        success: false,
-        message: 'Material not found'
+    // Notify admins about material deletion
+    try {
+      console.log('🔍 ===== MATERIAL DELETE NOTIFICATION START =====');
+      console.log('🔍 Material name:', materialName);
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
       });
+      
+      // Find all admin users (including current user for testing)
+      const allUsers = await User.find({
+        role: 'admin',
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total admin users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'Material Deleted',
+            message: `Material "${materialName}" (Price: ${materialPrice} EGP/${materialUnit}, Stock: ${materialStock} ${materialUnit}) was deleted by ${req.user.username}`,
+            icon: 'fa-box-archive',
+            type: 'inventory',
+            relatedId: null,
+            relatedType: 'material',
+            actionUrl: '/inventory/materials',
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
     }
     
     res.status(200).json({

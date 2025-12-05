@@ -45,6 +45,10 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    icon: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

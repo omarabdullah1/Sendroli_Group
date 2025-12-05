@@ -77,22 +77,43 @@ exports.submitDailyCount = async (req, res, next) => {
           // Send notification to admin if wastage detected (actual stock < system stock)
           if (wastage > 0) {
             try {
+              console.log('⚠️ ===== WASTAGE NOTIFICATION START =====');
+              console.log('⚠️ Material:', material.name);
+              console.log('⚠️ Wastage amount:', wastage.toFixed(2), material.unit);
+              console.log('⚠️ System stock:', systemStock);
+              console.log('⚠️ Actual count:', actualStock);
+              
               // Get all admin users
-              const adminUsers = await User.find({ role: 'admin', isActive: true });
+              const adminUsers = await User.find({ 
+                role: 'admin', 
+                isActive: true 
+              }).select('_id username role email isActive');
+              
+              console.log(`📧 Total admin users for wastage alert: ${adminUsers.length}`);
               
               // Send notification to each admin
+              let wastageNotifCount = 0;
               for (const admin of adminUsers) {
-                await createNotification(admin._id, {
-                  title: 'Inventory Wastage Detected',
-                  message: `Wastage detected for ${material.name}: ${wastage.toFixed(2)} ${material.unit}. System stock: ${systemStock}, Actual count: ${actualStock}`,
-                  type: 'inventory',
-                  relatedId: material._id,
-                  relatedType: 'material',
-                  actionUrl: `/inventory`
-                });
+                console.log(`\n📤 Sending wastage alert to: ${admin.username}`);
+                try {
+                  await createNotification(admin._id, {
+                    title: 'Inventory Wastage Detected',
+                    message: `Wastage detected for "${material.name}" by ${req.user.username}: ${wastage.toFixed(2)} ${material.unit} missing - System: ${systemStock} ${material.unit}, Actual: ${actualStock} ${material.unit}`,
+                    icon: 'fa-exclamation-triangle',
+                    type: 'inventory',
+                    relatedId: material._id,
+                    relatedType: 'material',
+                    actionUrl: `/inventory`
+                  });
+                  wastageNotifCount++;
+                  console.log(`✅ Wastage notification sent to ${admin.username}`);
+                } catch (adminNotifError) {
+                  console.error(`❌ Failed to send wastage notification to ${admin.username}:`, adminNotifError.message);
+                }
               }
+              console.log(`\n✅ ===== WASTAGE NOTIFICATION COMPLETE: ${wastageNotifCount}/${adminUsers.length} =====\n`);
             } catch (notifError) {
-              console.error('Error sending wastage notification:', notifError);
+              console.error('❌ Error sending wastage notification:', notifError);
               // Don't fail the request if notification fails
             }
           }
@@ -108,6 +129,69 @@ exports.submitDailyCount = async (req, res, next) => {
           }
         });
       }
+    }
+    
+    // Notify admins about inventory count completion
+    try {
+      console.log('🔍 ===== INVENTORY COUNT NOTIFICATION START =====');
+      console.log('🔍 Total materials counted:', inventoryRecords.length);
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
+      });
+      
+      // Calculate summary statistics
+      const totalWastage = inventoryRecords.reduce((sum, record) => sum + record.wastage, 0);
+      const materialsWithWastage = inventoryRecords.filter(record => record.wastage > 0).length;
+      
+      console.log('🔍 Summary:', {
+        totalMaterials: inventoryRecords.length,
+        materialsWithWastage,
+        totalWastage: totalWastage.toFixed(2)
+      });
+      
+      // Find all admin users (including current user for testing)
+      const allUsers = await User.find({
+        role: 'admin',
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total admin users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'Daily Inventory Count Completed',
+            message: `Daily inventory count completed by ${req.user.username} - ${inventoryRecords.length} materials counted${materialsWithWastage > 0 ? `, ${materialsWithWastage} with wastage detected` : ', no wastage detected'}`,
+            icon: 'fa-clipboard-check',
+            type: 'inventory',
+            relatedId: null,
+            relatedType: 'inventory',
+            actionUrl: '/inventory',
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
     }
     
     res.status(201).json({
@@ -305,6 +389,28 @@ exports.withdrawMaterial = async (req, res, next) => {
     material.currentStock = newStock;
     material.updatedBy = req.user.id;
     await material.save();
+    
+    // Notify admins about material withdrawal
+    try {
+      const admins = await User.find({
+        role: 'admin',
+        isActive: true,
+      });
+
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: 'Material Withdrawn',
+          message: `${material.name} withdrawn - Stock reduced from ${previousStock} to ${newStock} ${material.unit}`,
+          icon: 'fa-arrow-right-from-bracket',
+          type: 'inventory',
+          relatedId: material._id,
+          relatedType: 'material',
+          actionUrl: `/inventory/materials/${material._id}`,
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating withdrawal notifications:', notifError);
+    }
     
     res.status(201).json({
       success: true,

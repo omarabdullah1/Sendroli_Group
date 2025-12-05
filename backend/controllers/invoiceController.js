@@ -1,6 +1,8 @@
 const Invoice = require('../models/Invoice');
 const Client = require('../models/Client');
 const Order = require('../models/Order');
+const User = require('../models/User');
+const { createNotification } = require('./notificationController');
 
 // @desc    Get all invoices
 // @route   GET /api/invoices
@@ -159,6 +161,62 @@ exports.createInvoice = async (req, res, next) => {
       .populate('client', 'name phone factoryName')
       .populate('createdBy', 'name email');
     
+    // Create notifications for financial staff and admins about new invoice
+    try {
+      console.log('🔍 ===== INVOICE CREATE NOTIFICATION START =====');
+      console.log('🔍 Invoice ID:', invoice._id.toString());
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
+      });
+      
+      // Find all financial and admin users (including current user for testing)
+      const allUsers = await User.find({
+        role: { $in: ['financial', 'admin'] },
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total financial/admin users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+
+      const clientName = populatedInvoice.clientSnapshot?.name || 'Unknown Client';
+      console.log('📋 Client name:', clientName);
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'New Invoice Created',
+            message: `Invoice #${invoice.invoiceNumber || invoice._id.toString().slice(-6)} created for ${clientName} by ${req.user.username} - Total: ${invoice.total} EGP`,
+            icon: 'fa-file-invoice',
+            type: 'invoice',
+            relatedId: invoice._id,
+            relatedType: 'invoice',
+            actionUrl: `/invoices/${invoice._id}`,
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
+    }
+    
     res.status(201).json({
       success: true,
       data: {
@@ -243,6 +301,62 @@ exports.updateInvoice = async (req, res, next) => {
       .populate('client', 'name phone factoryName')
       .populate('material', 'name sellingPrice');
     
+    // Create notifications for invoice update
+    try {
+      console.log('🔍 ===== INVOICE UPDATE NOTIFICATION START =====');
+      console.log('🔍 Invoice ID:', invoice._id.toString());
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
+      });
+      
+      // Find all financial and admin users (including current user for testing)
+      const allUsers = await User.find({
+        role: { $in: ['financial', 'admin'] },
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total financial/admin users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+
+      const clientName = invoice.clientSnapshot?.name || 'Unknown Client';
+      console.log('📋 Client name:', clientName);
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'Invoice Updated',
+            message: `Invoice #${invoice.invoiceNumber || invoice._id.toString().slice(-6)} for ${clientName} updated by ${req.user.username} - Status: ${invoice.status || 'Active'}`,
+            icon: 'fa-file-invoice',
+            type: 'invoice',
+            relatedId: invoice._id,
+            relatedType: 'invoice',
+            actionUrl: `/invoices/${invoice._id}`,
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
+    }
+    
     res.status(200).json({
       success: true,
       data: {
@@ -280,8 +394,67 @@ exports.deleteInvoice = async (req, res, next) => {
     // Delete all orders associated with this invoice
     await Order.deleteMany({ invoice: invoice._id });
     
+    // Store invoice details before deletion
+    const invoiceNumber = invoice.invoiceNumber || invoice._id.toString().slice(-6);
+    const clientName = invoice.clientSnapshot?.name || 'Unknown Client';
+    const invoiceTotal = invoice.total || 0;
+    
     // Delete the invoice
     await invoice.deleteOne();
+    
+    // Notify relevant users about invoice deletion
+    try {
+      console.log('🔍 ===== INVOICE DELETE NOTIFICATION START =====');
+      console.log('🔍 Invoice Number:', invoiceNumber);
+      console.log('🔍 Client:', clientName);
+      console.log('🔍 Current user:', {
+        id: req.user._id.toString(),
+        username: req.user.username,
+        role: req.user.role
+      });
+      
+      // Find all financial and admin users (including current user for testing)
+      const allUsers = await User.find({
+        role: { $in: ['financial', 'admin'] },
+        isActive: true,
+      }).select('_id username role email isActive');
+      
+      console.log(`📧 Total financial/admin users in database: ${allUsers.length}`);
+      allUsers.forEach(u => {
+        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+      });
+      
+      let notificationCount = 0;
+      for (const user of allUsers) {
+        console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
+        try {
+          const notificationData = {
+            title: 'Invoice Deleted',
+            message: `Invoice #${invoiceNumber} for ${clientName} (Total: ${invoiceTotal} EGP) was deleted by ${req.user.username}`,
+            icon: 'fa-file-circle-xmark',
+            type: 'invoice',
+            relatedId: null,
+            relatedType: 'invoice',
+            actionUrl: '/invoices',
+          };
+          console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
+          
+          const notification = await createNotification(user._id, notificationData);
+          notificationCount++;
+          console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
+          console.log(`   For user: ${user.username} (${user._id.toString()})`);
+        } catch (userNotifError) {
+          console.error(`❌ FAILED for user ${user.username}:`, userNotifError.message);
+          console.error(`   Stack:`, userNotifError.stack);
+        }
+      }
+      console.log(`\n✅ ===== NOTIFICATION COMPLETE: ${notificationCount}/${allUsers.length} created =====\n`);
+    } catch (notifError) {
+      console.error('❌ ===== CRITICAL ERROR IN NOTIFICATION PROCESS =====');
+      console.error('❌ Error:', notifError.message);
+      console.error('❌ Stack:', notifError.stack);
+      console.error('❌ ===== END ERROR =====\n');
+    }
     
     res.status(200).json({
       success: true,
