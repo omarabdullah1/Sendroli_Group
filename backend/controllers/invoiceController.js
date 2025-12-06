@@ -188,27 +188,49 @@ exports.createInvoice = async (req, res, next) => {
         console.log('📋 Admin/Financial action: Will notify admins + financial only');
       }
       
+      console.log('👤 Current user info:');
+      console.log('   ID:', req.user._id || req.user.id);
+      console.log('   Username:', req.user.username);
+      console.log('   Role:', req.user.role);
+      console.log('   Email:', req.user.email);
+      
       console.log('🔍 Querying users with roles:', recipientRoles);
       const allUsers = await User.find({
         role: { $in: recipientRoles },
         isActive: true,
       }).select('_id username role email isActive');
       
+      console.log(`📋 Query returned ${allUsers.length} user(s):`);
+      allUsers.forEach(u => {
+        console.log(`   - ${u.username} (${u.role}) - ID: ${u._id.toString()}`);
+      });
+      
       // Ensure current user is always included in recipients (avoid duplicates)
-      const currentUserIncluded = allUsers.some(u => u._id.toString() === req.user._id.toString());
+      const currentUserId = (req.user._id || req.user.id).toString();
+      const currentUserIncluded = allUsers.some(u => u._id.toString() === currentUserId);
+      
+      console.log(`🔍 Checking if current user (${currentUserId}) is in results: ${currentUserIncluded}`);
+      
       if (!currentUserIncluded) {
-        console.log('⚠️ Current user not in query results, adding explicitly...');
-        allUsers.push({
-          _id: req.user._id,
+        console.log('⚠️ Current user NOT in query results, adding explicitly...');
+        const currentUserObj = {
+          _id: req.user._id || req.user.id,
           username: req.user.username,
           role: req.user.role,
-          email: req.user.email,
+          email: req.user.email || 'no-email@factory.com',
           isActive: true
-        });
+        };
+        console.log('⚠️ Adding user object:', JSON.stringify(currentUserObj, null, 2));
+        allUsers.push(currentUserObj);
+      } else {
+        console.log('✅ Current user IS already in query results');
       }
       
       console.log(`📧 Total users to notify (${recipientRoles.join('/')}): ${allUsers.length}`);
-      
+      allUsers.forEach(u => {
+        const isCurrentUser = u._id.toString() === currentUserId;
+        console.log(`   ${isCurrentUser ? '👉' : '  '} ${u.username} (${u.role}) - ${isCurrentUser ? '(YOU)' : ''}`);
+      });      
       if (allUsers.length === 0) {
         console.warn('⚠️ WARNING: No users found to notify!');
         console.warn('⚠️ Checking all users in database...');
