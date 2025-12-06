@@ -4,7 +4,7 @@ const authService = {
   // Login user with single device restriction
   login: async (username, password, force = false) => {
     console.log('🚀 Frontend: Attempting login with:', { username, password: '***', force });
-    console.log('🌐 API URL:', import.meta.env.VITE_API_URL || 'https://backend-knmg4spnu-oos-projects-e7124c64.vercel.app/api');
+    console.log('🌐 API URL:', import.meta.env.VITE_API_URL || 'https://backend-brg8swrr5-oos-projects-e7124c64.vercel.app/api');
 
     try {
       console.log('📤 Frontend: Sending request to /auth/login with:', { username, password: '***', force });
