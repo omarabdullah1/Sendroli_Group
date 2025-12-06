@@ -194,6 +194,21 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ success: true, message: 'Server is running' });
 });
 
+// Version check endpoint to verify deployed code
+app.get('/api/version', (req, res) => {
+  res.status(200).json({ 
+    success: true, 
+    version: '1.2.0-explicit-user-inclusion',
+    timestamp: new Date().toISOString(),
+    features: [
+      'Conditional invoice notifications',
+      'Explicit current user inclusion in notification recipients',
+      'Designer actions notify designer+admin',
+      'Admin actions notify admin+financial'
+    ]
+  });
+});
+
 // Error handler
 app.use(errorHandler);
 
