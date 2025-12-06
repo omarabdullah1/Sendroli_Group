@@ -287,7 +287,7 @@ const WebsiteSettings = () => {
           imageUrl = response.data.url;
         } else {
           // Get the backend URL from API URL for relative paths
-          const apiUrl = import.meta.env.VITE_API_URL || 'https://backend-5gcwinhgn-oos-projects-e7124c64.vercel.app/api';
+          const apiUrl = import.meta.env.VITE_API_URL || 'https://backend-knmg4spnu-oos-projects-e7124c64.vercel.app/api';
           const backendUrl = apiUrl.replace('/api', '');
           imageUrl = `${backendUrl}${response.data.url}`;
         }
