@@ -96,8 +96,13 @@ const Dashboard = () => {
         const clientStatsIndex = ['receptionist', 'admin'].includes(user?.role) ? 2 : 
                                  ['designer', 'worker', 'financial', 'admin'].includes(user?.role) ? 2 : 0;
         const clientStatsData = results[clientStatsIndex];
+        console.log('Dashboard - User role:', user?.role);
+        console.log('Dashboard - Client stats data:', clientStatsData);
+        console.log('Dashboard - Has data?:', clientStatsData?.data);
+        console.log('Dashboard - Overall stats:', clientStatsData?.data?.overallStats);
         if (clientStatsData?.data) {
           setClientStats(clientStatsData.data);
+          console.log('Dashboard - Client stats set:', clientStatsData.data);
         }
       }
       
@@ -180,6 +185,11 @@ const Dashboard = () => {
       {/* Client Analytics Summary for authorized roles */}
       {['financial', 'admin', 'receptionist'].includes(user?.role) && clientStats && (
         <div className="client-analytics-summary">
+          {console.log('Rendering client analytics - clientStats:', clientStats)}
+          {console.log('Rendering client analytics - overallStats:', clientStats.overallStats)}
+          {console.log('Rendering client analytics - topPayingClients:', clientStats.overallStats?.topPayingClients)}
+          {console.log('Rendering client analytics - mostLoyalClient:', clientStats.overallStats?.mostLoyalClient)}
+          {console.log('Rendering client analytics - clients array:', clientStats.clients)}
           <div className="section-header">
             <h2>Client Analytics Overview</h2>
             <Link to="/clients/analytics" className="view-full-report-link">
