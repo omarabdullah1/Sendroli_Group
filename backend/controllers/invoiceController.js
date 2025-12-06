@@ -194,6 +194,19 @@ exports.createInvoice = async (req, res, next) => {
         isActive: true,
       }).select('_id username role email isActive');
       
+      // Ensure current user is always included in recipients (avoid duplicates)
+      const currentUserIncluded = allUsers.some(u => u._id.toString() === req.user._id.toString());
+      if (!currentUserIncluded) {
+        console.log('⚠️ Current user not in query results, adding explicitly...');
+        allUsers.push({
+          _id: req.user._id,
+          username: req.user.username,
+          role: req.user.role,
+          email: req.user.email,
+          isActive: true
+        });
+      }
+      
       console.log(`📧 Total users to notify (${recipientRoles.join('/')}): ${allUsers.length}`);
       
       if (allUsers.length === 0) {
@@ -362,6 +375,19 @@ exports.updateInvoice = async (req, res, next) => {
         isActive: true,
       }).select('_id username role email isActive');
       
+      // Ensure current user is always included in recipients (avoid duplicates)
+      const currentUserIncluded = allUsers.some(u => u._id.toString() === req.user._id.toString());
+      if (!currentUserIncluded) {
+        console.log('⚠️ Current user not in query results, adding explicitly...');
+        allUsers.push({
+          _id: req.user._id,
+          username: req.user.username,
+          role: req.user.role,
+          email: req.user.email,
+          isActive: true
+        });
+      }
+      
       console.log(`📧 Total users to notify (${recipientRoles.join('/')}): ${allUsers.length}`);
       allUsers.forEach(u => {
         console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
@@ -475,6 +501,19 @@ exports.deleteInvoice = async (req, res, next) => {
         role: { $in: recipientRoles },
         isActive: true,
       }).select('_id username role email isActive');
+      
+      // Ensure current user is always included in recipients (avoid duplicates)
+      const currentUserIncluded = allUsers.some(u => u._id.toString() === req.user._id.toString());
+      if (!currentUserIncluded) {
+        console.log('⚠️ Current user not in query results, adding explicitly...');
+        allUsers.push({
+          _id: req.user._id,
+          username: req.user.username,
+          role: req.user.role,
+          email: req.user.email,
+          isActive: true
+        });
+      }
       
       console.log(`📧 Total users to notify (${recipientRoles.join('/')}): ${allUsers.length}`);
       allUsers.forEach(u => {
