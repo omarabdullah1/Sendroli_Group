@@ -114,6 +114,10 @@ exports.getInvoice = async (req, res, next) => {
 // @route   POST /api/invoices
 // @access  Private
 exports.createInvoice = async (req, res, next) => {
+  console.log('🎯 ===== CREATE INVOICE CALLED =====');
+  console.log('🎯 User:', req.user?.username, 'Role:', req.user?.role);
+  console.log('🎯 Request body:', JSON.stringify(req.body, null, 2));
+  
   try {
     const { client, tax, shipping, discount, status, notes } = req.body;
     
@@ -162,6 +166,7 @@ exports.createInvoice = async (req, res, next) => {
       .populate('createdBy', 'name email');
     
     // Create notifications for financial staff and admins about new invoice
+    // Conditional logic: Designer actions notify designer+admin, Admin actions only notify admin+financial
     try {
       console.log('🔍 ===== INVOICE CREATE NOTIFICATION START =====');
       console.log('🔍 Invoice ID:', invoice._id.toString());
@@ -171,16 +176,39 @@ exports.createInvoice = async (req, res, next) => {
         role: req.user.role
       });
       
-      // Find all financial and admin users (including current user for testing)
+      // Determine notification recipients based on current user's role
+      let recipientRoles;
+      if (req.user.role === 'designer') {
+        // Designer actions: notify designer (self) + admins
+        recipientRoles = ['designer', 'admin'];
+        console.log('📋 Designer action: Will notify designers + admins');
+      } else {
+        // Admin/Financial actions: notify admin + financial only (not designers)
+        recipientRoles = ['financial', 'admin'];
+        console.log('📋 Admin/Financial action: Will notify admins + financial only');
+      }
+      
+      console.log('🔍 Querying users with roles:', recipientRoles);
       const allUsers = await User.find({
-        role: { $in: ['financial', 'admin'] },
+        role: { $in: recipientRoles },
         isActive: true,
       }).select('_id username role email isActive');
       
-      console.log(`📧 Total financial/admin users in database: ${allUsers.length}`);
-      allUsers.forEach(u => {
-        console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
-      });
+      console.log(`📧 Total users to notify (${recipientRoles.join('/')}): ${allUsers.length}`);
+      
+      if (allUsers.length === 0) {
+        console.warn('⚠️ WARNING: No users found to notify!');
+        console.warn('⚠️ Checking all users in database...');
+        const allDbUsers = await User.find({}).select('_id username role isActive');
+        console.warn(`⚠️ Total users in DB: ${allDbUsers.length}`);
+        allDbUsers.forEach(u => {
+          console.warn(`  - ${u.username} (${u.role}) - Active: ${u.isActive}`);
+        });
+      } else {
+        allUsers.forEach(u => {
+          console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
+        });
+      }
 
       const clientName = populatedInvoice.clientSnapshot?.name || 'Unknown Client';
       console.log('📋 Client name:', clientName);
@@ -191,7 +219,7 @@ exports.createInvoice = async (req, res, next) => {
         try {
           const notificationData = {
             title: 'New Invoice Created',
-            message: `Invoice #${invoice.invoiceNumber || invoice._id.toString().slice(-6)} created for ${clientName} by ${req.user.username} - Total: ${invoice.total} EGP`,
+            message: `Invoice #${invoice.invoiceNumber || invoice._id.toString().slice(-6)} created for ${clientName} by ${req.user.username} (${req.user.role}) - Total: ${invoice.total} EGP`,
             icon: 'fa-file-invoice',
             type: 'invoice',
             relatedId: invoice._id,
@@ -215,8 +243,11 @@ exports.createInvoice = async (req, res, next) => {
       console.error('❌ Error:', notifError.message);
       console.error('❌ Stack:', notifError.stack);
       console.error('❌ ===== END ERROR =====\n');
+      // Don't throw - we still want to return the invoice even if notifications fail
+      // But log it prominently so we know there's an issue
     }
     
+    console.log('🎯 Sending response with invoice data...');
     res.status(201).json({
       success: true,
       data: {
@@ -224,7 +255,9 @@ exports.createInvoice = async (req, res, next) => {
         orders: [],
       },
     });
+    console.log('🎯 Response sent successfully');
   } catch (error) {
+    console.error('❌ CREATE INVOICE ERROR:', error);
     next(error);
   }
 };
@@ -302,6 +335,7 @@ exports.updateInvoice = async (req, res, next) => {
       .populate('material', 'name sellingPrice');
     
     // Create notifications for invoice update
+    // Conditional logic: Designer actions notify designer+admin, Admin actions only notify admin+financial
     try {
       console.log('🔍 ===== INVOICE UPDATE NOTIFICATION START =====');
       console.log('🔍 Invoice ID:', invoice._id.toString());
@@ -311,13 +345,24 @@ exports.updateInvoice = async (req, res, next) => {
         role: req.user.role
       });
       
-      // Find all financial and admin users (including current user for testing)
+      // Determine notification recipients based on current user's role
+      let recipientRoles;
+      if (req.user.role === 'designer') {
+        // Designer actions: notify designer (self) + admins
+        recipientRoles = ['designer', 'admin'];
+        console.log('📋 Designer action: Will notify designers + admins');
+      } else {
+        // Admin/Financial actions: notify admin + financial only (not designers)
+        recipientRoles = ['financial', 'admin'];
+        console.log('📋 Admin/Financial action: Will notify admins + financial only');
+      }
+      
       const allUsers = await User.find({
-        role: { $in: ['financial', 'admin'] },
+        role: { $in: recipientRoles },
         isActive: true,
       }).select('_id username role email isActive');
       
-      console.log(`📧 Total financial/admin users in database: ${allUsers.length}`);
+      console.log(`📧 Total users to notify (${recipientRoles.join('/')}): ${allUsers.length}`);
       allUsers.forEach(u => {
         console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
       });
@@ -331,7 +376,7 @@ exports.updateInvoice = async (req, res, next) => {
         try {
           const notificationData = {
             title: 'Invoice Updated',
-            message: `Invoice #${invoice.invoiceNumber || invoice._id.toString().slice(-6)} for ${clientName} updated by ${req.user.username} - Status: ${invoice.status || 'Active'}`,
+            message: `Invoice #${invoice.invoiceNumber || invoice._id.toString().slice(-6)} for ${clientName} updated by ${req.user.username} (${req.user.role}) - Status: ${invoice.status || 'Active'}`,
             icon: 'fa-file-invoice',
             type: 'invoice',
             relatedId: invoice._id,
@@ -403,6 +448,7 @@ exports.deleteInvoice = async (req, res, next) => {
     await invoice.deleteOne();
     
     // Notify relevant users about invoice deletion
+    // Conditional logic: Designer actions notify designer+admin, Admin actions only notify admin+financial
     try {
       console.log('🔍 ===== INVOICE DELETE NOTIFICATION START =====');
       console.log('🔍 Invoice Number:', invoiceNumber);
@@ -413,13 +459,24 @@ exports.deleteInvoice = async (req, res, next) => {
         role: req.user.role
       });
       
-      // Find all financial and admin users (including current user for testing)
+      // Determine notification recipients based on current user's role
+      let recipientRoles;
+      if (req.user.role === 'designer') {
+        // Designer actions: notify designer (self) + admins
+        recipientRoles = ['designer', 'admin'];
+        console.log('📋 Designer action: Will notify designers + admins');
+      } else {
+        // Admin actions: notify admin + financial only (not designers)
+        recipientRoles = ['financial', 'admin'];
+        console.log('📋 Admin/Financial action: Will notify admins + financial only');
+      }
+      
       const allUsers = await User.find({
-        role: { $in: ['financial', 'admin'] },
+        role: { $in: recipientRoles },
         isActive: true,
       }).select('_id username role email isActive');
       
-      console.log(`📧 Total financial/admin users in database: ${allUsers.length}`);
+      console.log(`📧 Total users to notify (${recipientRoles.join('/')}): ${allUsers.length}`);
       allUsers.forEach(u => {
         console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
       });
@@ -430,7 +487,7 @@ exports.deleteInvoice = async (req, res, next) => {
         try {
           const notificationData = {
             title: 'Invoice Deleted',
-            message: `Invoice #${invoiceNumber} for ${clientName} (Total: ${invoiceTotal} EGP) was deleted by ${req.user.username}`,
+            message: `Invoice #${invoiceNumber} for ${clientName} (Total: ${invoiceTotal} EGP) was deleted by ${req.user.username} (${req.user.role})`,
             icon: 'fa-file-circle-xmark',
             type: 'invoice',
             relatedId: null,

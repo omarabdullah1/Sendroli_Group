@@ -213,13 +213,31 @@ exports.deleteAllRead = async (req, res) => {
 // Helper function to create notification (can be used by other controllers)
 exports.createNotification = async (userId, notificationData) => {
   try {
+    console.log('🔔 createNotification called:', {
+      userId: userId.toString(),
+      title: notificationData.title,
+      type: notificationData.type
+    });
+    
     const notification = await Notification.create({
       user: userId,
       ...notificationData,
     });
+    
+    console.log('✅ Notification created successfully:', {
+      id: notification._id.toString(),
+      userId: notification.user.toString(),
+      title: notification.title
+    });
+    
     return notification;
   } catch (error) {
-    console.error('Create notification error:', error);
+    console.error('❌ Create notification error:', {
+      error: error.message,
+      stack: error.stack,
+      userId: userId?.toString(),
+      notificationData
+    });
     throw error;
   }
 };
