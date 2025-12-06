@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL - Use environment variable or fallback to latest deployment
-const API_URL = import.meta.env.VITE_API_URL || 'https://backend-f7oz8vu5u-oos-projects-e7124c64.vercel.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://backend-4jprecu3t-oos-projects-e7124c64.vercel.app/api';
 
 // Debug: Log the API URL being used
 console.log('🔧 API Base URL:', API_URL);
