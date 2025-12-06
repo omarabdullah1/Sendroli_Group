@@ -207,6 +207,87 @@ const Dashboard = () => {
               <p className="analytics-value">{clientStats.overallStats.averageOrdersPerClient}</p>
             </div>
           </div>
+
+          {/* Top Client Analytics Cards */}
+          <div className="top-clients-analytics">
+            <h3>Top Client Analytics</h3>
+            <div className="top-clients-cards">
+              {/* MVP Client - Highest Paying */}
+              {clientStats.overallStats.topPayingClients?.length > 0 && (
+                <div className="client-highlight-card mvp-client">
+                  <div className="card-icon">👑</div>
+                  <h4>MVP Client</h4>
+                  <div className="client-details">
+                    <p className="client-name">{clientStats.overallStats.topPayingClients[0].name}</p>
+                    <p className="client-metric">
+                      <span className="label">Total Revenue:</span>
+                      <span className="value">{formatCurrency(clientStats.overallStats.topPayingClients[0].totalValue)}</span>
+                    </p>
+                    <p className="client-metric">
+                      <span className="label">Total Paid:</span>
+                      <span className="value success">{formatCurrency(clientStats.overallStats.topPayingClients[0].totalPaid)}</span>
+                    </p>
+                  </div>
+                  <div className="badge mvp-badge">Highest Revenue</div>
+                </div>
+              )}
+
+              {/* Loyal Client - Best Loyalty Score */}
+              {clientStats.overallStats.mostLoyalClient && (
+                <div className="client-highlight-card loyal-client">
+                  <div className="card-icon">⭐</div>
+                  <h4>Loyal Client</h4>
+                  <div className="client-details">
+                    <p className="client-name">{clientStats.overallStats.mostLoyalClient.name}</p>
+                    <p className="client-metric">
+                      <span className="label">Loyalty Tier:</span>
+                      <span className="value tier">{clientStats.overallStats.mostLoyalClient.loyaltyTier}</span>
+                    </p>
+                    <p className="client-metric">
+                      <span className="label">Total Orders:</span>
+                      <span className="value">{clientStats.overallStats.mostLoyalClient.totalOrders}</span>
+                    </p>
+                    <p className="client-metric">
+                      <span className="label">Payment Rate:</span>
+                      <span className="value success">{clientStats.overallStats.mostLoyalClient.paymentRate}%</span>
+                    </p>
+                  </div>
+                  <div className="badge loyal-badge">Score: {clientStats.overallStats.mostLoyalClient.loyaltyScore}</div>
+                </div>
+              )}
+
+              {/* Most Purchasing Client - Highest Order Count */}
+              {clientStats.clients?.length > 0 && (() => {
+                const mostPurchasingClient = clientStats.clients.reduce((prev, current) => 
+                  (current.statistics.totalOrders > prev.statistics.totalOrders) ? current : prev
+                , clientStats.clients[0]);
+                
+                return (
+                  <div className="client-highlight-card purchasing-client">
+                    <div className="card-icon">🛒</div>
+                    <h4>Most Purchasing</h4>
+                    <div className="client-details">
+                      <p className="client-name">{mostPurchasingClient.name}</p>
+                      <p className="client-metric">
+                        <span className="label">Total Orders:</span>
+                        <span className="value highlight">{mostPurchasingClient.statistics.totalOrders}</span>
+                      </p>
+                      <p className="client-metric">
+                        <span className="label">Total Revenue:</span>
+                        <span className="value">{formatCurrency(mostPurchasingClient.statistics.totalValue)}</span>
+                      </p>
+                      <p className="client-metric">
+                        <span className="label">Orders/Month:</span>
+                        <span className="value">{mostPurchasingClient.statistics.ordersPerMonth}</span>
+                      </p>
+                    </div>
+                    <div className="badge purchase-badge">Most Active</div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
           {clientStats.overallStats.topPayingClients?.length > 0 && (
             <div className="top-clients-preview">
               <h3>Top 3 Paying Clients</h3>
