@@ -133,6 +133,42 @@
   box-sizing: border-box;
 }
 
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 45px; /* Make room for the eye icon */
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.3s;
+}
+
+.password-toggle-btn:hover {
+  color: #00CED1;
+}
+
+.password-toggle-btn:focus {
+  outline: 2px solid #00CED1;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .form-group input:focus {
   outline: none;
   border-color: #00CED1;
