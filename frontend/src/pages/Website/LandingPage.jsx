@@ -1,3 +1,23 @@
+import { faFacebookF, faInstagram, faLinkedinIn, faWhatsapp } from '@fortawesome/free-brands-svg-icons';
+import {
+    faAward,
+    faBolt,
+    faBullseye,
+    faCertificate,
+    faCheckCircle,
+    faClock,
+    faCog,
+    faEnvelope,
+    faHandshake,
+    faIndustry,
+    faPhone,
+    faPrint,
+    faShieldAlt,
+    faStar,
+    faTruck,
+    faUsers
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CachedImage from '../../components/CachedImage';
@@ -7,6 +27,45 @@ import { useAuth } from '../../context/AuthContext';
 import websiteService from '../../services/websiteService';
 import imageCache from '../../utils/imageCache';
 import './LandingPage.css';
+
+// Icon mapping function - converts emoji/text to Font Awesome icons
+const getIconFromString = (iconString) => {
+  if (!iconString || typeof iconString !== 'string') return faStar;
+  
+  const iconMap = {
+    // Printing and Manufacturing
+    '🖨️': faPrint,
+    '⚙️': faCog,
+    '🏭': faIndustry,
+    '🚚': faTruck,
+    
+    // Quality and Verification
+    '✅': faCheckCircle,
+    '🏆': faAward,
+    '🎖️': faCertificate,
+    '🛡️': faShieldAlt,
+    
+    // Speed and Performance  
+    '⚡': faBolt,
+    '⏱️': faClock,
+    '🚀': faBolt,
+    
+    // Precision and Target
+    '🎯': faBullseye,
+    '⭐': faStar,
+    
+    // Customer and Service
+    '🤝': faHandshake,
+    '👥': faUsers,
+    '💼': faIndustry,
+    
+    // Default fallback
+    'default': faStar
+  };
+  
+  // Return mapped icon or default
+  return iconMap[iconString] || iconMap['default'];
+};
 
 // Fallback data when API is not available
 const fallbackSettings = {
@@ -38,9 +97,9 @@ const fallbackSettings = {
   whyChooseUs: {
     title: 'Why Choose Us',
     features: [
-      { icon: '⚡', title: 'Fast Production', description: 'Quick turnaround times without compromising quality' },
-      { icon: '🎯', title: 'Precision Quality', description: 'State-of-the-art equipment for perfect results' },
-      { icon: '🤝', title: 'Customer Focus', description: 'Dedicated support throughout your project' }
+      { icon: '⚡', title: 'Fast Production', description: 'Quick turnaround times without compromising quality' }, // Will be converted to faBolt
+      { icon: '🎯', title: 'Precision Quality', description: 'State-of-the-art equipment for perfect results' }, // Will be converted to faBullseye
+      { icon: '🤝', title: 'Customer Focus', description: 'Dedicated support throughout your project' } // Will be converted to faHandshake
     ]
   },
   services: [
@@ -48,19 +107,19 @@ const fallbackSettings = {
       _id: '1',
       title: 'Digital Printing',
       description: 'High-quality digital printing services for business cards, brochures, and marketing materials.',
-      icon: '🖨️'
+      icon: '🖨️' // Will be converted to faPrint
     },
     {
       _id: '2', 
       title: 'Custom Manufacturing',
       description: 'Custom manufacturing solutions tailored to your specific requirements.',
-      icon: '⚙️'
+      icon: '⚙️' // Will be converted to faCog
     },
     {
       _id: '3',
       title: 'Quality Assurance',
       description: 'Rigorous quality control processes to ensure exceptional results.',
-      icon: '✅'
+      icon: '✅' // Will be converted to faCheckCircle
     }
   ],
   gallery: {
@@ -114,6 +173,9 @@ const LandingPage = () => {
         console.log('🔍 Settings fetched:', response.data);
         console.log('🖼️ Gallery data:', response.data.gallery);
         console.log('📊 Gallery items count:', response.data.gallery?.items?.length || 0);
+        console.log('🗺️ Map configuration:', response.data.contact);
+        console.log('🗺️ Map Embed URL:', response.data.contact?.mapEmbedUrl);
+        console.log('🗺️ Map Location:', response.data.contact?.mapLocation);
         setSettings(response.data);
         setError(null);
         
@@ -322,7 +384,9 @@ const LandingPage = () => {
                         />
                       ) : (
                         <div className="service-card-icon-bg">
-                          <span className="service-emoji-large">{service.icon}</span>
+                          <span className="service-emoji-large">
+                            <FontAwesomeIcon icon={getIconFromString(service.icon)} />
+                          </span>
                         </div>
                       )}
                     </div>
@@ -331,7 +395,9 @@ const LandingPage = () => {
                   <div className="service-card-content">
                     <div className="service-icon">
                       {service.icon && (
-                        <span className="service-emoji">{service.icon}</span>
+                        <span className="service-emoji">
+                          <FontAwesomeIcon icon={getIconFromString(service.icon)} />
+                        </span>
                       )}
                     </div>
                     <h3>{service.title}</h3>
@@ -361,7 +427,9 @@ const LandingPage = () => {
                       />
                     ) : (
                       <div className="feature-card-icon-bg">
-                        <span className="feature-emoji-large">{feature.icon}</span>
+                        <span className="feature-emoji-large">
+                          <FontAwesomeIcon icon={getIconFromString(feature.icon)} />
+                        </span>
                       </div>
                     )}
                   </div>
@@ -370,7 +438,9 @@ const LandingPage = () => {
                 <div className="feature-card-content">
                   <div className="feature-icon">
                     {feature.icon && (
-                      <span className="feature-emoji">{feature.icon}</span>
+                      <span className="feature-emoji">
+                        <FontAwesomeIcon icon={getIconFromString(feature.icon)} />
+                      </span>
                     )}
                   </div>
                   <h3>{feature.title}</h3>
@@ -438,20 +508,24 @@ const LandingPage = () => {
       {/* Contact Section */}
       <section id="contact" className="contact-section">
         <div className="container">
-          <h2 className="section-title">Get In Touch</h2>
+          <h2 className="contact-section-title">Get In Touch</h2>
           <div className="contact-content">
             {/* Contact Info and Social Side by Side */}
             <div className="contact-left">
               <div className="contact-info">
                 <div className="contact-item">
-                  <div className="contact-icon">📞</div>
+                  <div className="contact-icon">
+                    <FontAwesomeIcon icon={faPhone} style={{ fontSize: '24px' }} />
+                  </div>
                   <div>
                     <h4>Phone</h4>
                     <a href={`tel:${currentSettings.contact?.phone || '+20 123 456 7890'}`}>{currentSettings.contact?.phone || '+20 123 456 7890'}</a>
                   </div>
                 </div>
                 <div className="contact-item">
-                  <div className="contact-icon">💬</div>
+                  <div className="contact-icon">
+                    <FontAwesomeIcon icon={faWhatsapp} style={{ fontSize: '24px' }} />
+                  </div>
                   <div>
                     <h4>WhatsApp</h4>
                     <a href={`https://wa.me/${(currentSettings.contact?.whatsapp || '+20 123 456 7890').replace(/[^0-9]/g, '')}`}>
@@ -460,7 +534,9 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <div className="contact-item">
-                  <div className="contact-icon">✉️</div>
+                  <div className="contact-icon">
+                    <FontAwesomeIcon icon={faEnvelope} style={{ fontSize: '24px' }} />
+                  </div>
                   <div>
                     <h4>Email</h4>
                     <a href={`mailto:${currentSettings.contact?.email || 'info@sendrolifactory.com'}`}>{currentSettings.contact?.email || 'info@sendrolifactory.com'}</a>
@@ -473,17 +549,17 @@ const LandingPage = () => {
                 <div className="social-links">
                   {currentSettings.contact?.facebook && (
                     <a href={currentSettings.contact.facebook} target="_blank" rel="noopener noreferrer">
-                      <span className="social-icon">👥</span> Facebook
+                      <FontAwesomeIcon icon={faFacebookF} style={{ marginRight: '8px' }} /> Facebook
                     </a>
                   )}
                   {currentSettings.contact?.instagram && (
                     <a href={currentSettings.contact.instagram} target="_blank" rel="noopener noreferrer">
-                      <span className="social-icon">📷</span> Instagram
+                      <FontAwesomeIcon icon={faInstagram} style={{ marginRight: '8px' }} /> Instagram
                     </a>
                   )}
                   {currentSettings.contact?.linkedin && (
                     <a href={currentSettings.contact.linkedin} target="_blank" rel="noopener noreferrer">
-                      <span className="social-icon">💼</span> LinkedIn
+                      <FontAwesomeIcon icon={faLinkedinIn} style={{ marginRight: '8px' }} /> LinkedIn
                     </a>
                   )}
                 </div>
@@ -504,7 +580,6 @@ const LandingPage = () => {
             
             {/* Interactive Map - Right Side */}
             <div className="contact-map">
-              <h3>{currentSettings.contact?.mapLocation || 'Find Us'}</h3>
               <div className="map-container">
                 <iframe
                   src={currentSettings.contact?.mapEmbedUrl || "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d220790.48587489217!2d31.04534893359375!3d30.064742000000003!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14583fa60b21beeb%3A0x79dfb296e8423bba!2sCairo%2C%20Egypt!5e0!3m2!1sen!2sus!4v1701234567890!5m2!1sen!2sus"}
@@ -518,7 +593,6 @@ const LandingPage = () => {
                 ></iframe>
               </div>
             </div>
-          </div>
           </div>
         </div>
       </section>

@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-// Base URL
-// TEMPORARILY HARDCODED FOR DEBUGGING - USING LATEST BACKEND DEPLOYMENT
-const API_URL = 'https://backend-j5nqrw1sp-oos-projects-e7124c64.vercel.app/api';
+// Base URL - Use environment variable or fallback to latest deployment
+const API_URL = import.meta.env.VITE_API_URL || 'https://backend-5gcwinhgn-oos-projects-e7124c64.vercel.app/api';
 
 // Debug: Log the API URL being used
 console.log('🔧 API Base URL:', API_URL);
+console.log('🔧 Environment:', import.meta.env.MODE);
 
 // Create axios instance
 const api = axios.create({

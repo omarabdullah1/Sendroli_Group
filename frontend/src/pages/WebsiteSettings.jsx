@@ -37,14 +37,20 @@ const WebsiteSettings = () => {
     
     const fixed = JSON.parse(JSON.stringify(obj)); // Deep clone
     
-    const processObject = (item) => {
+    const processObject = (item, currentKey = '') => {
+      // Skip processing for mapEmbedUrl - preserve Google Maps embed URLs
+      if (currentKey === 'mapEmbedUrl') {
+        return item;
+      }
+      
+      // Only clear localhost URLs for strings that are NOT mapEmbedUrl
       if (typeof item === 'string' && (item.includes('localhost:5000') || item.includes('http://localhost'))) {
         return '';
       }
       
       if (typeof item === 'object' && item !== null) {
         if (Array.isArray(item)) {
-          return item.map(processObject);
+          return item.map((element, index) => processObject(element, `${currentKey}[${index}]`));
         } else {
           const processed = {};
           for (const [key, value] of Object.entries(item)) {
@@ -54,7 +60,7 @@ const WebsiteSettings = () => {
               processed[key] = '';
               console.warn(`Fixed old localhost URL in ${key}:`, value);
             } else {
-              processed[key] = processObject(value);
+              processed[key] = processObject(value, key);
             }
           }
           return processed;
@@ -78,7 +84,25 @@ const WebsiteSettings = () => {
       
       // Fix old localhost URLs in the settings
       const fixedSettings = fixImageUrlsInSettings(rawSettings);
-      setSettings(fixedSettings);
+      
+      // Ensure contact section exists with defaults
+      const settingsWithDefaults = {
+        ...fixedSettings,
+        contact: {
+          phone: '',
+          whatsapp: '',
+          email: '',
+          mapLocation: '',
+          mapEmbedUrl: '',
+          facebook: '',
+          instagram: '',
+          linkedin: '',
+          qrCode: '',
+          ...fixedSettings.contact,
+        },
+      };
+      
+      setSettings(settingsWithDefaults);
     } catch (error) {
       console.error('Error fetching settings:', error);
       setMessage({ type: 'error', text: 'Failed to load website settings' });
@@ -104,9 +128,20 @@ const WebsiteSettings = () => {
       console.log('🖼️ Saved gallery data:', response.data?.gallery);
       console.log('📊 Response gallery items:', response.data?.gallery?.items?.length || 0);
       
-      // Update settings with the saved data
+      // Update settings with the saved data, but preserve mapEmbedUrl if it was in original settings
       if (response.success && response.data) {
-        setSettings(response.data);
+        const updatedSettings = { ...response.data };
+        
+        // Preserve mapEmbedUrl if it exists in current settings but missing/empty in response
+        if (settings.contact?.mapEmbedUrl && !updatedSettings.contact?.mapEmbedUrl) {
+          updatedSettings.contact = {
+            ...updatedSettings.contact,
+            mapEmbedUrl: settings.contact.mapEmbedUrl
+          };
+          console.log('🗺️ Preserved mapEmbedUrl:', settings.contact.mapEmbedUrl);
+        }
+        
+        setSettings(updatedSettings);
       }
       setMessage({ type: 'success', text: 'Settings updated successfully!' });
       
@@ -123,13 +158,39 @@ const WebsiteSettings = () => {
   };
 
   const updateField = (section, field, value) => {
-    setSettings({
-      ...settings,
+    setSettings(prevSettings => ({
+      ...prevSettings,
       [section]: {
-        ...settings[section],
+        ...(prevSettings[section] || {}),
         [field]: value,
       },
-    });
+    }));
+  };
+
+  // Helper function to extract src URL from iframe HTML
+  const extractMapUrl = (input) => {
+    if (!input || typeof input !== 'string') return '';
+    
+    // If it's already a clean URL, return it
+    if (input.startsWith('https://www.google.com/maps/embed')) {
+      return input;
+    }
+    
+    // Try to extract src from iframe HTML
+    const srcMatch = input.match(/src=["']([^"']+)["']/);
+    if (srcMatch && srcMatch[1]) {
+      console.log('🗺️ Extracted URL from iframe:', srcMatch[1]);
+      return srcMatch[1];
+    }
+    
+    // If no match found, return original input
+    return input;
+  };
+
+  // Special handler for map embed URL that extracts URL from iframe if needed
+  const handleMapEmbedChange = (value) => {
+    const extractedUrl = extractMapUrl(value);
+    updateField('contact', 'mapEmbedUrl', extractedUrl);
   };
 
   const updateNestedField = (section, subsection, field, value) => {
@@ -226,7 +287,7 @@ const WebsiteSettings = () => {
           imageUrl = response.data.url;
         } else {
           // Get the backend URL from API URL for relative paths
-          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+          const apiUrl = import.meta.env.VITE_API_URL || 'https://backend-5gcwinhgn-oos-projects-e7124c64.vercel.app/api';
           const backendUrl = apiUrl.replace('/api', '');
           imageUrl = `${backendUrl}${response.data.url}`;
         }
@@ -262,6 +323,8 @@ const WebsiteSettings = () => {
             items: updatedItems,
           },
         });
+      } else if (type === 'contact') {
+        updateField('contact', index, imageUrl); // index is the field name for contact
       }
       
       setMessage({ type: 'success', text: 'Image uploaded successfully!' });
@@ -1031,14 +1094,14 @@ const WebsiteSettings = () => {
         )}
 
         {/* Contact Section */}
-        {activeTab === 'contact' && (
+        {activeTab === 'contact' && settings && (
           <div className="settings-section">
             <h2>Contact Information</h2>
             <div className="form-group">
               <label>Phone</label>
               <input
                 type="text"
-                value={settings.contact.phone}
+                value={settings.contact?.phone || ''}
                 onChange={(e) => updateField('contact', 'phone', e.target.value)}
               />
             </div>
@@ -1046,7 +1109,7 @@ const WebsiteSettings = () => {
               <label>WhatsApp</label>
               <input
                 type="text"
-                value={settings.contact.whatsapp}
+                value={settings.contact?.whatsapp || ''}
                 onChange={(e) => updateField('contact', 'whatsapp', e.target.value)}
               />
             </div>
@@ -1054,49 +1117,68 @@ const WebsiteSettings = () => {
               <label>Email</label>
               <input
                 type="email"
-                value={settings.contact.email}
+                value={settings.contact?.email || ''}
                 onChange={(e) => updateField('contact', 'email', e.target.value)}
               />
             </div>
-            <div className="form-group">
-              <label>Address</label>
-              <input
-                type="text"
-                value={settings.contact.address}
-                onChange={(e) => updateField('contact', 'address', e.target.value)}
-              />
-            </div>
             
-            <h3 style={{color: '#FFD700', marginTop: '2rem', marginBottom: '1rem'}}>Map Configuration</h3>
+            <div className="section-header">
+              <h3>Map Configuration</h3>
+            </div>
             <div className="form-group">
               <label>Map Location Name</label>
               <input
                 type="text"
-                value={settings.contact.mapLocation || settings.contact.address || 'Cairo, Egypt'}
+                value={settings.contact?.mapLocation || 'Cairo, Egypt'}
                 onChange={(e) => updateField('contact', 'mapLocation', e.target.value)}
                 placeholder="e.g., Cairo, Egypt"
               />
               <small className="form-hint">This text will be displayed above the map</small>
             </div>
             <div className="form-group">
-              <label>Google Maps Embed URL</label>
+              <label>Google Maps Embed Code or URL</label>
               <textarea
-                rows="3"
-                value={settings.contact.mapEmbedUrl || ''}
-                onChange={(e) => updateField('contact', 'mapEmbedUrl', e.target.value)}
-                placeholder="Paste the embed URL from Google Maps (Share → Embed a map)"
+                rows="4"
+                value={settings.contact?.mapEmbedUrl || ''}
+                onChange={(e) => handleMapEmbedChange(e.target.value)}
+                placeholder="Paste the entire iframe code OR just the embed URL from Google Maps"
               />
               <small className="form-hint">
-                To get this URL: Go to Google Maps → Search for your location → Click "Share" → Choose "Embed a map" → Copy the src URL
+                📍 You can paste either:
+                <br />• The complete iframe HTML code from Google Maps (Share → Embed a map)
+                <br />• Or just the embed URL starting with https://www.google.com/maps/embed
+                <br />The system will automatically extract the URL if you paste the full iframe code!
               </small>
+              {settings.contact?.mapEmbedUrl && (
+                <div style={{
+                  marginTop: '10px',
+                  padding: '10px',
+                  background: 'rgba(0, 206, 209, 0.1)',
+                  border: '1px solid rgba(0, 206, 209, 0.3)',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}>
+                  <strong style={{ color: '#00CED1' }}>✅ Active Map URL:</strong>
+                  <div style={{ 
+                    marginTop: '5px', 
+                    wordBreak: 'break-all',
+                    color: '#666',
+                    fontFamily: 'monospace'
+                  }}>
+                    {settings.contact.mapEmbedUrl}
+                  </div>
+                </div>
+              )}
             </div>
             
-            <h3 style={{color: '#FFD700', marginTop: '2rem', marginBottom: '1rem'}}>Social Media</h3>
+            <div className="section-header">
+              <h3>Social Media</h3>
+            </div>
             <div className="form-group">
               <label>Facebook URL</label>
               <input
                 type="url"
-                value={settings.contact.facebook}
+                value={settings.contact?.facebook || ''}
                 onChange={(e) => updateField('contact', 'facebook', e.target.value)}
               />
             </div>
@@ -1104,7 +1186,7 @@ const WebsiteSettings = () => {
               <label>Instagram URL</label>
               <input
                 type="url"
-                value={settings.contact.instagram || ''}
+                value={settings.contact?.instagram || ''}
                 onChange={(e) => updateField('contact', 'instagram', e.target.value)}
               />
             </div>
@@ -1112,19 +1194,42 @@ const WebsiteSettings = () => {
               <label>LinkedIn URL</label>
               <input
                 type="url"
-                value={settings.contact.linkedin || ''}
+                value={settings.contact?.linkedin || ''}
                 onChange={(e) => updateField('contact', 'linkedin', e.target.value)}
               />
             </div>
             <div className="form-group">
               <label>QR Code Image</label>
-              <ImageUpload
-                currentImage={settings.contact.qrCode}
-                onImageChange={(imageUrl) => updateField('contact', 'qrCode', imageUrl)}
-                onImageRemove={() => updateField('contact', 'qrCode', '')}
-                acceptedTypes={['image/png', 'image/jpeg', 'image/svg+xml']}
-                placeholder="Upload QR code for quick contact"
-              />
+              <div className="image-upload-wrapper">
+                {settings.contact?.qrCode && (
+                  <div className="current-image-preview">
+                    <CachedImage 
+                      src={settings.contact.qrCode} 
+                      alt="Current QR Code" 
+                      style={{ maxWidth: '120px', height: 'auto', borderRadius: '8px' }}
+                    />
+                    <button 
+                      type="button" 
+                      className="remove-image-btn"
+                      onClick={() => updateField('contact', 'qrCode', '')}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      handleImageUpload(file, 'contact', 'qrCode');
+                    }
+                  }}
+                  disabled={!isAdmin}
+                />
+                <small className="form-hint">Upload QR code for quick contact (PNG, JPEG, or SVG)</small>
+              </div>
             </div>
           </div>
         )}

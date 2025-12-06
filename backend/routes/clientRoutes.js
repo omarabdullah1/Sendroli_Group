@@ -7,6 +7,7 @@ const {
   updateClient,
   deleteClient,
   getClientReport,
+  getClientsStatistics,
 } = require('../controllers/clientController');
 const { protect, authorize } = require('../middleware/auth');
 const { searchLimiter } = require('../middleware/rateLimiter');
@@ -21,6 +22,9 @@ const conditionalSearchLimiter = (req, res, next) => {
   }
   next();
 };
+
+// Client statistics route (must be before other routes to avoid conflicts)
+router.get('/statistics', authorize('admin', 'financial', 'receptionist'), getClientsStatistics);
 
 // Routes accessible by different roles
 router

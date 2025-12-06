@@ -4,7 +4,13 @@
   "description": "Frontend for Factory Management System",
   "private": true,
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.1.0",
+    "@fortawesome/free-brands-svg-icons": "^7.1.0",
+    "@fortawesome/free-solid-svg-icons": "^7.1.0",
+    "@fortawesome/react-fontawesome": "^3.1.1",
     "axios": "^1.5.0",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
     "lottie-react": "^2.4.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -38,6 +44,6 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
     "terser": "^5.44.1",
-    "vite": "^5.0.0"
+    "vite": "^7.2.6"
   }
 }

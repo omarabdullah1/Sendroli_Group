@@ -5,12 +5,12 @@ import './SupplierForm.css';
 const SupplierForm = ({ supplier, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '',
-    company: '',
+    contactPerson: '',
     phone: '',
     email: '',
     address: '',
     materialsSupplied: [],
-    paymentTerms: 'net30',
+    paymentTerms: 'cash',
     status: 'active',
     notes: ''
   });
@@ -23,12 +23,12 @@ const SupplierForm = ({ supplier, onSubmit, onCancel }) => {
     if (supplier) {
       setFormData({
         name: supplier.name || '',
-        company: supplier.company || '',
+        contactPerson: supplier.contactPerson || '',
         phone: supplier.phone || '',
         email: supplier.email || '',
         address: supplier.address || '',
         materialsSupplied: supplier.materialsSupplied || [],
-        paymentTerms: supplier.paymentTerms || 'net30',
+        paymentTerms: supplier.paymentTerms || 'cash',
         status: supplier.status || 'active',
         notes: supplier.notes || ''
       });
@@ -153,14 +153,14 @@ const SupplierForm = ({ supplier, onSubmit, onCancel }) => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="company">Company Name</label>
+                  <label htmlFor="contactPerson">Contact Person</label>
                   <input
                     type="text"
-                    id="company"
-                    name="company"
-                    value={formData.company}
+                    id="contactPerson"
+                    name="contactPerson"
+                    value={formData.contactPerson}
                     onChange={handleInputChange}
-                    placeholder="Enter company name"
+                    placeholder="Enter contact person name"
                   />
                 </div>
               </div>
@@ -222,9 +222,9 @@ const SupplierForm = ({ supplier, onSubmit, onCancel }) => {
                     onChange={handleInputChange}
                   >
                     <option value="cash">Cash</option>
-                    <option value="net30">Net 30</option>
-                    <option value="net60">Net 60</option>
-                    <option value="credit">Credit</option>
+                    <option value="net_15">Net 15 Days</option>
+                    <option value="net_30">Net 30 Days</option>
+                    <option value="net_60">Net 60 Days</option>
                   </select>
                 </div>
 

@@ -1,3 +1,15 @@
+import {
+    faBox,
+    faChartLine,
+    faCheckCircle,
+    faClock,
+    faDollarSign,
+    faExclamationTriangle,
+    faPalette,
+    faRotate,
+    faUsers
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -87,9 +99,8 @@ const EnhancedDashboard = () => {
       // Load materials and inventory for admin
       if (user?.role === 'admin') {
         try {
-          const materialsResponse = await materialService.getAll();
-          const materialsData = materialsResponse.data;
-          const materials = Array.isArray(materialsData) ? materialsData : (materialsData?.materials || []);
+          const materialsResponse = await materialService.getAll({ limit: 10000 });
+          const materials = materialsResponse.data.data.materials || [];
           data.stats.totalMaterials = materials.length || 0;
           
           // Find low stock materials
@@ -126,7 +137,7 @@ const EnhancedDashboard = () => {
     return colors[status] || 'info';
   };
 
-  // Helper function to render KPI icon (supports both image and emoji)
+  // Helper function to render KPI icon (supports both image and Font Awesome icon)
   const renderKPIIcon = (icon, image, gradient) => {
     if (image) {
       return (
@@ -137,7 +148,7 @@ const EnhancedDashboard = () => {
     }
     return (
       <div className="kpi-icon" style={{ background: gradient }}>
-        <span className="kpi-emoji">{icon}</span>
+        <FontAwesomeIcon icon={icon} className="kpi-fa-icon" />
       </div>
     );
   };
@@ -195,7 +206,7 @@ const EnhancedDashboard = () => {
         {['designer', 'worker', 'financial', 'admin'].includes(user?.role) && (
           <>
             <div className="kpi-card">
-              {renderKPIIcon('📊', null, 'linear-gradient(135deg, #00CED1, #0099CC)')}
+              {renderKPIIcon(faChartLine, null, 'linear-gradient(135deg, #00CED1, #0099CC)')}
               <div className="kpi-content">
                 <span className="kpi-label">Total Orders</span>
                 <span className="kpi-value">{dashboardData.stats.totalOrders}</span>
@@ -206,7 +217,7 @@ const EnhancedDashboard = () => {
             </div>
 
             <div className="kpi-card">
-              {renderKPIIcon('⏳', null, 'linear-gradient(135deg, #FF6B35, #FF6B9D)')}
+              {renderKPIIcon(faClock, null, 'linear-gradient(135deg, #FF6B35, #FF6B9D)')}
               <div className="kpi-content">
                 <span className="kpi-label">Pending Orders</span>
                 <span className="kpi-value">{dashboardData.stats.pendingOrders}</span>
@@ -217,7 +228,7 @@ const EnhancedDashboard = () => {
             </div>
 
             <div className="kpi-card">
-              {renderKPIIcon('🔄', null, 'linear-gradient(135deg, #20E0E3, #00CED1)')}
+              {renderKPIIcon(faRotate, null, 'linear-gradient(135deg, #20E0E3, #00CED1)')}
               <div className="kpi-content">
                 <span className="kpi-label">Active Orders</span>
                 <span className="kpi-value">{dashboardData.stats.activeOrders}</span>
@@ -228,7 +239,7 @@ const EnhancedDashboard = () => {
             </div>
 
             <div className="kpi-card">
-              {renderKPIIcon('✅', null, 'linear-gradient(135deg, #00CED1, #20E0E3)')}
+              {renderKPIIcon(faCheckCircle, null, 'linear-gradient(135deg, #00CED1, #20E0E3)')}
               <div className="kpi-content">
                 <span className="kpi-label">Completed</span>
                 <span className="kpi-value">{dashboardData.stats.completedOrders}</span>
@@ -242,7 +253,7 @@ const EnhancedDashboard = () => {
 
         {['financial', 'admin'].includes(user?.role) && (
           <div className="kpi-card featured">
-            {renderKPIIcon('💰', null, 'linear-gradient(135deg, #FF6B35, #FF6B9D)')}
+            {renderKPIIcon(faDollarSign, null, 'linear-gradient(135deg, #FF6B35, #FF6B9D)')}
             <div className="kpi-content">
               <span className="kpi-label">Total Revenue</span>
               <span className="kpi-value">{dashboardData.stats.totalRevenue.toFixed(2)} EGP</span>
@@ -255,7 +266,7 @@ const EnhancedDashboard = () => {
 
         {['receptionist', 'admin'].includes(user?.role) && (
           <div className="kpi-card">
-            {renderKPIIcon('👥', null, 'linear-gradient(135deg, #20E0E3, #00CED1)')}
+            {renderKPIIcon(faUsers, null, 'linear-gradient(135deg, #20E0E3, #00CED1)')}
             <div className="kpi-content">
               <span className="kpi-label">Total Clients</span>
               <span className="kpi-value">{dashboardData.stats.totalClients}</span>
@@ -268,7 +279,7 @@ const EnhancedDashboard = () => {
 
         {user?.role === 'admin' && (
           <div className="kpi-card">
-            {renderKPIIcon('🎨', null, 'linear-gradient(135deg, #4A90E2, #00CED1)')}
+            {renderKPIIcon(faPalette, null, 'linear-gradient(135deg, #4A90E2, #00CED1)')}
             <div className="kpi-content">
               <span className="kpi-label">Materials</span>
               <span className="kpi-value">{dashboardData.stats.totalMaterials}</span>
@@ -286,7 +297,7 @@ const EnhancedDashboard = () => {
         {dashboardData.recentOrders.length > 0 && (
           <div className="dashboard-card recent-orders">
             <div className="card-header">
-              <h2 className="card-title">📦 Recent Orders</h2>
+              <h2 className="card-title"><FontAwesomeIcon icon={faBox} /> Recent Orders</h2>
               <Link to="/orders" className="view-all-link">
                 View All →
               </Link>
@@ -348,7 +359,7 @@ const EnhancedDashboard = () => {
         {user?.role === 'admin' && dashboardData.lowStockMaterials.length > 0 && (
           <div className="dashboard-card low-stock-alert">
             <div className="card-header">
-              <h2 className="card-title">⚠️ Low Stock Alert</h2>
+              <h2 className="card-title"><FontAwesomeIcon icon={faExclamationTriangle} /> Low Stock Alert</h2>
               <Link to="/inventory" className="view-all-link">
                 Manage →
               </Link>

@@ -30,6 +30,12 @@ const notificationService = {
     const response = await api.delete(`/notifications/${id}`);
     return response.data;
   },
+
+  // Delete all read notifications
+  deleteAllRead: async () => {
+    const response = await api.delete('/notifications/read');
+    return response.data;
+  },
 };
 
 export default notificationService;

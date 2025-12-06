@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useDragScroll } from '../../hooks/useDragScroll';
 import { supplierService } from '../../services/supplierService';
 import { formatDateTime } from '../../utils/dateUtils';
-import { useDragScroll } from '../../hooks/useDragScroll';
 import Loading from '../Loading';
 import './SupplierList.css';
 
@@ -173,7 +173,7 @@ const SupplierList = ({ onEdit, onDelete }) => {
                     <td>
                       <div className="supplier-info">
                         <h4>{supplier.name}</h4>
-                        {supplier.company && <p className="company">{supplier.company}</p>}
+                        {supplier.contactPerson && <p className="company">{supplier.contactPerson}</p>}
                       </div>
                     </td>
                     <td>

@@ -3,20 +3,25 @@ import { Component } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import './App.css';
 import DeviceConflictNotification from './components/Auth/DeviceConflictNotification.jsx';
+import ClientAnalytics from './components/Clients/ClientAnalytics.jsx';
+import NotificationContainer from './components/NotificationContainer.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
 import Sidebar from './components/Sidebar/Sidebar.jsx';
 import TopHeader from './components/TopHeader/TopHeader.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { NotificationProvider } from './context/NotificationContext.jsx';
 import { SidebarProvider } from './context/SidebarContext';
 import ClientPortal from './pages/ClientPortal.jsx';
 import ClientReports from './pages/ClientReports.jsx';
 import Clients from './pages/Clients.jsx';
+import FinancialReport from './pages/FinancialReport.jsx';
 import FinancialStats from './pages/FinancialStats.jsx';
 import Home from './pages/Home.jsx';
 import Inventory from './pages/Inventory.jsx';
 import Invoices from './pages/Invoices.jsx';
 import Materials from './pages/Materials.jsx';
 import MaterialWithdrawal from './pages/MaterialWithdrawal.jsx';
+import Notifications from './pages/Notifications.jsx';
 import Orders from './pages/Orders.jsx';
 import Purchases from './pages/Purchases.jsx';
 import Suppliers from './pages/Suppliers.jsx';
@@ -64,8 +69,11 @@ const Layout = ({ children }) => {
                     location.pathname.startsWith('/orders') ||
                     location.pathname.startsWith('/invoices') ||
                     location.pathname.startsWith('/financial-stats') ||
+                    location.pathname.startsWith('/financial-report') ||
                     location.pathname.startsWith('/client-reports') ||
+                    location.pathname.startsWith('/reports') ||
                     location.pathname.startsWith('/users') ||
+                    location.pathname.startsWith('/notifications') ||
                     location.pathname.startsWith('/materials') ||
                     location.pathname.startsWith('/suppliers') ||
                     location.pathname.startsWith('/purchases') ||
@@ -80,6 +88,7 @@ const Layout = ({ children }) => {
         {!isAuthPage && !isWebsitePage && isERPage && <TopHeader />}
         <div className={`content-wrapper ${!isAuthPage && !isWebsitePage && isERPage ? 'with-header' : ''}`}>
           {!isWebsitePage && <DeviceConflictNotification />}
+          <NotificationContainer />
           {children}
         </div>
       </main>
@@ -90,12 +99,13 @@ const Layout = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <SidebarProvider>
-      <Router future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true
-      }}>
-        <Layout>
+      <NotificationProvider>
+        <SidebarProvider>
+        <Router future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}>
+          <Layout>
           <Routes>
             {/* Public Website - Main Page */}
             <Route path="/" element={<LandingPage />} />
@@ -137,6 +147,15 @@ function App() {
             />
 
             <Route
+              path="/reports/client-analytics"
+              element={
+                <PrivateRoute roles={['financial', 'admin']}>
+                  <ClientAnalytics />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
               path="/orders"
               element={
                 <PrivateRoute roles={['designer', 'worker', 'financial', 'admin']}>
@@ -164,9 +183,18 @@ function App() {
             />
 
             <Route
+              path="/financial-report"
+              element={
+                <PrivateRoute roles={['financial', 'admin']}>
+                  <FinancialReport />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
               path="/client-reports"
               element={
-                <PrivateRoute roles={['admin', 'financial', 'receptionist']}>
+                <PrivateRoute roles={['admin', 'financial']}>
                   <ClientReports />
                 </PrivateRoute>
               }
@@ -177,6 +205,15 @@ function App() {
               element={
                 <PrivateRoute roles={['admin']}>
                   <Users />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/notifications"
+              element={
+                <PrivateRoute>
+                  <Notifications />
                 </PrivateRoute>
               }
             />
@@ -239,7 +276,8 @@ function App() {
           </Routes>
         </Layout>
       </Router>
-      </SidebarProvider>
+        </SidebarProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

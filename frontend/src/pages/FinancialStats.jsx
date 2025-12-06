@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import orderService from '../services/orderService';
+import { faFilePdf } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useEffect, useState } from 'react';
 import Loading from '../components/Loading';
+import orderService from '../services/orderService';
+import { exportFinancialStatsToPDF } from '../utils/pdfExport';
 
 const FinancialStats = () => {
   const [stats, setStats] = useState(null);
@@ -21,6 +24,12 @@ const FinancialStats = () => {
       setError(err.response?.data?.message || 'Failed to fetch statistics');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportPDF = () => {
+    if (stats) {
+      exportFinancialStatsToPDF(stats);
     }
   };
 
@@ -45,7 +54,14 @@ const FinancialStats = () => {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        <h1 style={styles.title}>Financial Statistics</h1>
+        <div style={styles.header}>
+          <h1 style={styles.title}>Financial Statistics</h1>
+          {stats && (
+            <button style={styles.exportBtn} onClick={handleExportPDF}>
+              <FontAwesomeIcon icon={faFilePdf} /> Export to PDF
+            </button>
+          )}
+        </div>
 
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
@@ -134,10 +150,31 @@ const styles = {
     maxWidth: '1200px',
     margin: '0 auto',
   },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '2rem',
+  },
   title: {
     fontSize: '2rem',
     color: 'var(--text-primary, #111827)',
-    marginBottom: '2rem',
+    marginBottom: 0,
+  },
+  exportBtn: {
+    backgroundColor: 'var(--error, #ef4444)',
+    color: 'white',
+    border: 'none',
+    padding: '0.75rem 1.5rem',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    fontWeight: '500',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
   },
   subtitle: {
     fontSize: '1.5rem',

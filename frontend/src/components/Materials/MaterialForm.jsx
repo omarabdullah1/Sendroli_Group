@@ -320,10 +320,10 @@ const MaterialForm = ({ material, onSubmit, onClose, suppliers: propSuppliers = 
               )}
             </div>
             
-            <div className="form-group">
+            {/* <div className="form-group">
               <label htmlFor="isOrderType" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                 <input
-                  type="checkbox"
+                  type="checkbox" 
                   id="isOrderType"
                   name="isOrderType"
                   checked={formData.isOrderType}
@@ -334,7 +334,7 @@ const MaterialForm = ({ material, onSubmit, onClose, suppliers: propSuppliers = 
               <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
                 Check this if this material represents an order type
               </small>
-            </div>
+            </div> */}
             
             <div className="form-group full-width">
               <label htmlFor="description">Description</label>

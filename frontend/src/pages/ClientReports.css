@@ -11,6 +11,14 @@
 
 .client-reports-header {
   margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.client-reports-header > div:first-child {
+  flex: 1;
 }
 
 .client-reports-header h1 {
@@ -22,6 +30,33 @@
 .client-reports-header p {
   color: var(--text-secondary, #6b7280);
   font-size: 1rem;
+}
+
+.export-pdf-btn {
+  background-color: var(--error, #ef4444);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+  white-space: nowrap;
+}
+
+.export-pdf-btn:hover {
+  background-color: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.export-pdf-btn:active {
+  transform: translateY(0);
 }
 
 .error-message {

@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import userService from '../services/userService';
 import Loading from '../components/Loading';
-import SearchAndFilters from '../components/SearchAndFilters';
 import Pagination from '../components/Pagination';
-import { formatDateTime } from '../utils/dateUtils';
+import SearchAndFilters from '../components/SearchAndFilters';
+import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { useDragScroll } from '../hooks/useDragScroll';
+import userService from '../services/userService';
+import { formatDateTime } from '../utils/dateUtils';
+import { getNotificationMessage } from '../utils/notificationMessages';
 
 const Users = () => {
   const { user } = useAuth();
+  const { success, error: notifyError } = useNotification();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
@@ -112,11 +116,17 @@ const Users = () => {
 
   const handleToggleStatus = async (userId, currentStatus) => {
     if (!canEdit) return;
+    setActionLoading(true);
     try {
+      const targetUser = allUsers.find(u => u._id === userId);
       await userService.updateUser(userId, { isActive: !currentStatus });
-      fetchAllUsers();
+      await fetchAllUsers();
+      const action = !currentStatus ? 'activate' : 'deactivate';
+      success(getNotificationMessage('users', action, user.role, { username: targetUser?.username }));
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update user');
+      notifyError(err.response?.data?.message || 'Failed to update user');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -125,6 +135,7 @@ const Users = () => {
     if (!canAdd && !editingUser) return;
     if (!canEdit && editingUser) return;
 
+    setActionLoading(true);
     try {
       if (editingUser) {
         const updateData = { ...formData };
@@ -132,15 +143,19 @@ const Users = () => {
           delete updateData.password; // Don't send empty password
         }
         await userService.updateUser(editingUser._id, updateData);
+        success(getNotificationMessage('users', 'update', user.role, { username: formData.username }));
       } else {
         await userService.createUser(formData);
+        success(getNotificationMessage('users', 'create', user.role, { username: formData.username, userRole: formData.role }));
       }
       setShowForm(false);
       setEditingUser(null);
       setFormData({ username: '', fullName: '', email: '', role: 'receptionist', password: '' });
-      fetchAllUsers();
+      await fetchAllUsers();
     } catch (err) {
-      alert(err.response?.data?.message || 'Operation failed');
+      notifyError(err.response?.data?.message || 'Operation failed');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -159,12 +174,17 @@ const Users = () => {
 
   const handleDelete = async (userId) => {
     if (!canDelete) return;
-    if (window.confirm('Are you sure you want to delete this user?')) {
+    const targetUser = allUsers.find(u => u._id === userId);
+    if (window.confirm(`Are you sure you want to delete user "${targetUser?.username}"?`)) {
+      setActionLoading(true);
       try {
         await userService.deleteUser(userId);
-        fetchAllUsers();
+        await fetchAllUsers();
+        success(getNotificationMessage('users', 'delete', user.role, { username: targetUser?.username }));
       } catch (err) {
-        alert(err.response?.data?.message || 'Failed to delete user');
+        notifyError(err.response?.data?.message || 'Failed to delete user');
+      } finally {
+        setActionLoading(false);
       }
     }
   };
@@ -290,6 +310,7 @@ const Users = () => {
                   >
                     <option value="receptionist">Receptionist</option>
                     <option value="designer">Designer</option>
+                    <option value="worker">Worker</option>
                     <option value="financial">Financial</option>
                     <option value="admin">Admin</option>
                   </select>
@@ -309,10 +330,19 @@ const Users = () => {
                 </div>
 
                 <div style={styles.formButtons}>
-                  <button type="submit" style={styles.submitButton}>
-                    {editingUser ? 'Update' : 'Create'}
+                  <button 
+                    type="submit" 
+                    style={styles.submitButton}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Processing...' : (editingUser ? 'Update' : 'Create')}
                   </button>
-                  <button type="button" onClick={handleCancel} style={styles.cancelButton}>
+                  <button 
+                    type="button" 
+                    onClick={handleCancel} 
+                    style={styles.cancelButton}
+                    disabled={actionLoading}
+                  >
                     Cancel
                   </button>
                 </div>
@@ -322,14 +352,26 @@ const Users = () => {
         )}
 
         {error && <div style={styles.error}>{error}</div>}
+        
+        {actionLoading && (
+          <div style={{
+            padding: '0.75rem',
+            backgroundColor: '#f0f9ff',
+            border: '1px solid #0ea5e9',
+            borderRadius: '0.5rem',
+            marginBottom: '1rem',
+            textAlign: 'center',
+            color: '#0369a1',
+            fontWeight: '500'
+          }}>
+            Processing action, please wait...
+          </div>
+        )}
 
         {loading ? (
           <Loading message="Loading users..." size="medium" />
         ) : (
           <div className="table-wrapper">
-            <div className="scroll-indicator">
-              ← Scroll to see all columns →
-            </div>
             <div className="table-container" ref={tableRef}>
               <table className="data-table">
               <thead>
@@ -371,14 +413,23 @@ const Users = () => {
                             <button
                               onClick={() => handleToggleStatus(user._id, user.isActive)}
                               style={user.isActive ? styles.deactivateButton : styles.activateButton}
+                              disabled={actionLoading}
                             >
                               {user.isActive ? 'Deactivate' : 'Activate'}
                             </button>
-                            <button onClick={() => handleEdit(user)} style={styles.editButton}>
+                            <button 
+                              onClick={() => handleEdit(user)} 
+                              style={styles.editButton}
+                              disabled={actionLoading}
+                            >
                               Edit
                             </button>
                             {canDelete && (
-                              <button onClick={() => handleDelete(user._id)} style={styles.deleteButton}>
+                              <button 
+                                onClick={() => handleDelete(user._id)} 
+                                style={styles.deleteButton}
+                                disabled={actionLoading}
+                              >
                                 Delete
                               </button>
                             )}

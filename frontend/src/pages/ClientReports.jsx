@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import clientService from '../services/clientService';
+import { faFilePdf } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Loading from '../components/Loading';
+import clientService from '../services/clientService';
 import { formatDateTime } from '../utils/dateUtils';
+import { exportClientReportToPDF } from '../utils/pdfExport';
 import './ClientReports.css';
 
 const ClientReports = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [reportData, setReportData] = useState(null);
@@ -16,7 +20,12 @@ const ClientReports = () => {
 
   useEffect(() => {
     fetchClients();
-  }, []);
+    
+    // Check if a client was pre-selected from navigation state
+    if (location.state?.preSelectedClientId) {
+      setSelectedClientId(location.state.preSelectedClientId);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (selectedClientId) {
@@ -97,6 +106,12 @@ const ClientReports = () => {
     );
   };
 
+  const handleExportPDF = () => {
+    if (reportData) {
+      exportClientReportToPDF(reportData);
+    }
+  };
+
   if (loading) {
     return (
       <div className="client-reports-container">
@@ -109,8 +124,15 @@ const ClientReports = () => {
     <div className="client-reports-container">
       <div className="client-reports-content">
         <div className="client-reports-header">
-          <h1>Client Financial Reports</h1>
-          <p>View detailed financial information for each client including orders, invoices, and payments</p>
+          <div>
+            <h1>Client Financial Reports</h1>
+            <p>View detailed financial information for each client including orders, invoices, and payments</p>
+          </div>
+          {reportData && (
+            <button className="export-pdf-btn" onClick={handleExportPDF}>
+              <FontAwesomeIcon icon={faFilePdf} /> Export to PDF
+            </button>
+          )}
         </div>
 
         {error && <div className="error-message">{error}</div>}

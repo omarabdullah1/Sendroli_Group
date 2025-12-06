@@ -530,3 +530,26 @@
   }
 }
 
+/* Form hints and subsection styling */
+.form-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+.section-header h3 {
+  font-size: 1.2rem;
+  color: #000;
+  margin: 0;
+  font-weight: 600;
+}
+
+.section-header {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { clientService } from '../../services/clientService';
+import clientService from '../../services/clientService';
 import { orderService } from '../../services/orderService';
 import './Dashboard.css';
 
@@ -13,6 +13,7 @@ const Dashboard = () => {
     statusBreakdown: [],
   });
   const [totalClients, setTotalClients] = useState(0);
+  const [clientStats, setClientStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,6 +59,18 @@ const Dashboard = () => {
         promises.push(Promise.resolve([]));
       }
 
+      // Load client statistics for financial and admin roles
+      if (['financial', 'admin', 'receptionist'].includes(user?.role)) {
+        try {
+          promises.push(clientService.getClientsStatistics());
+        } catch (error) {
+          console.error('Error loading client statistics:', error);
+          promises.push(Promise.resolve(null));
+        }
+      } else {
+        promises.push(Promise.resolve(null));
+      }
+
       const results = await Promise.all(promises);
       
       // Handle order stats for roles that should see them
@@ -77,12 +90,30 @@ const Dashboard = () => {
         const clients = results[clientsIndex] || [];
         setTotalClients(Array.isArray(clients) ? clients.length : 0);
       }
+
+      // Handle client statistics
+      if (['financial', 'admin', 'receptionist'].includes(user?.role)) {
+        const clientStatsIndex = ['receptionist', 'admin'].includes(user?.role) ? 2 : 
+                                 ['designer', 'worker', 'financial', 'admin'].includes(user?.role) ? 2 : 0;
+        const clientStatsData = results[clientStatsIndex];
+        if (clientStatsData?.data) {
+          setClientStats(clientStatsData.data);
+        }
+      }
       
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-EG', {
+      style: 'currency',
+      currency: 'EGP',
+      minimumFractionDigits: 2,
+    }).format(amount || 0);
   };
 
   if (loading) {
@@ -146,14 +177,68 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Client Analytics Summary for authorized roles */}
+      {['financial', 'admin', 'receptionist'].includes(user?.role) && clientStats && (
+        <div className="client-analytics-summary">
+          <div className="section-header">
+            <h2>Client Analytics Overview</h2>
+            <Link to="/clients/analytics" className="view-full-report-link">
+              View Full Report →
+            </Link>
+          </div>
+          <div className="analytics-grid">
+            <div className="analytics-card">
+              <h4>Total Client Revenue</h4>
+              <p className="analytics-value">{formatCurrency(clientStats.overallStats.totalRevenue)}</p>
+            </div>
+            <div className="analytics-card">
+              <h4>Total Paid</h4>
+              <p className="analytics-value success">{formatCurrency(clientStats.overallStats.totalPaid)}</p>
+              <small>
+                {((clientStats.overallStats.totalPaid / clientStats.overallStats.totalRevenue) * 100).toFixed(1)}% collected
+              </small>
+            </div>
+            <div className="analytics-card">
+              <h4>Outstanding Payments</h4>
+              <p className="analytics-value warning">{formatCurrency(clientStats.overallStats.totalOwed)}</p>
+            </div>
+            <div className="analytics-card">
+              <h4>Avg Orders per Client</h4>
+              <p className="analytics-value">{clientStats.overallStats.averageOrdersPerClient}</p>
+            </div>
+          </div>
+          {clientStats.overallStats.topPayingClients?.length > 0 && (
+            <div className="top-clients-preview">
+              <h3>Top 3 Paying Clients</h3>
+              <div className="top-clients-mini-list">
+                {clientStats.overallStats.topPayingClients.slice(0, 3).map((client, index) => (
+                  <div key={index} className="mini-client-card">
+                    <span className="client-rank">{index + 1}</span>
+                    <div className="client-mini-info">
+                      <strong>{client.name}</strong>
+                      <small>{formatCurrency(client.totalValue)}</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Role-based quick actions */}
       <div className="quick-actions">
         <h2>Quick Actions</h2>
         <div className="action-buttons">
           {user?.role === 'receptionist' && (
-            <Link to="/clients/new" className="action-btn">
-              Add New Client
-            </Link>
+            <>
+              <Link to="/clients/new" className="action-btn">
+                Add New Client
+              </Link>
+              <Link to="/clients/analytics" className="action-btn analytics-btn">
+                📊 Client Analytics
+              </Link>
+            </>
           )}
           {user?.role === 'admin' && (
             <>
@@ -165,6 +250,9 @@ const Dashboard = () => {
               </Link>
               <Link to="/users/new" className="action-btn">
                 Add New User
+              </Link>
+              <Link to="/clients/analytics" className="action-btn analytics-btn">
+                📊 Client Analytics
               </Link>
             </>
           )}
@@ -180,6 +268,9 @@ const Dashboard = () => {
               </Link>
               <Link to="/financial-stats" className="action-btn">
                 Financial Reports
+              </Link>
+              <Link to="/clients/analytics" className="action-btn analytics-btn">
+                📊 Client Analytics
               </Link>
             </>
           )}

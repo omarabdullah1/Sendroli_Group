@@ -93,6 +93,26 @@ exports.createPurchase = async (req, res, next) => {
       { path: 'items.material', select: 'name unit category' }
     ]);
     
+    // Notify admins about new purchase order
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true });
+      const materialNames = purchase.items.map(item => item.material.name).join(', ');
+      
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: 'New Purchase Order Created',
+          message: `${req.user.username} created purchase order ${purchase.purchaseNumber} from ${purchase.supplier.name} - Materials: ${materialNames}`,
+          icon: 'fa-cart-shopping',
+          type: 'system',
+          relatedId: purchase._id,
+          relatedType: 'purchase',
+          actionUrl: `/inventory/purchases/${purchase._id}`
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating purchase notification:', notifError);
+    }
+    
     res.status(201).json({
       success: true,
       data: purchase,
@@ -126,6 +146,43 @@ exports.updatePurchase = async (req, res, next) => {
       });
     }
     
+    // Notify admins about purchase update with status-specific messages
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true });
+      const materialNames = purchase.items.map(item => item.material.name).join(', ');
+      
+      let notificationTitle = 'Purchase Order Updated';
+      let notificationMessage = `${req.user.username} updated purchase order ${purchase.purchaseNumber}`;
+      let notificationIcon = 'fa-edit';
+      
+      // Status-specific notifications
+      if (updateData.status === 'ordered') {
+        notificationTitle = 'Purchase Order Marked as Ordered';
+        notificationMessage = `${req.user.username} marked purchase order ${purchase.purchaseNumber} as ORDERED - Supplier: ${purchase.supplier.name}`;
+        notificationIcon = 'fa-check-circle';
+      } else if (updateData.status === 'cancelled') {
+        notificationTitle = 'Purchase Order Cancelled';
+        notificationMessage = `${req.user.username} cancelled purchase order ${purchase.purchaseNumber} - Supplier: ${purchase.supplier.name}`;
+        notificationIcon = 'fa-ban';
+      } else {
+        notificationMessage += ` from ${purchase.supplier.name} - Materials: ${materialNames}`;
+      }
+      
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: notificationTitle,
+          message: notificationMessage,
+          icon: notificationIcon,
+          type: 'system',
+          relatedId: purchase._id,
+          relatedType: 'purchase',
+          actionUrl: `/inventory/purchases/${purchase._id}`
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating purchase update notification:', notifError);
+    }
+    
     res.status(200).json({
       success: true,
       data: purchase,
@@ -156,7 +213,29 @@ exports.deletePurchase = async (req, res, next) => {
       });
     }
     
+    // Get purchase details before deletion for notification
+    await purchase.populate('supplier', 'name contactPerson');
+    const purchaseNumber = purchase.purchaseNumber;
+    const supplierName = purchase.supplier?.name || 'Unknown Supplier';
+    
     await Purchase.findByIdAndDelete(req.params.id);
+    
+    // Notify admins about purchase deletion
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true });
+      
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: 'Purchase Order Deleted',
+          message: `${req.user.username} deleted purchase order ${purchaseNumber} - Supplier: ${supplierName}`,
+          icon: 'fa-trash',
+          type: 'system',
+          actionUrl: '/inventory/purchases'
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating purchase deletion notification:', notifError);
+    }
     
     res.status(200).json({
       success: true,

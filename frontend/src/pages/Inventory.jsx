@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
+import Loading from '../components/Loading';
 import { useAuth } from '../context/AuthContext';
 import { inventoryService } from '../services/inventoryService';
 import { materialService } from '../services/materialService';
-import Loading from '../components/Loading';
 import './Inventory.css';
 
 const Inventory = () => {
@@ -215,9 +215,10 @@ const Inventory = () => {
         <DailyCountForm
           materials={materials}
           user={user}
+          selectedDate={selectedDate}
           onSubmit={async (counts) => {
             try {
-              await inventoryService.submitDailyCount({ counts });
+              await inventoryService.submitDailyCount({ counts, date: selectedDate });
               setShowCountForm(false);
               fetchDailyCounts();
               fetchMaterials();
@@ -233,7 +234,7 @@ const Inventory = () => {
 };
 
 // Simple Daily Count Form Component
-const DailyCountForm = ({ materials, user, onSubmit, onClose }) => {
+const DailyCountForm = ({ materials, user, selectedDate, onSubmit, onClose }) => {
   const [counts, setCounts] = useState(
     materials.map(material => ({
       materialId: material._id,
@@ -264,6 +265,15 @@ const DailyCountForm = ({ materials, user, onSubmit, onClose }) => {
       <div className="count-form-modal">
         <div className="form-header">
           <h2>Daily Inventory Count</h2>
+          <div className="count-date-info">
+            <i className="icon-calendar"></i>
+            <span>Recording for: {new Date(selectedDate).toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}</span>
+          </div>
           <button type="button" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit} className="count-form">

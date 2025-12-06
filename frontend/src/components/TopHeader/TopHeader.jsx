@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSidebar } from '../../context/SidebarContext';
 import clientService from '../../services/clientService';
-import orderService from '../../services/orderService';
 import invoiceService from '../../services/invoiceService';
 import notificationService from '../../services/notificationService';
+import orderService from '../../services/orderService';
 import './TopHeader.css';
 
 const TopHeader = () => {
@@ -84,8 +84,9 @@ const TopHeader = () => {
       setLoadingNotifications(true);
       const response = await notificationService.getNotifications({ limit: 50 });
       if (response.success) {
-        setNotifications(response.data || []);
-        setUnreadCount(response.unreadCount || 0);
+        // Backend returns: { success, data: { notifications, unreadCount, pagination } }
+        setNotifications(response.data?.notifications || []);
+        setUnreadCount(response.data?.unreadCount || 0);
       }
     } catch (error) {
       // Silently handle 404 - endpoint might not exist yet or server needs restart
@@ -604,8 +605,8 @@ const TopHeader = () => {
                   )}
                 </div>
                 <div className="notification-dropdown-footer">
-                  <button onClick={() => { setShowNotifications(false); navigate('/dashboard'); }}>
-                    View All
+                  <button onClick={() => { setShowNotifications(false); navigate('/notifications'); }}>
+                    View All Notifications
                   </button>
                 </div>
               </div>

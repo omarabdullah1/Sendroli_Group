@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { createNotification } = require('./notificationController');
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -79,6 +80,23 @@ exports.createUser = async (req, res) => {
       fullName,
       email,
     });
+    
+    // Notify all admins about new user creation
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true });
+      
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: 'New User Created',
+          message: `${req.user.username} created new user: ${user.fullName} (${user.username}) - Role: ${user.role}`,
+          icon: 'fa-user-plus',
+          type: 'system',
+          actionUrl: `/users/${user._id}`
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating user notification:', notifError);
+    }
 
     res.status(201).json({
       success: true,
@@ -127,6 +145,9 @@ exports.updateUser = async (req, res) => {
 
     // Log the modification for audit trail
     console.log(`User ${req.params.id} (${user.username}) updated by admin ${req.user._id} (${req.user.username})`);
+    
+    const oldIsActive = user.isActive;
+    const oldRole = user.role;
 
     user = await User.findByIdAndUpdate(
       req.params.id,
@@ -144,6 +165,41 @@ exports.updateUser = async (req, res) => {
         runValidators: true,
       }
     );
+    
+    // Notify all admins about user update with specific messages
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true });
+      let notificationTitle = 'User Updated';
+      let notificationMessage = `${req.user.username} updated user: ${user.fullName} (${user.username})`;
+      let notificationIcon = 'fa-user-edit';
+      
+      // Check for activation/deactivation
+      if (oldIsActive !== isActive) {
+        if (isActive === false) {
+          notificationTitle = 'User Deactivated';
+          notificationMessage = `${req.user.username} deactivated user: ${user.fullName} (${user.username}) - Role: ${user.role}`;
+          notificationIcon = 'fa-user-slash';
+        } else {
+          notificationTitle = 'User Activated';
+          notificationMessage = `${req.user.username} activated user: ${user.fullName} (${user.username}) - Role: ${user.role}`;
+          notificationIcon = 'fa-user-check';
+        }
+      } else if (oldRole !== role) {
+        notificationMessage += ` - Role changed from ${oldRole} to ${role}`;
+      }
+      
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: notificationTitle,
+          message: notificationMessage,
+          icon: notificationIcon,
+          type: 'system',
+          actionUrl: `/users/${user._id}`
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating user update notification:', notifError);
+    }
 
     res.status(200).json({
       success: true,
@@ -200,6 +256,23 @@ exports.deleteUser = async (req, res) => {
       
       console.log(`User ${req.params.id} (${user.username}) deactivated by admin ${req.user._id} (${req.user.username}) due to associated records`);
       
+      // Notify all admins about user deactivation
+      try {
+        const admins = await User.find({ role: 'admin', isActive: true });
+        
+        for (const admin of admins) {
+          await createNotification(admin._id, {
+            title: 'User Deactivated',
+            message: `${req.user.username} deactivated user: ${user.fullName} (${user.username}) - Has ${clientCount} clients and ${orderCount} orders`,
+            icon: 'fa-user-slash',
+            type: 'system',
+            actionUrl: `/users/${user._id}`
+          });
+        }
+      } catch (notifError) {
+        console.error('Error creating user deactivation notification:', notifError);
+      }
+      
       return res.status(200).json({
         success: true,
         message: `User deactivated instead of deleted due to ${clientCount} clients and ${orderCount} orders`,
@@ -209,8 +282,31 @@ exports.deleteUser = async (req, res) => {
 
     // Log the deletion for audit trail
     console.log(`User ${req.params.id} (${user.username}) deleted by admin ${req.user._id} (${req.user.username})`);
+    
+    const deletedUserInfo = {
+      fullName: user.fullName,
+      username: user.username,
+      role: user.role
+    };
 
     await user.deleteOne();
+    
+    // Notify all admins about user deletion
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true });
+      
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: 'User Deleted',
+          message: `${req.user.username} deleted user: ${deletedUserInfo.fullName} (${deletedUserInfo.username}) - Role: ${deletedUserInfo.role}`,
+          icon: 'fa-user-times',
+          type: 'system',
+          actionUrl: '/users'
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating user deletion notification:', notifError);
+    }
 
     res.status(200).json({
       success: true,

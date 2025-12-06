@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Loading from '../components/Loading';
 import PageLoader from '../components/PageLoader';
 import Pagination from '../components/Pagination';
@@ -9,6 +10,7 @@ import { formatDateTime } from '../utils/dateUtils';
 
 const Clients = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [allClients, setAllClients] = useState([]); // Store all fetched clients
   const [clients, setClients] = useState([]); // Displayed clients (filtered + paginated)
   const [loading, setLoading] = useState(true);
@@ -34,6 +36,13 @@ const Clients = () => {
   const canEdit = user?.role === 'admin' || user?.role === 'receptionist';
   const canDelete = user?.role === 'admin';
   const canAdd = user?.role === 'admin' || user?.role === 'receptionist';
+
+  // Set search term from navigation state if provided
+  useEffect(() => {
+    if (location.state?.searchTerm) {
+      setSearchTerm(location.state.searchTerm);
+    }
+  }, [location.state]);
 
   // Fetch all clients once
   const fetchAllClients = useCallback(async () => {

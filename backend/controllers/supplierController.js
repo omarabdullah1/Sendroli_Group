@@ -1,4 +1,6 @@
 const Supplier = require('../models/Supplier');
+const User = require('../models/User');
+const { createNotification } = require('./notificationController');
 
 // Get all suppliers
 exports.getAllSuppliers = async (req, res, next) => {
@@ -73,6 +75,24 @@ exports.createSupplier = async (req, res, next) => {
     
     const supplier = await Supplier.create(supplierData);
     
+    // Notify admins about new supplier
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true });
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: 'New Supplier Added',
+          message: `${req.user.username} added new supplier: ${supplier.name}${supplier.contactPerson ? ' (Contact: ' + supplier.contactPerson + ')' : ''}`,
+          icon: 'fa-truck',
+          type: 'system',
+          relatedId: supplier._id,
+          relatedType: 'client',
+          actionUrl: `/suppliers/${supplier._id}`
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating supplier notification:', notifError);
+    }
+    
     res.status(201).json({
       success: true,
       data: supplier,
@@ -104,6 +124,24 @@ exports.updateSupplier = async (req, res, next) => {
       });
     }
     
+    // Notify admins about supplier update
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true });
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: 'Supplier Updated',
+          message: `${req.user.username} updated supplier: ${supplier.name}${supplier.contactPerson ? ' (Contact: ' + supplier.contactPerson + ')' : ''}`,
+          icon: 'fa-truck',
+          type: 'system',
+          relatedId: supplier._id,
+          relatedType: 'client',
+          actionUrl: `/suppliers/${supplier._id}`
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating supplier update notification:', notifError);
+    }
+    
     res.status(200).json({
       success: true,
       data: supplier,
@@ -128,6 +166,24 @@ exports.deleteSupplier = async (req, res, next) => {
         success: false,
         message: 'Supplier not found'
       });
+    }
+    
+    // Notify admins about supplier deletion
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true });
+      for (const admin of admins) {
+        await createNotification(admin._id, {
+          title: 'Supplier Deleted',
+          message: `${req.user.username} deleted supplier: ${supplier.name}${supplier.contactPerson ? ' (Contact: ' + supplier.contactPerson + ')' : ''}`,
+          icon: 'fa-trash',
+          type: 'system',
+          relatedId: supplier._id,
+          relatedType: 'client',
+          actionUrl: '/suppliers'
+        });
+      }
+    } catch (notifError) {
+      console.error('Error creating supplier deletion notification:', notifError);
     }
     
     res.status(200).json({

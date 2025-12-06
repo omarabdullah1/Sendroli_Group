@@ -99,7 +99,17 @@ const allowedOrigins = [
   'https://frontend-iopcnl9fi-oos-projects-e7124c64.vercel.app', // previous frontend deployment
   'https://frontend-2k41r71wt-oos-projects-e7124c64.vercel.app', // previous frontend deployment
   'https://frontend-6ew6iey09-oos-projects-e7124c64.vercel.app', // previous frontend deployment
-  'https://frontend-cb6ffloy1-oos-projects-e7124c64.vercel.app', // current frontend deployment (Dec 4, 2025 - notification data fix)
+  'https://frontend-cb6ffloy1-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-qmsp4ofpw-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-91l1sinim-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-m1pjo7rc9-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-qq60500ka-oos-projects-e7124c64.vercel.app', // previous frontend deployment (Dec 6, 2025 - UI Complete)
+  'https://frontend-quuss4wfa-oos-projects-e7124c64.vercel.app', // previous frontend deployment (Dec 6, 2025 - Lottie loading + functional buttons)
+  'https://frontend-1avlil99t-oos-projects-e7124c64.vercel.app', // previous frontend deployment (Dec 6, 2025 - Lottie loading + functional buttons synced)
+  'https://frontend-llk33sns5-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-gsciqdcqc-oos-projects-e7124c64.vercel.app', // previous frontend deployment (Dec 6, 2025 - Client Analytics PDF Export)
+  'https://frontend-qjadzet2s-oos-projects-e7124c64.vercel.app', // previous frontend deployment
+  'https://frontend-afq87pe6n-oos-projects-e7124c64.vercel.app', // current frontend deployment (Dec 6, 2025 - Client Analytics in Reports)
   'https://sendroli-group-backend.vercel.app', // backend domain
   'https://sendroli-group-backend-f63q14cur-oos-projects-e7124c64.vercel.app', // old backend URL
   'https://backend-7tui5kf7o-oos-projects-e7124c64.vercel.app', // previous backend URL

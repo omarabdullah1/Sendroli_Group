@@ -36,6 +36,12 @@ const clientService = {
     const response = await api.get(`/clients/${id}/report`);
     return response.data;
   },
+
+  // Get all clients with statistics
+  getClientsStatistics: async () => {
+    const response = await api.get('/clients/statistics');
+    return response.data;
+  },
 };
 
 export default clientService;

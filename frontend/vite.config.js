@@ -16,6 +16,9 @@ export default defineConfig({
       }
     }
   },
+  optimizeDeps: {
+    include: ['jspdf', 'jspdf-autotable']
+  },
   build: {
     outDir: 'dist',
     sourcemap: true,
@@ -25,11 +28,16 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
           axios: ['axios'],
-          lottie: ['lottie-react']
+          lottie: ['lottie-react'],
+          pdf: ['jspdf', 'jspdf-autotable']
         }
       }
     },
-    chunkSizeWarningLimit: 1000 // Increase warning limit to 1MB
+    chunkSizeWarningLimit: 1000, // Increase warning limit to 1MB
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true
+    }
   },
   define: {
     global: 'globalThis',

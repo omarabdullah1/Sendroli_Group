@@ -397,6 +397,189 @@ exports.deleteClient = async (req, res) => {
 // @desc    Get client financial report (orders, invoices, payments)
 // @route   GET /api/clients/:id/report
 // @access  Private (Admin, Financial, Receptionist)
+// @desc    Get all clients with statistics
+// @route   GET /api/clients/statistics
+// @access  Private (Admin, Financial, Receptionist)
+exports.getClientsStatistics = async (req, res) => {
+  try {
+    const Order = require('../models/Order');
+    const Invoice = require('../models/Invoice');
+
+    // Get all clients
+    const clients = await Client.find()
+      .populate('createdBy', 'username fullName')
+      .sort({ createdAt: -1 });
+
+    // Calculate statistics for each client
+    const clientsWithStats = await Promise.all(
+      clients.map(async (client) => {
+        // Get all orders for this client
+        const orders = await Order.find({
+          $or: [
+            { client: client._id },
+            { 'clientSnapshot.name': client.name }
+          ]
+        }).sort({ createdAt: 1 }); // Sort by creation date for frequency calculation
+
+        // Get all invoices for this client
+        const invoices = await Invoice.find({ client: client._id });
+
+        // Calculate totals
+        const totalOrders = orders.length;
+        const totalInvoices = invoices.length;
+        
+        const totalOrderAmount = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+        const totalDeposits = orders.reduce((sum, order) => sum + (order.deposit || 0), 0);
+        const totalRemaining = orders.reduce((sum, order) => sum + (order.remainingAmount || 0), 0);
+        
+        const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+        const totalInvoicePaid = invoices
+          .filter(inv => inv.status === 'paid')
+          .reduce((sum, inv) => sum + (inv.total || 0), 0);
+        const totalInvoiceRemaining = invoices.reduce((sum, inv) => sum + (inv.totalRemaining || 0), 0);
+
+        const totalPaid = totalDeposits + totalInvoicePaid;
+        const totalOwed = totalRemaining + totalInvoiceRemaining;
+        const totalValue = totalOrderAmount + totalInvoiceAmount;
+
+        // Orders by status
+        const activeOrders = orders.filter(o => o.orderState === 'active').length;
+        const pendingOrders = orders.filter(o => o.orderState === 'pending').length;
+        const completedOrders = orders.filter(o => ['done', 'delivered'].includes(o.orderState)).length;
+
+        // LOYALTY SCORE CALCULATION
+        // Factor 1: Order Volume (30%) - Total orders & invoices
+        const totalTransactions = totalOrders + totalInvoices;
+        const volumeScore = Math.min(totalTransactions * 3, 30); // Max 30 points
+
+        // Factor 2: Payment Reliability (30%) - Payment rate
+        const paymentRate = totalValue > 0 ? (totalPaid / totalValue) * 100 : 0;
+        const paymentScore = (paymentRate / 100) * 30; // Max 30 points
+
+        // Factor 3: Client Longevity (20%) - Days since first order
+        const clientAge = Math.floor((Date.now() - new Date(client.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+        const longevityScore = Math.min(clientAge / 10, 20); // Max 20 points (200+ days)
+
+        // Factor 4: Order Frequency & Consistency (20%) - Orders per month + consistency
+        const monthsSinceFirstOrder = Math.max(clientAge / 30, 1);
+        const ordersPerMonth = totalTransactions / monthsSinceFirstOrder;
+        const frequencyScore = Math.min(ordersPerMonth * 5, 15); // Max 15 points
+        
+        // Consistency bonus: Regular ordering pattern (5 points)
+        let consistencyBonus = 0;
+        if (orders.length >= 3) {
+          const orderDates = orders.map(o => new Date(o.createdAt).getTime());
+          const gaps = [];
+          for (let i = 1; i < orderDates.length; i++) {
+            gaps.push((orderDates[i] - orderDates[i - 1]) / (1000 * 60 * 60 * 24)); // Days between orders
+          }
+          const avgGap = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+          const gapVariance = gaps.reduce((sum, gap) => sum + Math.pow(gap - avgGap, 2), 0) / gaps.length;
+          const gapStdDev = Math.sqrt(gapVariance);
+          
+          // Lower standard deviation = more consistent = higher bonus
+          if (gapStdDev < avgGap * 0.5) {
+            consistencyBonus = 5;
+          } else if (gapStdDev < avgGap * 0.75) {
+            consistencyBonus = 3;
+          } else if (gapStdDev < avgGap) {
+            consistencyBonus = 1;
+          }
+        }
+
+        // Total Loyalty Score (0-100)
+        const loyaltyScore = Math.round(
+          volumeScore + paymentScore + longevityScore + frequencyScore + consistencyBonus
+        );
+
+        // Determine loyalty tier
+        let loyaltyTier = 'Bronze';
+        if (loyaltyScore >= 80) loyaltyTier = 'Platinum';
+        else if (loyaltyScore >= 60) loyaltyTier = 'Gold';
+        else if (loyaltyScore >= 40) loyaltyTier = 'Silver';
+
+        return {
+          _id: client._id,
+          name: client.name,
+          phone: client.phone,
+          factoryName: client.factoryName,
+          address: client.address,
+          createdAt: client.createdAt,
+          statistics: {
+            totalOrders,
+            totalInvoices,
+            activeOrders,
+            pendingOrders,
+            completedOrders,
+            totalValue,
+            totalPaid,
+            totalOwed,
+            totalOrderAmount,
+            totalInvoiceAmount,
+            paymentRate: totalValue > 0 ? ((totalPaid / totalValue) * 100).toFixed(2) : 0,
+            loyaltyScore,
+            loyaltyTier,
+            clientAgeDays: clientAge,
+            ordersPerMonth: ordersPerMonth.toFixed(2),
+          },
+        };
+      })
+    );
+
+    // Sort by total value (highest paying clients first) by default
+    clientsWithStats.sort((a, b) => b.statistics.totalValue - a.statistics.totalValue);
+
+    // Find most loyal client
+    const mostLoyalClient = clientsWithStats.reduce((prev, current) => 
+      (current.statistics.loyaltyScore > prev.statistics.loyaltyScore) ? current : prev
+    , clientsWithStats[0]);
+
+    // Calculate overall statistics
+    const overallStats = {
+      totalClients: clients.length,
+      totalOrders: clientsWithStats.reduce((sum, c) => sum + c.statistics.totalOrders, 0),
+      totalInvoices: clientsWithStats.reduce((sum, c) => sum + c.statistics.totalInvoices, 0),
+      totalRevenue: clientsWithStats.reduce((sum, c) => sum + c.statistics.totalValue, 0),
+      totalPaid: clientsWithStats.reduce((sum, c) => sum + c.statistics.totalPaid, 0),
+      totalOwed: clientsWithStats.reduce((sum, c) => sum + c.statistics.totalOwed, 0),
+      averageOrdersPerClient: clients.length > 0 
+        ? (clientsWithStats.reduce((sum, c) => sum + c.statistics.totalOrders, 0) / clients.length).toFixed(2)
+        : 0,
+      topPayingClients: clientsWithStats.slice(0, 5).map(c => ({
+        name: c.name,
+        totalValue: c.statistics.totalValue,
+        totalPaid: c.statistics.totalPaid,
+      })),
+      mostLoyalClient: mostLoyalClient ? {
+        name: mostLoyalClient.name,
+        phone: mostLoyalClient.phone,
+        factoryName: mostLoyalClient.factoryName,
+        loyaltyScore: mostLoyalClient.statistics.loyaltyScore,
+        loyaltyTier: mostLoyalClient.statistics.loyaltyTier,
+        totalOrders: mostLoyalClient.statistics.totalOrders,
+        totalValue: mostLoyalClient.statistics.totalValue,
+        paymentRate: mostLoyalClient.statistics.paymentRate,
+        clientAgeDays: mostLoyalClient.statistics.clientAgeDays,
+      } : null,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        clients: clientsWithStats,
+        overallStats,
+      },
+    });
+  } catch (error) {
+    console.error('Get clients statistics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating clients statistics',
+      error: error.message,
+    });
+  }
+};
+
 exports.getClientReport = async (req, res) => {
   try {
     const clientId = req.params.id;

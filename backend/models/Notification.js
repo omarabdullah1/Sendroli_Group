@@ -31,7 +31,7 @@ const notificationSchema = new mongoose.Schema(
     },
     relatedType: {
       type: String,
-      enum: ['order', 'invoice', 'client', 'material', 'purchase'],
+      enum: ['order', 'invoice', 'client', 'material', 'purchase', 'inventory'],
     },
     read: {
       type: Boolean,
