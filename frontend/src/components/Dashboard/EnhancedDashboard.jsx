@@ -18,11 +18,17 @@ import { materialService } from '../../services/materialService';
 import orderService from '../../services/orderService';
 import Loading from '../Loading';
 import PageLoader from '../PageLoader';
+import './Dashboard.css'; // Import Dashboard.css for client analytics styles
 import './EnhancedDashboard.css';
 
 const EnhancedDashboard = () => {
+  console.log('🏁 ENHANCED DASHBOARD RENDERING');
+  
   const { user } = useAuth();
+  console.log('👤 EnhancedDashboard - User:', user);
+  
   const [loading, setLoading] = useState(true);
+  const [clientStats, setClientStats] = useState(null);
   const [dashboardData, setDashboardData] = useState({
     stats: {
       totalOrders: 0,
@@ -112,6 +118,24 @@ const EnhancedDashboard = () => {
         }
       }
 
+      // Load client statistics for financial, admin, and receptionist
+      if (['financial', 'admin', 'receptionist'].includes(user?.role)) {
+        console.log('✅ Loading client statistics for role:', user?.role);
+        try {
+          const clientStatsResponse = await clientService.getClientsStatistics();
+          console.log('📊 Client stats response:', clientStatsResponse);
+          
+          if (clientStatsResponse?.success && clientStatsResponse?.data) {
+            setClientStats(clientStatsResponse.data);
+            console.log('✨ Client stats set successfully:', clientStatsResponse.data);
+          } else {
+            console.error('❌ Invalid client stats response:', clientStatsResponse);
+          }
+        } catch (error) {
+          console.error('❌ Error loading client statistics:', error);
+        }
+      }
+
       setDashboardData(data);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -135,6 +159,14 @@ const EnhancedDashboard = () => {
       delivered: 'success',
     };
     return colors[status] || 'info';
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-EG', {
+      style: 'currency',
+      currency: 'EGP',
+      minimumFractionDigits: 2,
+    }).format(amount || 0);
   };
 
   // Helper function to render KPI icon (supports both image and Font Awesome icon)
@@ -377,6 +409,95 @@ const EnhancedDashboard = () => {
                     <span className="badge badge-error">Low Stock</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Client Analytics Cards - NEW! */}
+        {['financial', 'admin', 'receptionist'].includes(user?.role) && clientStats && (
+          <div className="dashboard-card client-analytics-section">
+            <div className="card-header">
+              <h2 className="card-title">📊 Client Analytics Overview</h2>
+              <Link to="/reports/client-analytics" className="view-report-link">
+                View Full Report →
+              </Link>
+            </div>
+            <div className="card-body">
+              <div className="top-clients-cards">
+                {/* MVP Client - Highest Paying */}
+                {clientStats.overallStats?.topPayingClients?.length > 0 && (
+                  <div className="client-highlight-card mvp-client">
+                    <div className="card-icon">👑</div>
+                    <h4>MVP Client</h4>
+                    <div className="client-details">
+                      <p className="client-name">{clientStats.overallStats.topPayingClients[0].name}</p>
+                      <p className="client-metric">
+                        <span className="label">Total Revenue:</span>
+                        <span className="value">{formatCurrency(clientStats.overallStats.topPayingClients[0].totalValue)}</span>
+                      </p>
+                      <p className="client-metric">
+                        <span className="label">Total Paid:</span>
+                        <span className="value success">{formatCurrency(clientStats.overallStats.topPayingClients[0].totalPaid)}</span>
+                      </p>
+                    </div>
+                    <div className="badge mvp-badge">Highest Revenue</div>
+                  </div>
+                )}
+
+                {/* Loyal Client - Best Loyalty Score */}
+                {clientStats.overallStats?.mostLoyalClient && (
+                  <div className="client-highlight-card loyal-client">
+                    <div className="card-icon">⭐</div>
+                    <h4>Loyal Client</h4>
+                    <div className="client-details">
+                      <p className="client-name">{clientStats.overallStats.mostLoyalClient.name}</p>
+                      <p className="client-metric">
+                        <span className="label">Loyalty Tier:</span>
+                        <span className="value tier">{clientStats.overallStats.mostLoyalClient.loyaltyTier}</span>
+                      </p>
+                      <p className="client-metric">
+                        <span className="label">Total Orders:</span>
+                        <span className="value">{clientStats.overallStats.mostLoyalClient.totalOrders}</span>
+                      </p>
+                      <p className="client-metric">
+                        <span className="label">Payment Rate:</span>
+                        <span className="value success">{clientStats.overallStats.mostLoyalClient.paymentRate}%</span>
+                      </p>
+                    </div>
+                    <div className="badge loyal-badge">Score: {clientStats.overallStats.mostLoyalClient.loyaltyScore}</div>
+                  </div>
+                )}
+
+                {/* Most Purchasing Client - Highest Order Count */}
+                {clientStats.clients?.length > 0 && (() => {
+                  const mostPurchasingClient = clientStats.clients.reduce((prev, current) => 
+                    (current.statistics.totalOrders > prev.statistics.totalOrders) ? current : prev
+                  , clientStats.clients[0]);
+                  
+                  return (
+                    <div className="client-highlight-card purchasing-client">
+                      <div className="card-icon">🛒</div>
+                      <h4>Most Purchasing</h4>
+                      <div className="client-details">
+                        <p className="client-name">{mostPurchasingClient.name}</p>
+                        <p className="client-metric">
+                          <span className="label">Total Orders:</span>
+                          <span className="value highlight">{mostPurchasingClient.statistics.totalOrders}</span>
+                        </p>
+                        <p className="client-metric">
+                          <span className="label">Total Revenue:</span>
+                          <span className="value">{formatCurrency(mostPurchasingClient.statistics.totalValue)}</span>
+                        </p>
+                        <p className="client-metric">
+                          <span className="label">Orders/Month:</span>
+                          <span className="value">{mostPurchasingClient.statistics.ordersPerMonth}</span>
+                        </p>
+                      </div>
+                      <div className="badge purchase-badge">Most Active</div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

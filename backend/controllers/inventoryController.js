@@ -440,8 +440,20 @@ exports.withdrawMaterial = async (req, res, next) => {
     material.updatedBy = req.user.id;
     await material.save();
     
-    // Notify admins about material withdrawal
+    // Notify worker and admins about material withdrawal
     try {
+      // Notify the worker who made the withdrawal
+      await createNotification(req.user.id, {
+        title: 'Material Withdrawn',
+        message: `You successfully withdrew 1 ${material.unit} of ${material.name}. Current stock: ${newStock} ${material.unit}`,
+        icon: 'fa-arrow-right-from-bracket',
+        type: 'inventory',
+        relatedId: material._id,
+        relatedType: 'material',
+        actionUrl: `/inventory/materials/${material._id}`,
+      });
+
+      // Notify admins about material withdrawal
       const admins = await User.find({
         role: 'admin',
         isActive: true,
@@ -450,7 +462,7 @@ exports.withdrawMaterial = async (req, res, next) => {
       for (const admin of admins) {
         await createNotification(admin._id, {
           title: 'Material Withdrawn',
-          message: `${req.user.username} withdrew ${material.name} - Stock reduced from ${previousStock} to ${newStock} ${material.unit}`,
+          message: `${req.user.username} withdrew 1 ${material.unit} of ${material.name} - Stock reduced from ${previousStock} to ${newStock} ${material.unit}`,
           icon: 'fa-arrow-right-from-bracket',
           type: 'inventory',
           relatedId: material._id,

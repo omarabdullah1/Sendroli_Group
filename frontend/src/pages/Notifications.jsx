@@ -1,3 +1,16 @@
+import {
+    faBell,
+    faBoxes,
+    faCheck,
+    faCheckDouble,
+    faClipboardList,
+    faCog,
+    faCreditCard,
+    faFileInvoice,
+    faTrash,
+    faUserCircle
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useState } from 'react';
 import Loading from '../components/Loading';
 import Pagination from '../components/Pagination/Pagination';
@@ -108,14 +121,14 @@ const Notifications = () => {
 
   const getNotificationIcon = (type) => {
     const icons = {
-      order: '📋',
-      invoice: '💰',
-      payment: '💳',
-      inventory: '📦',
-      system: '⚙️',
-      client: '👤',
+      order: faClipboardList,
+      invoice: faFileInvoice,
+      payment: faCreditCard,
+      inventory: faBoxes,
+      system: faCog,
+      client: faUserCircle,
     };
-    return icons[type] || '📢';
+    return icons[type] || faBell;
   };
 
   const getTypeColor = (type) => {
@@ -149,7 +162,9 @@ const Notifications = () => {
     <div className="notifications-page">
       <div className="notifications-header">
         <div className="header-left">
-          <h1>🔔 Notifications</h1>
+          <h1>
+            <FontAwesomeIcon icon={faBell} /> Notifications
+          </h1>
           {unreadCount > 0 && (
             <span className="unread-badge">{unreadCount} unread</span>
           )}
@@ -161,7 +176,7 @@ const Notifications = () => {
               onClick={handleMarkAllAsRead}
               disabled={actionLoading}
             >
-              ✓ Mark all as read
+              <FontAwesomeIcon icon={faCheckDouble} /> Mark all as read
             </button>
           )}
           <button
@@ -169,7 +184,7 @@ const Notifications = () => {
             onClick={handleDeleteAllRead}
             disabled={actionLoading}
           >
-            🗑️ Delete read
+            <FontAwesomeIcon icon={faTrash} /> Delete read
           </button>
         </div>
       </div>
@@ -228,7 +243,9 @@ const Notifications = () => {
         <Loading message="Loading notifications..." size="medium" />
       ) : notifications.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🔔</div>
+          <div className="empty-icon">
+            <FontAwesomeIcon icon={faBell} size="3x" />
+          </div>
           <h3>No notifications</h3>
           <p>
             {filter === 'unread' 
@@ -251,7 +268,7 @@ const Notifications = () => {
                     className="notification-icon"
                     style={{ backgroundColor: getTypeColor(notification.type) }}
                   >
-                    {getNotificationIcon(notification.type)}
+                    <FontAwesomeIcon icon={getNotificationIcon(notification.type)} />
                   </div>
                   {!notification.read && <div className="unread-dot"></div>}
                 </div>
@@ -282,7 +299,7 @@ const Notifications = () => {
                       disabled={actionLoading}
                       title="Mark as read"
                     >
-                      ✓
+                      <FontAwesomeIcon icon={faCheck} />
                     </button>
                   )}
                   <button
@@ -291,7 +308,7 @@ const Notifications = () => {
                     disabled={actionLoading}
                     title="Delete"
                   >
-                    🗑️
+                    <FontAwesomeIcon icon={faTrash} />
                   </button>
                 </div>
               </div>

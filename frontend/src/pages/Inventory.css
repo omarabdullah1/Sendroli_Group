@@ -83,7 +83,7 @@
 
 .summary-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
 }
 
@@ -501,7 +501,8 @@
   }
 
   .summary-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
   }
 
   .stock-overview {
@@ -548,6 +549,10 @@
   .inventory-summary,
   .inventory-content {
     padding: 1rem;
+  }
+
+  .summary-stats {
+    grid-template-columns: 1fr;
   }
 
   .header-title h1 {

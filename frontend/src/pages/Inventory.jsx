@@ -109,12 +109,12 @@ const Inventory = () => {
                 <span className="stat-value">{materials.length}</span>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Counted Today:</span>
-                <span className="stat-value">{dailyCounts.length}</span>
-              </div>
-              <div className="stat-item">
                 <span className="stat-label">Pending Count:</span>
                 <span className="stat-value">{materials.length - dailyCounts.length}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Counted Today:</span>
+                <span className="stat-value">{dailyCounts.length}</span>
               </div>
             </div>
           </div>

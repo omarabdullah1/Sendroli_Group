@@ -37,6 +37,7 @@
 .header-content {
   display: flex;
   justify-content: space-between;
+  align-content: center;
   background: var(--surface, #fff);
   padding: 32px;
   border-radius: var(--radius-xl, 12px);

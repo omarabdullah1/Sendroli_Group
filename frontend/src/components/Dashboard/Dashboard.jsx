@@ -6,7 +6,11 @@ import { orderService } from '../../services/orderService';
 import './Dashboard.css';
 
 const Dashboard = () => {
+  console.log('🏁 DASHBOARD COMPONENT RENDERING');
+  
   const { user } = useAuth();
+  console.log('🔍 Dashboard - User from context:', user);
+  
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalRevenue: 0,
@@ -17,16 +21,31 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    console.log('🎯 Dashboard useEffect triggered');
+    console.log('👤 Current user:', user);
+    console.log('🔑 User role:', user?.role);
+    
+    if (user) {
+      console.log('✅ User loaded, calling loadDashboardData()');
+      loadDashboardData();
+    } else {
+      console.log('⏳ User not loaded yet, waiting...');
+    }
+  }, [user]); // Add user as dependency
 
   const loadDashboardData = async () => {
+    console.log('🚀 loadDashboardData STARTED');
+    console.log('👤 User in loadDashboardData:', user);
+    console.log('🔑 User role:', user?.role);
+    
     try {
       // Load data based on user role
       const promises = [];
+      console.log('📋 Building promises array...');
       
       // All roles with order access can see order stats
       if (['designer', 'worker', 'financial', 'admin'].includes(user?.role)) {
+        console.log('✅ User has order access, adding order stats promise');
         try {
           promises.push(orderService.getFinancialStats());
         } catch (error) {
@@ -49,6 +68,7 @@ const Dashboard = () => {
       
       // Only receptionist and admin can access clients
       if (['receptionist', 'admin'].includes(user?.role)) {
+        console.log('✅ User has client access, adding clients promise');
         try {
           promises.push(clientService.getClients());
         } catch (error) {
@@ -61,17 +81,23 @@ const Dashboard = () => {
 
       // Load client statistics for financial and admin roles
       if (['financial', 'admin', 'receptionist'].includes(user?.role)) {
+        console.log('✅ User has client statistics access, adding statistics promise');
         try {
           promises.push(clientService.getClientsStatistics());
         } catch (error) {
-          console.error('Error loading client statistics:', error);
+          console.error('❌ Error loading client statistics:', error);
           promises.push(Promise.resolve(null));
         }
       } else {
+        console.log('❌ User does NOT have client statistics access');
         promises.push(Promise.resolve(null));
       }
 
+      console.log('📦 Total promises:', promises.length);
+      console.log('⏳ Waiting for all promises to resolve...');
       const results = await Promise.all(promises);
+      console.log('✅ All promises resolved!');
+      console.log('📊 Results:', results);
       
       // Handle order stats for roles that should see them
       if (['designer', 'worker', 'financial', 'admin'].includes(user?.role)) {
@@ -96,13 +122,20 @@ const Dashboard = () => {
         const clientStatsIndex = ['receptionist', 'admin'].includes(user?.role) ? 2 : 
                                  ['designer', 'worker', 'financial', 'admin'].includes(user?.role) ? 2 : 0;
         const clientStatsData = results[clientStatsIndex];
-        console.log('Dashboard - User role:', user?.role);
-        console.log('Dashboard - Client stats data:', clientStatsData);
-        console.log('Dashboard - Has data?:', clientStatsData?.data);
-        console.log('Dashboard - Overall stats:', clientStatsData?.data?.overallStats);
-        if (clientStatsData?.data) {
+        console.log('🎯 Dashboard - User role:', user?.role);
+        console.log('📊 Dashboard - All results:', results);
+        console.log('📍 Dashboard - Client stats index:', clientStatsIndex);
+        console.log('📦 Dashboard - Client stats data (raw):', clientStatsData);
+        console.log('✅ Dashboard - Has success?:', clientStatsData?.success);
+        console.log('🗂️ Dashboard - Has data property?:', clientStatsData?.data);
+        console.log('📈 Dashboard - Overall stats:', clientStatsData?.data?.overallStats);
+        console.log('👥 Dashboard - Clients array:', clientStatsData?.data?.clients);
+        
+        if (clientStatsData?.success && clientStatsData?.data) {
           setClientStats(clientStatsData.data);
-          console.log('Dashboard - Client stats set:', clientStatsData.data);
+          console.log('✨ Dashboard - Client stats successfully set:', clientStatsData.data);
+        } else {
+          console.error('❌ Dashboard - Failed to load client stats:', clientStatsData);
         }
       }
       
@@ -185,11 +218,13 @@ const Dashboard = () => {
       {/* Client Analytics Summary for authorized roles */}
       {['financial', 'admin', 'receptionist'].includes(user?.role) && clientStats && (
         <div className="client-analytics-summary">
-          {console.log('Rendering client analytics - clientStats:', clientStats)}
-          {console.log('Rendering client analytics - overallStats:', clientStats.overallStats)}
-          {console.log('Rendering client analytics - topPayingClients:', clientStats.overallStats?.topPayingClients)}
-          {console.log('Rendering client analytics - mostLoyalClient:', clientStats.overallStats?.mostLoyalClient)}
-          {console.log('Rendering client analytics - clients array:', clientStats.clients)}
+          {console.log('🎨 Rendering client analytics section')}
+          {console.log('📊 clientStats object:', clientStats)}
+          {console.log('💰 overallStats:', clientStats.overallStats)}
+          {console.log('👑 topPayingClients:', clientStats.overallStats?.topPayingClients)}
+          {console.log('⭐ mostLoyalClient:', clientStats.overallStats?.mostLoyalClient)}
+          {console.log('👥 clients array:', clientStats.clients)}
+          {console.log('📏 clients array length:', clientStats.clients?.length)}
           <div className="section-header">
             <h2>Client Analytics Overview</h2>
             <Link to="/clients/analytics" className="view-full-report-link">
