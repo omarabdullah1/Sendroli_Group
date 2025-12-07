@@ -47,6 +47,7 @@ const apiLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in headers
   legacyHeaders: false, // Disable X-RateLimit-* headers
+  validate: { trustProxy: false }, // Disable trust proxy validation for self-hosted
   handler: (req, res) => {
     console.warn(`Rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
     // Calculate seconds until reset
@@ -76,6 +77,7 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Disable trust proxy validation for self-hosted
   handler: (req, res) => {
     console.warn(`Auth rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
     // Calculate seconds until reset
@@ -110,6 +112,7 @@ const passwordLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Disable trust proxy validation for self-hosted
   handler: (req, res) => {
     console.warn(`Password rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
     // Calculate seconds until reset
@@ -139,6 +142,7 @@ const adminLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Disable trust proxy validation for self-hosted
   handler: (req, res) => {
     console.warn(`Admin rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
     // Calculate seconds until reset
@@ -168,6 +172,7 @@ const searchLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Disable trust proxy validation for self-hosted
   handler: (req, res) => {
     console.warn(`Search rate limit exceeded for IP: ${req.ip} on route: ${req.originalUrl}`);
     // Calculate seconds until reset

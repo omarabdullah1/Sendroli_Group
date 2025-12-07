@@ -133,8 +133,13 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true); // allow Postman, mobile apps, etc.
 
-    // Allow all Vercel preview URLs dynamically and localhost
-    if (origin && (origin.includes('.vercel.app') || origin.includes('localhost') || allowedOrigins.includes(origin))) {
+    // Allow all Vercel preview URLs dynamically, localhost, and self-hosted server
+    if (origin && (
+      origin.includes('.vercel.app') || 
+      origin.includes('localhost') || 
+      origin.includes('72.62.38.191') || 
+      allowedOrigins.includes(origin)
+    )) {
       console.log(`✅ CORS allowed for origin: ${origin}`);
       return callback(null, true);
     }

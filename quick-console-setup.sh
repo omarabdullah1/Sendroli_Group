@@ -6,7 +6,7 @@ echo "🚀 Starting Sendroli Factory Server Setup..."
 
 # Add SSH key
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
-echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFWPgASx7ghg/w2xEL6o9naCcLKBKKUSUS5P8DTnabGy sendroli@deployment" >> ~/.ssh/authorized_keys
+echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKgobyqcO6c99eEtof/hoCajXbk9JNPckN077fV7z+Tv root1@Roots-Mac-Pro.local" > ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 echo "✓ SSH key added"
 
