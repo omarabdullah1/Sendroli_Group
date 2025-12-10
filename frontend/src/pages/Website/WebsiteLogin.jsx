@@ -20,7 +20,7 @@ const WebsiteLogin = () => {
   const [phoneIsClient, setPhoneIsClient] = useState(false);
   const [isPhoneInput, setIsPhoneInput] = useState(false);
   const phoneCheckTimer = useRef(null);
-  const [passwordManuallyToggled, setPasswordManuallyToggled] = useState(false);
+  // No manual password toggle — password is required for non-phone logins and hidden for phone logins
 
   // Detect login type based on input
   const detectLoginType = (value) => {
@@ -33,16 +33,16 @@ const WebsiteLogin = () => {
       setFormData(prev => ({ ...prev, password: '' }));
       setShowPassword(false);
       // Reset manual toggle so it doesn't persist for non-phone input
-      setPasswordManuallyToggled(false);
+      // Removed manual toggle control (no-op)
       setIsPhoneInput(true);
     } else if (value.includes('@')) {
       setLoginMode('email');
-      // For non-phone inputs preserve manual toggle, otherwise require password
-      if (!passwordManuallyToggled) setPasswordRequired(true);
+      // For non-phone inputs require password
+      setPasswordRequired(true);
       setIsPhoneInput(false);
     } else {
       setLoginMode('username');
-      if (!passwordManuallyToggled) setPasswordRequired(true);
+      setPasswordRequired(true);
       setIsPhoneInput(false);
     }
   };
@@ -78,7 +78,7 @@ const WebsiteLogin = () => {
         setFormData(prev => ({ ...prev, password: '' }));
         setPasswordRequired(false);
         setShowPassword(false);
-        setPasswordManuallyToggled(false);
+        // Removed manual toggle control (no-op)
         setIsPhoneInput(true);
       }
       if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
@@ -272,9 +272,6 @@ const WebsiteLogin = () => {
                 <small className="form-hint">
                   📱 Phone-only login — no password is required for client accounts. If you're a staff/admin, please use username or email and your password.
                 </small>
-                <div>
-                  {/* Hide the toggle completely for phone input to avoid confusion */}
-                </div>
               </div>
             )}
           </div>

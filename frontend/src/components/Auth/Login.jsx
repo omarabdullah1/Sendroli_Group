@@ -10,7 +10,6 @@ const Login = () => {
   });
   const [loginMode, setLoginMode] = useState('username'); // username, email, or phone
   const [passwordRequired, setPasswordRequired] = useState(true);
-  const [passwordManuallyToggled, setPasswordManuallyToggled] = useState(false);
   const [isPhoneInput, setIsPhoneInput] = useState(false);
   const phoneCheckTimer = useRef(null);
   const [error, setError] = useState('');
@@ -66,18 +65,15 @@ const Login = () => {
       setFormData(prev => ({ ...prev, password: '' }));
       setIsPhoneInput(true);
       // Ensure manual toggle is reset when phone input is detected
-      setPasswordManuallyToggled(false);
+      // Ensure no manual toggle persists; removed manual toggle control
     } else if (value.includes('@')) {
       setLoginMode('email');
-      if (!passwordManuallyToggled) setPasswordRequired(true);
+      setPasswordRequired(true);
       setIsPhoneInput(false);
-      // Restore the password required setting only if no manual override is present
-      if (!passwordManuallyToggled) setPasswordRequired(true);
     } else {
       setLoginMode('username');
-      if (!passwordManuallyToggled) setPasswordRequired(true);
+      setPasswordRequired(true);
       setIsPhoneInput(false);
-      if (!passwordManuallyToggled) setPasswordRequired(true);
     }
   };
 
@@ -95,7 +91,7 @@ const Login = () => {
         setFormData(prev => ({ ...prev, password: '' }));
         setPasswordRequired(false);
         setIsPhoneInput(true);
-        setPasswordManuallyToggled(false);
+        // Removed manual toggle control
       }
       if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
       phoneCheckTimer.current = setTimeout(() => {
@@ -252,9 +248,6 @@ const Login = () => {
             {loginMode === 'phone' && (
               <div className="phone-hint">
                 <small className="form-hint">📱 Phone-only login — no password is required for client accounts.</small>
-                <div>
-                  {/* Toggle removed for phone input for clarity */}
-                </div>
               </div>
             )}
           </div>
