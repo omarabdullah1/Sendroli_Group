@@ -11,7 +11,7 @@ const WebsiteLogin = () => {
     username: '', // Can be username, email, or phone
     password: '',
   });
-  const [showPassword, setShowPassword] = useState(false);
+  // Show password toggle removed to keep the UI simple and consistent
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [deviceConflict, setDeviceConflict] = useState(null);
@@ -20,7 +20,7 @@ const WebsiteLogin = () => {
   const [phoneIsClient, setPhoneIsClient] = useState(false);
   const [isPhoneInput, setIsPhoneInput] = useState(false);
   const phoneCheckTimer = useRef(null);
-  const [passwordManuallyToggled, setPasswordManuallyToggled] = useState(false);
+  // Removed manual toggle as UI should not expose it for phone logins.
 
   // Detect login type based on input
   const detectLoginType = (value) => {
@@ -31,18 +31,17 @@ const WebsiteLogin = () => {
       // When username input is phone, always hide the password and clear any existing password value
       setPasswordRequired(false);
       setFormData(prev => ({ ...prev, password: '' }));
-      setShowPassword(false);
-      // Reset manual toggle so it doesn't persist for non-phone input
-      setPasswordManuallyToggled(false);
+      // No-op: showPassword removed
+      // Manual toggle removed; no-op
       setIsPhoneInput(true);
     } else if (value.includes('@')) {
       setLoginMode('email');
       // For non-phone inputs require password
-      if (!passwordManuallyToggled) setPasswordRequired(true);
+      setPasswordRequired(true);
       setIsPhoneInput(false);
     } else {
       setLoginMode('username');
-      if (!passwordManuallyToggled) setPasswordRequired(true);
+      setPasswordRequired(true);
       setIsPhoneInput(false);
     }
   };
@@ -77,7 +76,7 @@ const WebsiteLogin = () => {
       if (phoneQuickRegex.test(value.trim()) && value.trim().length > 0) {
         setFormData(prev => ({ ...prev, password: '' }));
         setPasswordRequired(false);
-        setShowPassword(false);
+        // showPassword not used anymore
         // Removed manual toggle control (no-op)
         setIsPhoneInput(true);
       }
@@ -101,7 +100,9 @@ const WebsiteLogin = () => {
     setLoading(true);
 
     try {
-      const response = await authLogin(formData.username, formData.password);
+      // If this is a phone (client) login, don't send password at all
+      const passwordToSend = loginMode === 'phone' ? null : formData.password;
+      const response = await authLogin(formData.username, passwordToSend);
 
       if (response.success) {
         // Show any warning returned
@@ -164,7 +165,8 @@ const WebsiteLogin = () => {
 
     try {
       console.log('🚀 Calling login with force=true');
-      const response = await authLogin(formData.username, formData.password, true); // force=true
+      const passwordToSend = loginMode === 'phone' ? null : formData.password;
+      const response = await authLogin(formData.username, passwordToSend, true); // force=true
       console.log('✅ Force login response:', response);
       
       if (response.success) {
@@ -281,9 +283,9 @@ const WebsiteLogin = () => {
             <label htmlFor="password">
               Password {!passwordRequired && '(Optional for phone login)'}
             </label>
-            <div className="password-input-wrapper">
+              <div className="password-input-wrapper">
               <input
-                type={showPassword ? "text" : "password"}
+                type="password"
                 id="password"
                 name="password"
                 value={formData.password}
@@ -292,24 +294,7 @@ const WebsiteLogin = () => {
                 required={passwordRequired}
                 autoComplete="current-password"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="password-toggle-btn"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                  </svg>
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                )}
-              </button>
+              {/* Password visibility toggle removed - no toggle buttons while typing phone */}
             </div>
             </div>
           )}

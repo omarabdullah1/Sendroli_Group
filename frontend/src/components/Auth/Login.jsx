@@ -12,7 +12,7 @@ const Login = () => {
   const [passwordRequired, setPasswordRequired] = useState(true);
   const [isPhoneInput, setIsPhoneInput] = useState(false);
   const phoneCheckTimer = useRef(null);
-  const [passwordManuallyToggled, setPasswordManuallyToggled] = useState(false);
+  // Manual toggle removed; UI should not expose manual password toggle for phone input
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState('');
@@ -65,16 +65,15 @@ const Login = () => {
       setPasswordRequired(false);
       setFormData(prev => ({ ...prev, password: '' }));
       setIsPhoneInput(true);
-      setPasswordManuallyToggled(false);
       // Ensure manual toggle is reset when phone input is detected
       // Ensure no manual toggle persists; removed manual toggle control
     } else if (value.includes('@')) {
       setLoginMode('email');
-      if (!passwordManuallyToggled) setPasswordRequired(true);
+      setPasswordRequired(true);
       setIsPhoneInput(false);
     } else {
       setLoginMode('username');
-      if (!passwordManuallyToggled) setPasswordRequired(true);
+      setPasswordRequired(true);
       setIsPhoneInput(false);
     }
   };
@@ -113,7 +112,8 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await login(formData.username, formData.password);
+      const passwordToSend = loginMode === 'phone' ? null : formData.password;
+      const response = await login(formData.username, passwordToSend);
       
       if (response.success) {
         console.log('🎉 Single login successful for device:', deviceInfo);
@@ -169,7 +169,8 @@ const Login = () => {
 
     try {
       console.log('🚀 Calling login with force=true');
-      const response = await login(formData.username, formData.password, true); // force=true
+      const passwordToSend = loginMode === 'phone' ? null : formData.password;
+      const response = await login(formData.username, passwordToSend, true); // force=true
       console.log('✅ Force login response:', response);
       
       if (response.status === 'force_login_success') {
