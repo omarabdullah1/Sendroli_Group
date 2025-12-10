@@ -1,22 +1,42 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loginMode, setLoginMode] = useState('username');
+  const [passwordRequired, setPasswordRequired] = useState(true);
+  const phoneCheckTimer = useRef(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const detectLoginType = (value) => {
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    const trimmed = value.trim();
+    if (phoneRegex.test(trimmed) && trimmed.length > 0) {
+      setLoginMode('phone');
+      setPasswordRequired(false);
+      setPassword('');
+    } else if (value.includes('@')) {
+      setLoginMode('email');
+      setPasswordRequired(true);
+    } else {
+      setLoginMode('username');
+      setPasswordRequired(true);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const result = await login(username, password);
+    const passwordToSend = loginMode === 'phone' ? null : password;
+    const result = await login(username, passwordToSend);
 
     if (result.success) {
       navigate('/dashboard');
@@ -41,24 +61,36 @@ const Login = () => {
             <input
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setUsername(val);
+                const phoneQuickRegex = /^[\d\s\-\+\(\)]+$/;
+                if (phoneQuickRegex.test(val.trim()) && val.trim().length > 0) {
+                  setPassword('');
+                  setPasswordRequired(false);
+                }
+                if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+                phoneCheckTimer.current = setTimeout(() => detectLoginType(val), 200);
+              }}
               required
               style={styles.input}
               placeholder="Enter your username"
             />
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={styles.input}
-              placeholder="Enter your password"
-            />
-          </div>
+          {passwordRequired && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={styles.input}
+                placeholder="Enter your password"
+              />
+            </div>
+          )}
 
           <button type="submit" disabled={loading} style={styles.button}>
             {loading ? 'Logging in...' : 'Login'}
