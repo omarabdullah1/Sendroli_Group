@@ -154,8 +154,19 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     const newUser = await authService.register(userData);
-    setUser(newUser);
+    // Admin registration doesn't auto-login the new user usually, but returns data
     return newUser;
+  };
+
+  const registerClient = async (userData) => {
+    const response = await authService.registerClient(userData);
+    if (response.success) {
+      // registerClient returns { success: true, data: { user..., token... } }
+      // We need to set the user state
+      setUser(response.data);
+      startSessionMonitoring();
+    }
+    return response;
   };
 
   const logout = async () => {
@@ -187,6 +198,7 @@ export const AuthProvider = ({ children }) => {
     deviceConflictError,
     login,
     register,
+    registerClient,
     logout,
     hasRole,
     clearDeviceConflictError,

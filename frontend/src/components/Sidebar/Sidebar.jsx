@@ -57,17 +57,10 @@ const Sidebar = () => {
 
   // Close sidebar on mobile when clicking a link
   useEffect(() => {
-    const handleLinkClick = () => {
-      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-        closeSidebar();
-      }
-    };
-    
-    // Close sidebar when route changes on mobile
-    if (typeof window !== 'undefined' && window.innerWidth <= 768 && isOpen) {
-      handleLinkClick();
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      closeSidebar();
     }
-  }, [location.pathname, isOpen, closeSidebar]);
+  }, [location.pathname]); // Only run when location changes
 
   if (!user) {
     return null;
@@ -168,7 +161,10 @@ const Sidebar = () => {
         />
       )}
       
-      <div className={`sidebar ${collapsed ? 'collapsed' : ''} ${isOpen ? 'open' : ''}`}>
+      <div 
+        className={`sidebar ${collapsed ? 'collapsed' : ''} ${isOpen ? 'open' : ''}`}
+        style={isOpen && typeof window !== 'undefined' && window.innerWidth <= 768 ? { transform: 'translateX(0)', zIndex: 1002, display: 'flex' } : {}}
+      >
       {/* Logo & Brand */}
       <div className="sidebar-header">
         <Link to="/dashboard" className="sidebar-brand">

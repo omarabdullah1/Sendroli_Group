@@ -1,12 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, logout, getMe, validateSession } = require('../controllers/authController');
+const { register, login, logout, getMe, validateSession, registerClient, checkPhone } = require('../controllers/authController');
 const { protect, authorize } = require('../middleware/auth');
 const { singleLoginAuth } = require('../middleware/singleLoginAuth');
 const { authLimiter, adminLimiter } = require('../middleware/rateLimiter');
 
 // Apply strict rate limiting to login attempts
 router.post('/login', authLimiter, login);
+
+// Check for phone number existence and role
+router.post('/check-phone', authLimiter, checkPhone);
+
+// Public client registration
+router.post('/register-client', authLimiter, registerClient);
 
 // Logout with single login middleware
 router.post('/logout', singleLoginAuth, logout);

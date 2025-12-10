@@ -29,7 +29,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  min-height: 80px;
+  min-height: var(--header-height, 80px);
   position: relative;
 }
 
@@ -415,7 +415,7 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 998;
+  z-index: 1000;
   animation: fadeIn 0.3s ease;
 }
 
@@ -433,14 +433,16 @@
   .sidebar {
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 999;
+    z-index: 1001;
     position: fixed;
     height: 100vh;
     box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
   }
 
   .sidebar.open {
-    transform: translateX(0);
+    transform: translateX(0) !important;
+    z-index: 1001;
+    display: flex !important;
   }
 
   /* On mobile, collapsed sidebar should still be hidden off-screen */
@@ -450,13 +452,18 @@
   
   /* When sidebar is open but collapsed on mobile, show it */
   .sidebar.collapsed.open {
-    transform: translateX(0);
-    width: 280px;
+    transform: translateX(0) !important;
+    width: 280px !important;
   }
 
   /* Ensure sidebar stays on top when open on mobile */
   .sidebar.open {
-    z-index: 999;
+    z-index: 1001;
+  }
+
+  /* Hide the collapse toggle on mobile since we use the overlay/menu button */
+  .sidebar-toggle {
+    display: none;
   }
 }
 

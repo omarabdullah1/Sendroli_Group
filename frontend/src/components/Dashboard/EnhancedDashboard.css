@@ -506,44 +506,47 @@
 
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 1rem 2rem;
+    padding: 1rem;
   }
 
   .enhanced-dashboard {
-    padding: 1.5rem 1.5rem;
+    padding: 1rem;
   }
 
   .dashboard-header {
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 1rem;
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .header-actions {
     width: 100%;
     flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   .kpi-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 
   .dashboard-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 
   .kpi-card {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .card-header,
   .card-body {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .action-card {
-    padding: 1.5rem 1rem;
+    padding: 1rem;
     min-height: 100px;
   }
 }

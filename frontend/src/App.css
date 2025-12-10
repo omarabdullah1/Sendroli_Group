@@ -2,6 +2,16 @@
    APP LAYOUT
    ============================================ */
 
+:root {
+  --header-height: 80px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --header-height: 64px;
+  }
+}
+
 .app-container {
   display: flex;
   min-height: 100vh;
@@ -43,6 +53,24 @@
 @media (max-width: 768px) {
   .main-content.with-sidebar {
     margin-left: 0;
+  }
+
+  .page-container {
+    padding: var(--space-4);
+  }
+
+  .page-header {
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-4);
+  }
+
+  .page-title {
+    font-size: var(--text-2xl);
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
   }
 }
 

@@ -110,7 +110,8 @@ ssh -i "$SSH_KEY" "$SSH_USER@$SERVER_IP" << 'EOF'
     # Make deploy script executable
     chmod +x deploy-to-ubuntu.sh
     
-    # Run deployment
+    # Run deployment with domain name
+    export DOMAIN_NAME="https://sendroligroup.cloud"
     ./deploy-to-ubuntu.sh
 EOF
 

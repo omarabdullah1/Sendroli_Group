@@ -18,6 +18,22 @@ exports.getOrders = async (req, res) => {
       query.orderState = state;
     }
 
+    // Role-based filtering for clients
+    if (req.user.role === 'client') {
+      const clientDoc = await Client.findOne({ user: req.user._id });
+      if (clientDoc) {
+        query.client = clientDoc._id;
+      } else {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          totalPages: 0,
+          currentPage: page,
+          total: 0,
+        });
+      }
+    }
+
     // Search functionality
     if (search) {
       const clients = await Client.find({
@@ -80,8 +96,18 @@ exports.getOrder = async (req, res) => {
     const isAdmin = userRole === 'admin';
     const hasOrderAccess = ['designer', 'worker', 'financial'].includes(userRole);
     
-    // Only owner, admin, or users with order access can view
-    if (!isOwner && !isAdmin && !hasOrderAccess) {
+    let isClientOwner = false;
+    if (userRole === 'client') {
+      const clientDoc = await Client.findOne({ user: req.user._id });
+      // Check if the order belongs to this client
+      // Note: order.client is populated, so we access _id
+      if (clientDoc && order.client._id.toString() === clientDoc._id.toString()) {
+        isClientOwner = true;
+      }
+    }
+    
+    // Only owner, admin, users with order access, or the client who owns the order can view
+    if (!isOwner && !isAdmin && !hasOrderAccess && !isClientOwner) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to access this order',

@@ -28,12 +28,12 @@ router.get('/stats/financial', authorize('financial', 'admin'), getFinancialStat
 // Main order routes
 router
   .route('/')
-  .get(conditionalSearchLimiter, authorize('designer', 'worker', 'financial', 'admin'), getOrders)
+  .get(conditionalSearchLimiter, authorize('designer', 'worker', 'financial', 'admin', 'client'), getOrders)
   .post(authorize('admin', 'designer'), createOrder); // Allow designers to create orders (for invoices)
 
 router
   .route('/:id')
-  .get(authorize('designer', 'worker', 'financial', 'admin'), getOrder)
+  .get(authorize('designer', 'worker', 'financial', 'admin', 'client'), getOrder)
   .put(authorize('designer', 'worker', 'financial', 'admin'), updateOrder)
   .delete(authorize('admin'), deleteOrder);
 

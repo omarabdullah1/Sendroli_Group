@@ -1,0 +1,46 @@
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    # Redirect HTTP to HTTPS
+    server {
+        listen 80;
+        server_name sendroligroup.cloud www.sendroligroup.cloud;
+        return 301 https://$host$request_uri;
+    }
+
+    # HTTPS Server
+    server {
+        listen 443 ssl;
+        server_name sendroligroup.cloud www.sendroligroup.cloud;
+
+        ssl_certificate /etc/letsencrypt/live/sendroligroup.cloud/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/sendroligroup.cloud/privkey.pem;
+
+        # SSL Settings
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Frontend
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # Backend API Proxy
+        location /api/ {
+            proxy_pass http://backend:5000/api/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+    }
+}

@@ -2,14 +2,31 @@ import api from './api';
 
 const authService = {
   // Login user with single device restriction
-  login: async (username, password, force = false) => {
-    console.log('🚀 Frontend: Attempting login with:', { username, password: '***', force });
+  // Password is optional for phone-only login (client role)
+  login: async (username, password = null, force = false) => {
+    console.log('🚀 Frontend: Attempting login with:', { 
+      username, 
+      hasPassword: !!password,
+      loginType: /^[\d\s\-\+\(\)]+$/.test(username) ? 'phone' : username.includes('@') ? 'email' : 'username',
+      force 
+    });
     console.log('🌐 API URL:', import.meta.env.VITE_API_URL || 'https://backend-o6t3c3xxs-oos-projects-e7124c64.vercel.app/api');
 
     try {
-      console.log('📤 Frontend: Sending request to /auth/login with:', { username, password: '***', force });
+      const loginData = { username, force };
+      
+      // Only include password if provided (phone-only login doesn't need it)
+      if (password) {
+        loginData.password = password;
+      }
+      
+      console.log('📤 Frontend: Sending request to /auth/login with:', { 
+        ...loginData, 
+        password: password ? '***' : 'not provided'
+      });
+      
       // Send login request
-      const response = await api.post('/auth/login', { username, password, force });
+      const response = await api.post('/auth/login', loginData);
       console.log('📥 Frontend: Raw response:', response);
       console.log('✅ Frontend: Login response received:', response.data);
 
@@ -49,6 +66,36 @@ const authService = {
       } else {
         console.error('❌ Frontend: Login error response:', error.response.data);
       }
+      throw error;
+    }
+  },
+
+  // Register new user (admin only)
+  register: async (userData) => {
+    const response = await api.post('/auth/register', userData);
+    return response.data;
+  },
+
+  // Register new client (passwordless - phone-based authentication)
+  registerClient: async (userData) => {
+    console.log('📝 Frontend: Registering client with data:', {
+      ...userData,
+      password: userData.password ? '***' : 'not provided (passwordless)',
+      confirmPassword: userData.confirmPassword ? '***' : 'not provided'
+    });
+    
+    try {
+      const response = await api.post('/auth/register-client', userData);
+      console.log('✅ Frontend: Client registration successful:', response.data);
+      
+      if (response.data.success) {
+        localStorage.setItem('token', response.data.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.data));
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Frontend: Client registration error:', error.response?.data || error);
       throw error;
     }
   },

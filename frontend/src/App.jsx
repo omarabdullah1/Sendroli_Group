@@ -2,6 +2,7 @@
 import { Component } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import './App.css';
+import ClientRegister from './components/Auth/ClientRegister.jsx';
 import DeviceConflictNotification from './components/Auth/DeviceConflictNotification.jsx';
 import ClientAnalytics from './components/Clients/ClientAnalytics.jsx';
 import NotificationContainer from './components/NotificationContainer.jsx';
@@ -112,6 +113,7 @@ function App() {
             
             {/* Main Login Page - Website Login */}
             <Route path="/login" element={<WebsiteLogin />} />
+            <Route path="/register" element={<ClientRegister />} />
             <Route path="/website/login" element={<Navigate to="/login" replace />} />
             
             {/* Client Portal */}

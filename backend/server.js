@@ -126,6 +126,8 @@ const allowedOrigins = [
   'https://backend-3w007fhzi-oos-projects-e7124c64.vercel.app', // previous backend deployment
   'https://frontend-8tgtx9fcq-oos-projects-e7124c64.vercel.app', // current backend deployment (Dec 4, 2025)
   'https://frontend-aa7xdqeal-oos-projects-e7124c64.vercel.app', // current frontend deployment (Dec 5, 2025 - Font Awesome icons)
+  'https://www.sendroligroup.cloud',   // Custom Domain
+  'https://sendroligroup.cloud',       // Custom Domain (non-www)
   process.env.FRONTEND_URL,            // optional env var
 ];
 
@@ -133,11 +135,12 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true); // allow Postman, mobile apps, etc.
 
-    // Allow all Vercel preview URLs dynamically, localhost, and self-hosted server
+    // Allow all Vercel preview URLs dynamically, localhost, self-hosted server, and custom domain
     if (origin && (
       origin.includes('.vercel.app') || 
       origin.includes('localhost') || 
       origin.includes('72.62.38.191') || 
+      origin.includes('sendroligroup.cloud') ||
       allowedOrigins.includes(origin)
     )) {
       console.log(`✅ CORS allowed for origin: ${origin}`);

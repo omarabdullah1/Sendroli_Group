@@ -10,16 +10,19 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install --only=production
 
+# Install curl so that healthcheck commands (if using curl) succeed in the container
+RUN apk add --no-cache curl
+
 # Copy the rest of the application code
 COPY . .
 
-# Create a non-root user to run the application
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+# Install curl for health checks
+RUN apk add --no-cache curl
 
-# Change ownership of the app directory to the nodejs user
-RUN chown -R nodejs:nodejs /app
-USER nodejs
+# We rely on the default 'node' non-root user provided by the official Node image here.
+# The base image includes a 'node' user, so avoid creating custom users to prevent mismatch.
+RUN chown -R node:node /app
+USER node
 
 # Expose the port the app runs on
 EXPOSE 5000

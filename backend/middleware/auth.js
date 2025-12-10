@@ -34,14 +34,6 @@ exports.protect = async (req, res, next) => {
       });
     }
     
-    // Debug: Log user info
-    console.log('🔐 Auth middleware - User authenticated:');
-    console.log('   ID:', req.user._id.toString());
-    console.log('   Username:', req.user.username);
-    console.log('   Role:', req.user.role);
-    console.log('   Role type:', typeof req.user.role);
-    console.log('   Is "designer"?:', req.user.role === 'designer');
-
     // Check if user account is active
     if (!req.user.isActive) {
       return res.status(401).json({

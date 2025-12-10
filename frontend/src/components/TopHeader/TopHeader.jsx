@@ -23,8 +23,10 @@ const TopHeader = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [mobileSearchActive, setMobileSearchActive] = useState(false);
 
   const searchRef = useRef(null);
+  const searchInputRef = useRef(null);
   const notificationRef = useRef(null);
   const helpRef = useRef(null);
   const profileRef = useRef(null);
@@ -178,11 +180,15 @@ const TopHeader = () => {
       const searchQuery = query.trim();
       
       // Make parallel requests with abort signal support
+      const canSearchClients = ['receptionist', 'designer', 'financial', 'admin'].includes(user?.role);
+
       const [clientsRes, ordersRes, invoicesRes] = await Promise.allSettled([
-        clientService.getClients({ search: searchQuery }).catch(err => {
-          if (err.name === 'AbortError' || signal.aborted) throw err;
-          return { error: err };
-        }),
+        canSearchClients 
+          ? clientService.getClients({ search: searchQuery }).catch(err => {
+              if (err.name === 'AbortError' || signal.aborted) throw err;
+              return { error: err };
+            })
+          : Promise.resolve({ data: [] }),
         orderService.getOrders({ search: searchQuery }).catch(err => {
           if (err.name === 'AbortError' || signal.aborted) throw err;
           return { error: err };
@@ -296,6 +302,20 @@ const TopHeader = () => {
       }
     }
   }, []);
+
+  const handleSearchClick = (e) => {
+    if (window.innerWidth <= 768 && !mobileSearchActive) {
+      e.preventDefault();
+      setMobileSearchActive(true);
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  };
+
+  const closeMobileSearch = () => {
+    setMobileSearchActive(false);
+    setSearchValue('');
+    setShowSearchResults(false);
+  };
 
   // Debounced search handler
   const handleSearch = useCallback((e) => {
@@ -452,14 +472,23 @@ const TopHeader = () => {
         </button>
 
         {/* Search Bar */}
-        <form onSubmit={handleSearch} className="header-search" ref={searchRef}>
-          <button type="submit" className="search-icon-btn">
+        <form 
+          onSubmit={handleSearch} 
+          className={`header-search ${mobileSearchActive ? 'mobile-active' : ''}`} 
+          ref={searchRef}
+        >
+          <button 
+            type="submit" 
+            className="search-icon-btn"
+            onClick={handleSearchClick}
+          >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M7.33333 12.6667C10.2789 12.6667 12.6667 10.2789 12.6667 7.33333C12.6667 4.38781 10.2789 2 7.33333 2C4.38781 2 2 4.38781 2 7.33333C2 10.2789 4.38781 12.6667 7.33333 12.6667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M14 14L11.1 11.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Search clients, orders, invoices..."
             value={searchValue}
@@ -472,6 +501,22 @@ const TopHeader = () => {
             className="search-input"
             disabled={isSearching}
           />
+          
+          {/* Close Button for Mobile */}
+          {mobileSearchActive && (
+            <button 
+              type="button" 
+              className="search-close-btn"
+              onClick={(e) => {
+                e.preventDefault();
+                closeMobileSearch();
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
           
           {/* Loading indicator */}
           {isSearching && (
@@ -520,7 +565,7 @@ const TopHeader = () => {
         </form>
 
         {/* Right Side Actions */}
-        <div className="header-actions">
+        <div className="top-header-actions">
           {/* Help Icon */}
           <div className="header-dropdown-wrapper" ref={helpRef}>
             <button 

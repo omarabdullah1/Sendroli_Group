@@ -6,6 +6,8 @@
 ###############################################################################
 
 set -e  # Exit on any error
+export DEBIAN_FRONTEND=noninteractive
+export TERM=xterm
 
 # Colors for output
 RED='\033[0;31m'
@@ -153,11 +155,13 @@ setup_repository() {
     REPO_URL="https://github.com/omarabdullah1/Sendroli_Group.git"
     INSTALL_DIR="/opt/Sendroli_Group"
     
-    if [ -d "$INSTALL_DIR" ]; then
-        print_info "Repository already exists. Updating..."
+    if [ -d "$INSTALL_DIR/.git" ]; then
+        print_info "Git repository detected. Updating..."
         cd "$INSTALL_DIR"
         git pull origin main
         print_success "Repository updated"
+    elif [ -d "$INSTALL_DIR" ]; then
+        print_info "Directory exists but is not a git repository. Skipping git pull (assuming push deployment)."
     else
         print_info "Cloning repository..."
         sudo git clone "$REPO_URL" "$INSTALL_DIR"
@@ -165,7 +169,7 @@ setup_repository() {
     fi
     
     # Set permissions
-    if [ "$EUID" -eq 0 ]; then
+    if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
         chown -R $SUDO_USER:$SUDO_USER "$INSTALL_DIR"
     fi
 }
@@ -182,21 +186,36 @@ create_env_files() {
     print_info "Detected server IP: $SERVER_IP"
     
     # Prompt for custom values or use defaults
-    read -p "Enter your domain name (or press Enter to use IP address): " DOMAIN_NAME
+    if [ -z "$DOMAIN_NAME" ]; then
+        if [ -t 0 ]; then
+            read -p "Enter your domain name (or press Enter to use IP address): " DOMAIN_NAME
+        fi
+    fi
+    
     if [ -z "$DOMAIN_NAME" ]; then
         DOMAIN_NAME="http://$SERVER_IP"
-    else
+    elif [[ "$DOMAIN_NAME" != http* ]]; then
         DOMAIN_NAME="https://$DOMAIN_NAME"
     fi
     
-    read -sp "Enter MongoDB password (or press Enter for auto-generated): " MONGO_PASSWORD
-    echo
+    if [ -z "$MONGO_PASSWORD" ]; then
+        if [ -t 0 ]; then
+            read -sp "Enter MongoDB password (or press Enter for auto-generated): " MONGO_PASSWORD
+            echo
+        fi
+    fi
+    
     if [ -z "$MONGO_PASSWORD" ]; then
         MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
     fi
     
-    read -sp "Enter JWT secret (or press Enter for auto-generated): " JWT_SECRET
-    echo
+    if [ -z "$JWT_SECRET" ]; then
+        if [ -t 0 ]; then
+            read -sp "Enter JWT secret (or press Enter for auto-generated): " JWT_SECRET
+            echo
+        fi
+    fi
+
     if [ -z "$JWT_SECRET" ]; then
         JWT_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
     fi
@@ -331,6 +350,10 @@ deploy_application() {
     INSTALL_DIR="/opt/Sendroli_Group"
     cd "$INSTALL_DIR"
     
+    print_info "Stopping existing services and removing volumes to ensure clean state..."
+    # Use -v to remove volumes (database) so it re-initializes with new credentials
+    docker compose -f docker-compose.prod.yml down -v || true
+    
     print_info "Building Docker images (this may take several minutes)..."
     docker compose -f docker-compose.prod.yml build
     
@@ -354,8 +377,13 @@ deploy_application() {
 seed_database() {
     print_header "Seeding Database"
     
-    read -p "Do you want to seed the database with default users? (y/n): " -n 1 -r
-    echo
+    if [ -t 0 ]; then
+        read -p "Do you want to seed the database with default users? (y/n): " -n 1 -r
+        echo
+    else
+        REPLY="y"
+    fi
+
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_info "Seeding database..."
         docker exec sendroli-backend npm run seed || print_warning "Seed script not available or already seeded"
@@ -409,7 +437,7 @@ show_deployment_info() {
 ###############################################################################
 
 main() {
-    clear
+    # clear # Removed clear to avoid TERM error
     echo -e "${BLUE}"
     echo "╔════════════════════════════════════════════════════════╗"
     echo "║  Sendroli Factory Management System                   ║"
@@ -418,8 +446,14 @@ main() {
     echo -e "${NC}\n"
     
     print_warning "This script will install and configure the complete system on your Ubuntu server"
-    read -p "Do you want to continue? (y/n): " -n 1 -r
-    echo
+    
+    if [ -t 0 ]; then
+        read -p "Do you want to continue? (y/n): " -n 1 -r
+        echo
+    else
+        REPLY="y"
+    fi
+
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         print_info "Deployment cancelled"
         exit 0

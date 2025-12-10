@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Base URL - Use environment variable or fallback to latest deployment
-const API_URL = import.meta.env.VITE_API_URL || 'https://backend-o6t3c3xxs-oos-projects-e7124c64.vercel.app/api';
+// Base URL - Use environment variable or fallback to relative path
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Debug: Log the API URL being used
 console.log('🔧 API Base URL:', API_URL);
@@ -32,6 +32,13 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle session conflict (409) - DO NOT convert to 401
+    // Let the login component handle the device conflict dialog
+    if (error.response?.status === 409) {
+      console.log('⚠️ Session conflict detected (409), passing to component');
+      return Promise.reject(error);
+    }
+
     // Unauthorized - clear local storage and redirect to login
     // But only if we're not on a public page
     if (error.response?.status === 401) {

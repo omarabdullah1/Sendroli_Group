@@ -1,13 +1,46 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
+import orderService from '../services/orderService';
 import './ClientPortal.css';
 
 const ClientPortal = () => {
   const { user, logout } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const response = await orderService.getOrders();
+      if (response.success) {
+        setOrders(response.data);
+      }
+    } catch (err) {
+      setError('Failed to load orders');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return '#f59e0b';
+      case 'active': return '#3b82f6';
+      case 'done': return '#10b981';
+      case 'delivered': return '#6b7280';
+      default: return '#6b7280';
+    }
   };
 
   return (
@@ -25,47 +58,52 @@ const ClientPortal = () => {
       </div>
 
       <div className="client-portal-content">
-        <div className="portal-message-card">
-          <div className="message-icon">🚧</div>
-          <h1>Client Portal Under Development</h1>
-          <p className="message-description">
-            We're working hard to bring you an amazing client experience.
-            The client portal is currently under development and will be available soon.
-          </p>
-
-          <div className="portal-features">
-            <h3>Coming Soon:</h3>
-            <ul>
-              <li>📋 View your order history</li>
-              <li>📊 Track order status in real-time</li>
-              <li>💰 Access invoices and payment information</li>
-              <li>📞 Direct communication with our team</li>
-              <li>📁 Download design files and documents</li>
-            </ul>
-          </div>
-
-          <div className="contact-support">
-            <h3>Need Order Updates?</h3>
-            <p>Please contact our support team for any inquiries:</p>
-            <div className="support-options">
-              <a href="tel:+201234567890" className="support-link">
-                📞 Call Us
-              </a>
-              <a href="https://wa.me/201234567890" className="support-link" target="_blank" rel="noopener noreferrer">
-                💬 WhatsApp
-              </a>
-              <a href="mailto:info@sendroligroup.com" className="support-link">
-                ✉️ Email Us
-              </a>
+        <div className="portal-dashboard">
+          <h1>My Orders</h1>
+          
+          {loading ? (
+            <div className="loading">Loading orders...</div>
+          ) : error ? (
+            <div className="error">{error}</div>
+          ) : orders.length === 0 ? (
+            <div className="no-orders">
+              <p>You don't have any orders yet.</p>
             </div>
-          </div>
-
-          <Link to="/" className="back-to-website-btn">
-            ← Back to Website
-          </Link>
+          ) : (
+            <div className="orders-table-container">
+              <table className="orders-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Total Price</th>
+                    <th>Remaining</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map(order => (
+                    <tr key={order._id}>
+                      <td>#{order._id.slice(-6).toUpperCase()}</td>
+                      <td>{order.type}</td>
+                      <td>
+                        <span className="status-badge" style={{ backgroundColor: getStatusColor(order.orderState) }}>
+                          {order.orderState}
+                        </span>
+                      </td>
+                      <td>{order.totalPrice} EGP</td>
+                      <td>{order.remainingAmount} EGP</td>
+                      <td>{new Date(order.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
-
+      
       <div className="portal-footer">
         <p>&copy; {new Date().getFullYear()} Sendroli Group. All rights reserved.</p>
       </div>
@@ -74,4 +112,3 @@ const ClientPortal = () => {
 };
 
 export default ClientPortal;
-
