@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import authService from '../services/authService';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -7,6 +8,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loginMode, setLoginMode] = useState('username');
   const [passwordRequired, setPasswordRequired] = useState(true);
+  const [phoneLookup, setPhoneLookup] = useState(null);
   const phoneCheckTimer = useRef(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -71,12 +73,28 @@ const Login = () => {
                   setPasswordRequired(false);
                 }
                 if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
-                phoneCheckTimer.current = setTimeout(() => detectLoginType(val), 200);
+                  phoneCheckTimer.current = setTimeout(() => {
+                    detectLoginType(val);
+                    const phoneQuickRegex = /^[\d\s\-\+\(\)]+$/;
+                    if (val && phoneQuickRegex.test(val.trim())) {
+                      authService
+                        .checkPhone(val.trim())
+                        .then((res) => setPhoneLookup(res))
+                        .catch(() => setPhoneLookup(null));
+                    } else {
+                      setPhoneLookup(null);
+                    }
+                  }, 200);
               }}
               required
               style={styles.input}
               placeholder="Enter your username"
             />
+                    {loginMode === 'phone' && phoneLookup && !phoneLookup.exists && (
+                      <div style={{ marginTop: '0.5rem', color: '#ff5c5c' }}>
+                        No account found for this phone number. If you are a staff or admin, use username or email and your password.
+                      </div>
+                    )}
           </div>
 
           {passwordRequired && (
@@ -86,7 +104,7 @@ const Login = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
+                  {passwordRequired && (
                 style={styles.input}
                 placeholder="Enter your password"
               />
@@ -99,6 +117,7 @@ const Login = () => {
         </form>
 
         <div style={styles.hint}>
+                  )}
           <p>Default credentials (for testing):</p>
           <p>Admin: admin / admin123</p>
           <p>Receptionist: receptionist / recep123</p>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../../components/Logo';
 import { useAuth } from '../../context/AuthContext';
+import authService from '../../services/authService';
 import './WebsiteLogin.css';
 
 const WebsiteLogin = () => {
@@ -19,6 +20,7 @@ const WebsiteLogin = () => {
   const [passwordRequired, setPasswordRequired] = useState(true);
   const [phoneIsClient, setPhoneIsClient] = useState(false);
   const [isPhoneInput, setIsPhoneInput] = useState(false);
+  const [phoneLookup, setPhoneLookup] = useState(null);
   const phoneCheckTimer = useRef(null);
   // Removed manual toggle as UI should not expose it for phone logins.
 
@@ -83,6 +85,21 @@ const WebsiteLogin = () => {
       if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
       phoneCheckTimer.current = setTimeout(() => {
         detectLoginType(value);
+        // If it is a phone, perform a server-side check to see if this phone belongs to a client
+        const phoneQuickRegex = /^[\d\s\-\+\(\)]+$/;
+        if (value && phoneQuickRegex.test(value.trim())) {
+          // Ensure we don't leak the exact payload in logs; transform in service
+          authService
+            .checkPhone(value.trim())
+            .then((res) => {
+              setPhoneLookup(res);
+            })
+            .catch((e) => {
+              setPhoneLookup(null);
+            });
+        } else {
+          setPhoneLookup(null);
+        }
       }, 200);
     }
     
@@ -274,9 +291,14 @@ const WebsiteLogin = () => {
             />
             {loginMode === 'phone' && (
               <div className="phone-hint">
-                <small className="form-hint">
-                  📱 Phone-only login — no password is required for client accounts. If you're a staff/admin, please use username or email and your password.
-                </small>
+                    <small className="form-hint">
+                      📱 Phone-only login — no password is required for client accounts. If you're a staff/admin, please use username or email and your password.
+                    </small>
+                    {phoneLookup && !phoneLookup.exists && (
+                      <div className="phone-warning">
+                        <small className="form-warning">No account found for this phone number. If you're a staff member, try logging in with username or email and your password.</small>
+                      </div>
+                    )}
               </div>
             )}
           </div>

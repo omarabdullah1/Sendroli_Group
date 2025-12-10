@@ -4,6 +4,11 @@ const authService = {
   // Login user with single device restriction
   // Password is optional for phone-only login (client role)
   login: async (username, password = null, force = false) => {
+    // Normalize the password input: avoid sending the string 'not provided' as a real password
+    if (password === 'not provided') {
+      password = null;
+    }
+
     console.log('🚀 Frontend: Attempting login with:', { 
       username, 
       hasPassword: !!password,
@@ -20,10 +25,10 @@ const authService = {
         loginData.password = password;
       }
       
-      console.log('📤 Frontend: Sending request to /auth/login with:', { 
-        ...loginData, 
-        password: password ? '***' : 'not provided'
-      });
+      // Log the exact payload that will be sent (without revealing a raw password)
+      const loggedPayload = { ...loginData };
+      if (loggedPayload.password) loggedPayload.password = '***';
+      console.log('📤 Frontend: Sending request to /auth/login with:', loggedPayload);
       
       // Send login request
       const response = await api.post('/auth/login', loginData);
@@ -96,6 +101,18 @@ const authService = {
       return response.data;
     } catch (error) {
       console.error('❌ Frontend: Client registration error:', error.response?.data || error);
+      throw error;
+    }
+  },
+
+  // Check if phone exists and belongs to a client
+  checkPhone: async (phone) => {
+    try {
+      const response = await api.post('/auth/check-phone', { phone });
+      console.log('🔎 Frontend: checkPhone response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Frontend: checkPhone error', error.response?.data || error);
       throw error;
     }
   },

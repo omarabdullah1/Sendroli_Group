@@ -190,6 +190,8 @@ exports.registerClient = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { username, password, force } = req.body;
+    // Debugging: log incoming login attempt (without exposing password)
+    console.log(`Login attempt received for username: ${username} | hasPassword: ${!!password} | force: ${!!force}`);
 
     // Validate input - username (can be phone/email/username)
     if (!username) {
@@ -227,8 +229,12 @@ exports.login = async (req, res) => {
       loginType = 'username';
     }
 
+    // Debug: log the type of login and query to be used
+    console.log(`Login type: ${loginType}, query: ${JSON.stringify(query)}`);
+
     // Find user and include session fields
     const user = await User.findOne(query).select('+password +activeToken +sessionInfo +deviceInfo');
+    console.log('Login lookup: user found =', !!user, user ? `role=${user.role} id=${user._id}` : 'no user');
 
     if (!user) {
       return res.status(401).json({

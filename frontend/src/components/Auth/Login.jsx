@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import authService from '../../services/authService';
 import './Auth.css';
 
 const Login = () => {
@@ -11,6 +12,7 @@ const Login = () => {
   const [loginMode, setLoginMode] = useState('username'); // username, email, or phone
   const [passwordRequired, setPasswordRequired] = useState(true);
   const [isPhoneInput, setIsPhoneInput] = useState(false);
+  const [phoneLookup, setPhoneLookup] = useState(null);
   const phoneCheckTimer = useRef(null);
   // Manual toggle removed; UI should not expose manual password toggle for phone input
   const [error, setError] = useState('');
@@ -97,6 +99,15 @@ const Login = () => {
       if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
       phoneCheckTimer.current = setTimeout(() => {
         detectLoginType(e.target.value);
+        const phoneQuickRegex = /^[\d\s\-\+\(\)]+$/;
+        if (e.target.value && phoneQuickRegex.test(e.target.value.trim())) {
+          authService
+            .checkPhone(e.target.value.trim())
+            .then((res) => setPhoneLookup(res))
+            .catch(() => setPhoneLookup(null));
+        } else {
+          setPhoneLookup(null);
+        }
       }, 200);
     }
 
@@ -253,6 +264,11 @@ const Login = () => {
             {loginMode === 'phone' && (
               <div className="phone-hint">
                 <small className="form-hint">📱 Phone-only login — no password is required for client accounts.</small>
+                {phoneLookup && !phoneLookup.exists && (
+                  <div className="phone-warning">
+                    <small className="form-warning">No account found for this phone number. If you're a staff/admin, try logging in with username or email and your password.</small>
+                  </div>
+                )}
               </div>
             )}
           </div>
