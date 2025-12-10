@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Client = require('../models/Client');
 const generateToken = require('../utils/generateToken');
 const { generateDeviceFingerprint, getClientIP, getDeviceType } = require('../utils/deviceFingerprint');
 
@@ -49,6 +50,140 @@ exports.register = async (req, res) => {
   }
 };
 
+// @desc    Register a new client (Public)
+// @route   POST /api/auth/register-client
+// @access  Public
+exports.registerClient = async (req, res) => {
+  try {
+    const { username, password, fullName, email, phone, factoryName, address } = req.body;
+
+    // Validate required fields
+    if (!fullName || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Full name and phone number are required',
+      });
+    }
+
+    // Check if phone already exists
+    const phoneExists = await User.findOne({ phone });
+    if (phoneExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number already registered',
+      });
+    }
+
+    // Check if username already exists (if provided)
+    if (username) {
+      const usernameExists = await User.findOne({ username });
+      if (usernameExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username already exists',
+        });
+      }
+    }
+
+    // Check if email already exists (if provided)
+    if (email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists',
+        });
+      }
+    }
+
+    // Generate username from phone if not provided
+    const finalUsername = username || `client_${phone.replace(/\D/g, '')}`;
+
+    // Create user with role 'client' - password is optional for clients
+    const userData = {
+      username: finalUsername,
+      role: 'client',
+      fullName,
+      email,
+      phone,
+      normalizedPhone: phone ? String(phone).replace(/\D/g, '') : undefined,
+    };
+
+    // Only add password if provided
+    if (password) {
+      userData.password = password;
+    }
+
+    const user = await User.create(userData);
+
+    if (user) {
+      // Gather device and session information
+      const clientIP = getClientIP(req);
+      const userAgent = req.headers['user-agent'] || 'Unknown Device';
+      const deviceFingerprint = generateDeviceFingerprint(clientIP, userAgent);
+      const deviceType = getDeviceType(userAgent);
+      const loginTime = new Date();
+
+      // Generate token
+      const token = generateToken(user._id);
+
+      // Update user with session info
+      await User.findByIdAndUpdate(user._id, {
+        activeToken: token,
+        sessionInfo: {
+          ipAddress: clientIP,
+          userAgent: userAgent,
+          deviceFingerprint: deviceFingerprint,
+          loginTime: loginTime,
+          lastActivity: loginTime,
+          isValid: true,
+          sessionVersion: 1,
+        },
+        deviceInfo: {
+          userAgent: userAgent,
+          deviceName: deviceType,
+          loginTime: loginTime,
+          ipAddress: clientIP,
+        },
+      });
+
+      // Create associated Client document
+      const client = await Client.create({
+        name: fullName,
+        phone,
+        factoryName,
+        address,
+        user: user._id,
+        createdBy: user._id 
+      });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          _id: user._id,
+          username: user.username,
+          role: user.role,
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phone,
+          clientId: client._id,
+          token: token,
+        },
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid user data',
+      });
+    }
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // @desc    Login user with session conflict detection and forced login support
 // @route   POST /api/auth/login
 // @access  Public
@@ -56,16 +191,44 @@ exports.login = async (req, res) => {
   try {
     const { username, password, force } = req.body;
 
-    // Validate input
-    if (!username || !password) {
+    // Validate input - username (can be phone/email/username)
+    if (!username) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide username and password',
+        message: 'Please provide username, email, or phone number',
       });
     }
 
+    // Detect login type and build query
+    let query = {};
+    let loginType = 'username';
+    
+    // Check if it's a phone number (contains only digits, +, -, spaces, parentheses)
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    if (phoneRegex.test(username.trim())) {
+      const trimmed = username.trim();
+      const normalized = trimmed.replace(/\D/g, '');
+      query = {
+        $or: [
+          { phone: trimmed },
+          { normalizedPhone: normalized }
+        ],
+      };
+      loginType = 'phone';
+    }
+    // Check if it's an email
+    else if (username.includes('@')) {
+      query.email = username.toLowerCase().trim();
+      loginType = 'email';
+    }
+    // Otherwise it's a username
+    else {
+      query.username = username.toLowerCase().trim();
+      loginType = 'username';
+    }
+
     // Find user and include session fields
-    const user = await User.findOne({ username }).select('+password +activeToken +sessionInfo +deviceInfo');
+    const user = await User.findOne(query).select('+password +activeToken +sessionInfo +deviceInfo');
 
     if (!user) {
       return res.status(401).json({
@@ -82,13 +245,28 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Verify password
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials',
-      });
+    // For client role with phone-only login, skip password verification
+    // Optionally allow passwordless phone login for all roles via env var PASSWORDLESS_PHONE_LOGIN
+    const allowGlobalPasswordlessPhone = (process.env.PASSWORDLESS_PHONE_LOGIN || 'false').toLowerCase() === 'true';
+    if (loginType === 'phone' && !password && (user.role === 'client' || allowGlobalPasswordlessPhone)) {
+      // Phone-only login allowed for client users or globally when enabled
+    } else {
+      // For all other cases, password is required
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password is required',
+        });
+      }
+
+      // Verify password
+      const isMatch = await user.matchPassword(password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials',
+        });
+      }
     }
 
     // Check if user has an existing active session
@@ -192,6 +370,32 @@ exports.login = async (req, res) => {
       success: false,
       message: 'Server error during login',
     });
+  }
+};
+
+// @desc    Check whether a phone number belongs to a client user
+// @route   POST /api/auth/check-phone
+// @access  Public
+exports.checkPhone = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    if (!phone || !phoneRegex.test(String(phone).trim())) {
+      return res.status(400).json({ success: false, message: 'Invalid phone number' });
+    }
+
+    const sq = String(phone).trim();
+    const normalized = sq.replace(/\D/g, '');
+    const user = await User.findOne({ $or: [{ phone: sq }, { normalizedPhone: normalized }] }).select('role');
+    if (!user) {
+      return res.json({ success: true, exists: false });
+    }
+
+    return res.json({ success: true, exists: true, role: user.role, isClient: user.role === 'client' });
+  } catch (error) {
+    console.error('Error in checkPhone:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

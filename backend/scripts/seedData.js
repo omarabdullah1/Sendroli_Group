@@ -30,6 +30,7 @@ const seedData = async () => {
         role: 'admin',
         fullName: 'Admin User',
         email: 'admin@factory.com',
+        phone: '01777888999',
         isActive: true,
       },
       {
@@ -112,6 +113,32 @@ const seedData = async () => {
     ]);
 
     console.log('Clients created...');
+
+    // Also create corresponding client User entries (for phone-only login)
+    const clientUsers = [];
+    for (const client of clients) {
+      const usernameFromPhone = `client_${client.phone.replace(/\D/g, '')}`;
+      const userData = {
+        username: usernameFromPhone,
+        role: 'client',
+        fullName: client.name,
+        email: '',
+        phone: client.phone,
+      };
+
+      const existing = await User.findOne({ phone: client.phone });
+      if (!existing) {
+        const user = await User.create(userData);
+        // Link client to user
+        await Client.findByIdAndUpdate(client._id, { user: user._id });
+        clientUsers.push(user);
+      } else {
+        // If a user exists, link it
+        await Client.findByIdAndUpdate(client._id, { user: existing._id });
+      }
+    }
+
+    console.log(`Client users created/linked: ${clientUsers.length}`);
 
     // Create orders
     const orders = await Order.create([

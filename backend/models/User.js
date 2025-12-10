@@ -13,9 +13,29 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function() {
+        // Password is not required for client role (passwordless login via phone)
+        return this.role !== 'client';
+      },
       minlength: [6, 'Password must be at least 6 characters'],
       select: false,
+    },
+    phone: {
+      type: String,
+      required: function() {
+        // Phone is required for client role
+        return this.role === 'client';
+      },
+      trim: true,
+      unique: true,
+      sparse: true, // Allow null values for non-client users
+    },
+    // normalized phone stripped of non-digit chars for robust lookups
+    normalizedPhone: {
+      type: String,
+      index: true,
+      unique: true,
+      sparse: true,
     },
     role: {
       type: String,
@@ -104,17 +124,32 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving
+// Hash password before saving (only if password exists)
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    next();
+  // Skip password hashing if no password or not modified
+  if (!this.password || !this.isModified('password')) {
+    return next();
   }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// Normalize phone number before saving
+userSchema.pre('save', function (next) {
+  if (this.phone && typeof this.phone === 'string') {
+    this.normalizedPhone = this.phone.replace(/\D/g, '');
+  } else {
+    this.normalizedPhone = undefined;
+  }
+  next();
 });
 
 // Method to compare password
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) {
+    return false; // No password set (client users)
+  }
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
