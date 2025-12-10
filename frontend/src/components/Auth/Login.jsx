@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Auth.css';
@@ -8,6 +8,11 @@ const Login = () => {
     username: '',
     password: '',
   });
+  const [loginMode, setLoginMode] = useState('username'); // username, email, or phone
+  const [passwordRequired, setPasswordRequired] = useState(true);
+  const [passwordManuallyToggled, setPasswordManuallyToggled] = useState(false);
+  const [isPhoneInput, setIsPhoneInput] = useState(false);
+  const phoneCheckTimer = useRef(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState('');
@@ -35,6 +40,14 @@ const Login = () => {
     setDeviceInfo(device);
   }, []);
 
+  // Run detection on mount in case browser autofills the username field
+  useEffect(() => {
+    detectLoginType(formData.username);
+    return () => {
+      if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+    };
+  }, []);
+
   // Clear device conflict error when component mounts
   useEffect(() => {
     if (deviceConflictError) {
@@ -42,11 +55,54 @@ const Login = () => {
     }
   }, [deviceConflictError, clearDeviceConflictError]);
 
+  // Detect login type based on input
+  const detectLoginType = (value) => {
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    const trimmed = value.trim();
+    if (phoneRegex.test(trimmed) && trimmed.length > 0) {
+      setLoginMode('phone');
+      // Always hide the password and clear any existing password value when username is a phone
+      setPasswordRequired(false);
+      setFormData(prev => ({ ...prev, password: '' }));
+      setIsPhoneInput(true);
+      // Ensure manual toggle is reset when phone input is detected
+      setPasswordManuallyToggled(false);
+    } else if (value.includes('@')) {
+      setLoginMode('email');
+      if (!passwordManuallyToggled) setPasswordRequired(true);
+      setIsPhoneInput(false);
+      // Restore the password required setting only if no manual override is present
+      if (!passwordManuallyToggled) setPasswordRequired(true);
+    } else {
+      setLoginMode('username');
+      if (!passwordManuallyToggled) setPasswordRequired(true);
+      setIsPhoneInput(false);
+      if (!passwordManuallyToggled) setPasswordRequired(true);
+    }
+  };
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+    // Detect login type when user types username (debounce to avoid rapid checks)
+    if (e.target.name === 'username') {
+      // Quick immediate detection: if it looks like a phone, clear password immediately and hide it
+      const phoneQuickRegex = /^[\d\s\-\+\(\)]+$/;
+      if (phoneQuickRegex.test(value.trim()) && value.trim().length > 0) {
+        setFormData(prev => ({ ...prev, password: '' }));
+        setPasswordRequired(false);
+        setIsPhoneInput(true);
+        setPasswordManuallyToggled(false);
+      }
+      if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+      phoneCheckTimer.current = setTimeout(() => {
+        detectLoginType(e.target.value);
+      }, 200);
+    }
+
     // Clear error when user starts typing
     if (error) setError('');
     if (deviceConflict) setDeviceConflict(null);
@@ -69,7 +125,14 @@ const Login = () => {
           // Could show a toast notification here
           alert(response.data.warning); // Temporary alert for warning
         }
-        navigate('/dashboard');
+        
+        // Redirect based on role
+        const user = response.user || response.data?.user;
+        if (user?.role === 'client') {
+          navigate('/client-portal');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Login failed';
@@ -176,7 +239,7 @@ const Login = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username">{loginMode === 'phone' ? 'Phone Number' : 'Username'}</label>
             <input
               type="text"
               id="username"
@@ -186,19 +249,29 @@ const Login = () => {
               required
               disabled={loading}
             />
+            {loginMode === 'phone' && (
+              <div className="phone-hint">
+                <small className="form-hint">📱 Phone-only login — no password is required for client accounts.</small>
+                <div>
+                  {/* Toggle removed for phone input for clarity */}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            />
-          </div>
+          {passwordRequired && (
+            <div className="form-group">
+              <label htmlFor="password">Password {!passwordRequired && '(Optional for phone login)'}</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required={passwordRequired}
+                disabled={loading}
+              />
+            </div>
+          )}
           <button type="submit" disabled={loading || deviceConflict} className="btn-primary">
             {loading ? 'Logging in...' : 'Login'}
           </button>
