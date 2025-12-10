@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../../components/Logo';
 import { useAuth } from '../../context/AuthContext';
@@ -20,7 +20,7 @@ const WebsiteLogin = () => {
   const [phoneIsClient, setPhoneIsClient] = useState(false);
   const [isPhoneInput, setIsPhoneInput] = useState(false);
   const phoneCheckTimer = useRef(null);
-  // No manual password toggle — password is required for non-phone logins and hidden for phone logins
+  const [passwordManuallyToggled, setPasswordManuallyToggled] = useState(false);
 
   // Detect login type based on input
   const detectLoginType = (value) => {
@@ -33,16 +33,16 @@ const WebsiteLogin = () => {
       setFormData(prev => ({ ...prev, password: '' }));
       setShowPassword(false);
       // Reset manual toggle so it doesn't persist for non-phone input
-      // Removed manual toggle control (no-op)
+      setPasswordManuallyToggled(false);
       setIsPhoneInput(true);
     } else if (value.includes('@')) {
       setLoginMode('email');
       // For non-phone inputs require password
-      setPasswordRequired(true);
+      if (!passwordManuallyToggled) setPasswordRequired(true);
       setIsPhoneInput(false);
     } else {
       setLoginMode('username');
-      setPasswordRequired(true);
+      if (!passwordManuallyToggled) setPasswordRequired(true);
       setIsPhoneInput(false);
     }
   };

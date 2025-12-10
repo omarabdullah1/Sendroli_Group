@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Auth.css';
@@ -12,6 +12,7 @@ const Login = () => {
   const [passwordRequired, setPasswordRequired] = useState(true);
   const [isPhoneInput, setIsPhoneInput] = useState(false);
   const phoneCheckTimer = useRef(null);
+  const [passwordManuallyToggled, setPasswordManuallyToggled] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState('');
@@ -64,15 +65,16 @@ const Login = () => {
       setPasswordRequired(false);
       setFormData(prev => ({ ...prev, password: '' }));
       setIsPhoneInput(true);
+      setPasswordManuallyToggled(false);
       // Ensure manual toggle is reset when phone input is detected
       // Ensure no manual toggle persists; removed manual toggle control
     } else if (value.includes('@')) {
       setLoginMode('email');
-      setPasswordRequired(true);
+      if (!passwordManuallyToggled) setPasswordRequired(true);
       setIsPhoneInput(false);
     } else {
       setLoginMode('username');
-      setPasswordRequired(true);
+      if (!passwordManuallyToggled) setPasswordRequired(true);
       setIsPhoneInput(false);
     }
   };
