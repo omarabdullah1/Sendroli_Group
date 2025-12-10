@@ -113,6 +113,7 @@ const Login = () => {
 
     try {
       const passwordToSend = loginMode === 'phone' ? null : formData.password;
+      if (loginMode === 'phone') setFormData(prev => ({ ...prev, password: '' }));
       const response = await login(formData.username, passwordToSend);
       
       if (response.success) {
@@ -170,6 +171,7 @@ const Login = () => {
     try {
       console.log('🚀 Calling login with force=true');
       const passwordToSend = loginMode === 'phone' ? null : formData.password;
+      if (loginMode === 'phone') setFormData(prev => ({ ...prev, password: '' }));
       const response = await login(formData.username, passwordToSend, true); // force=true
       console.log('✅ Force login response:', response);
       

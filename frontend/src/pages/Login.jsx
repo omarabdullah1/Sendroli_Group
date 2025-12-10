@@ -36,6 +36,7 @@ const Login = () => {
     setLoading(true);
 
     const passwordToSend = loginMode === 'phone' ? null : password;
+    if (loginMode === 'phone') setPassword('');
     const result = await login(username, passwordToSend);
 
     if (result.success) {

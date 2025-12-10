@@ -102,6 +102,8 @@ const WebsiteLogin = () => {
     try {
       // If this is a phone (client) login, don't send password at all
       const passwordToSend = loginMode === 'phone' ? null : formData.password;
+      // Clear form password state when performing phone-only login to be extra safe
+      if (loginMode === 'phone') setFormData(prev => ({ ...prev, password: '' }));
       const response = await authLogin(formData.username, passwordToSend);
 
       if (response.success) {
@@ -166,6 +168,7 @@ const WebsiteLogin = () => {
     try {
       console.log('🚀 Calling login with force=true');
       const passwordToSend = loginMode === 'phone' ? null : formData.password;
+      if (loginMode === 'phone') setFormData(prev => ({ ...prev, password: '' }));
       const response = await authLogin(formData.username, passwordToSend, true); // force=true
       console.log('✅ Force login response:', response);
       
