@@ -33,6 +33,7 @@ exports.getOrders = async (req, res) => {
         });
       }
     // Role-based filter for client is already applied above.
+    }
 
     const orders = await Order.find(query)
       .populate('client', 'name phone factoryName')
