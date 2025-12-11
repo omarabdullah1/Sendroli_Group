@@ -16,6 +16,8 @@ const OrderForm = () => {
     sheetHeight: '',
     type: '',
     price: '',
+    totalPrice: '',
+    orderSize: 0,
     deposit: '',
     description: '',
     designLink: '',
@@ -69,6 +71,8 @@ const OrderForm = () => {
         sheetHeight: order.sheetHeight || '',
         type: order.type,
         price: order.totalPrice || order.price,
+        totalPrice: order.totalPrice || order.price || 0,
+        orderSize: order.orderSize || (order.repeats && order.sheetHeight ? Number(order.repeats) * Number(order.sheetHeight) : 0),
         deposit: order.deposit,
         description: order.notes || order.description || '',
         designLink: order.designLink || '',
@@ -83,10 +87,41 @@ const OrderForm = () => {
     }
   };
 
+  const calculateTotalSize = (data) => {
+    const r = Number(data.repeats) || 0;
+    const h = Number(data.sheetHeight) || 0;
+    if (r <= 0 || h <= 0) return 0;
+    return r * h;
+  };
+
+  const recalcPrice = (current) => {
+    const materialId = current.material;
+    const mat = materials.find(m => m._id === materialId) || null;
+    if (!mat || !mat.sellingPrice) {
+      return Number(current.totalPrice) || Number(current.price) || 0;
+    }
+    const totalSize = calculateTotalSize(current);
+    if (totalSize > 0) {
+      return Number(mat.sellingPrice) * totalSize;
+    }
+    return Number(mat.sellingPrice) || 0;
+  };
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+
+      // Recalculate price and orderSize when material, repeats or sheetHeight change
+      if (['material', 'repeats', 'sheetHeight'].includes(name)) {
+        const size = calculateTotalSize(updated);
+        updated.orderSize = size;
+        updated.totalPrice = recalcPrice(updated);
+        // Also sync price field for instances where UI expects `price` key
+        updated.price = updated.totalPrice;
+      }
+
+      return updated;
     });
   };
 

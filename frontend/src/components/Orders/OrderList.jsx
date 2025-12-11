@@ -225,7 +225,7 @@ const OrderList = () => {
                   <td>{order.client?.name || order.clientSnapshot?.name || 'N/A'}</td>
                   <td>{order.type}</td>
                   <td>{order.sheetHeight || order.size}</td>
-                  <td>{order.orderSize?.toFixed(2) || 0} m</td>
+                  <td>{((order.orderSize ? order.orderSize : (Number(order.repeats) * Number(order.sheetHeight || 0))))?.toFixed(2) || '0.00'} m</td>
                   <td>{order.repeats}</td>
                   
                   {/* Show financial columns only for financial roles */}

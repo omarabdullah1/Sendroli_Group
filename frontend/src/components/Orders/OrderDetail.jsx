@@ -62,7 +62,11 @@ const OrderDetail = () => {
         </div>
         <div className="detail-row">
           <span className="detail-label">Height (m):</span>
-          <span className="detail-value">{order.sheetHeight || order.size}</span>
+          <span className="detail-value">{order.sheetHeight || order.size || 'N/A'}</span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Order Size:</span>
+          <span className="detail-value">{(order.orderSize ? order.orderSize : (Number(order.repeats) * Number(order.sheetHeight || 0))).toFixed(2)} m</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">Repeats:</span>

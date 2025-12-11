@@ -220,14 +220,16 @@ const InvoiceForm = () => {
   const handleSaveOrder = (payload) => {
     if (!payload) return;
     if (editingOrder && editingOrder._id) {
-      setOrders((prev) => prev.map((o) => (o._id === editingOrder._id ? { ...o, ...payload } : o)));
+      setOrders((prev) => prev.map((o) => (o._id === editingOrder._id ? { ...o, ...payload, totalPrice: payload.totalPrice || payload.price || o.totalPrice, orderSize: payload.orderSize || (payload.repeats && payload.sheetHeight ? (Number(payload.repeats) * Number(payload.sheetHeight)) : o.orderSize) } : o)));
     } else if (editingOrder && editingOrder._id === undefined) {
       // local unsaved order
-      setOrders((prev) => prev.map((o) => (o._id === editingOrder._id ? { ...o, ...payload } : o)));
+      setOrders((prev) => prev.map((o) => (o._id === editingOrder._id ? { ...o, ...payload, totalPrice: payload.totalPrice || payload.price || o.totalPrice, orderSize: payload.orderSize || (payload.repeats && payload.sheetHeight ? (Number(payload.repeats) * Number(payload.sheetHeight)) : o.orderSize) } : o)));
     } else {
       const newOrder = {
         ...payload,
         _id: payload._id || `tmp_${Date.now()}`,
+        totalPrice: payload.totalPrice || payload.price || 0,
+        orderSize: payload.orderSize || (payload.repeats && payload.sheetHeight ? (Number(payload.repeats) * Number(payload.sheetHeight)) : 0),
       };
       setOrders((prev) => [...prev, newOrder]);
     }
