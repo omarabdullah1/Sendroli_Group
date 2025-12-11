@@ -32,21 +32,7 @@ exports.getOrders = async (req, res) => {
           total: 0,
         });
       }
-    }
-
-    // Search functionality
-    if (search) {
-      const clients = await Client.find({
-        $or: [
-          { name: { $regex: search, $options: 'i' } },
-          { phone: { $regex: search, $options: 'i' } },
-          { factoryName: { $regex: search, $options: 'i' } },
-        ],
-      }).select('_id');
-
-      const clientIds = clients.map((client) => client._id);
-      query.client = { $in: clientIds };
-    }
+    // Role-based filter for client is already applied above.
 
     const orders = await Order.find(query)
       .populate('client', 'name phone factoryName')
@@ -70,7 +56,7 @@ exports.getOrders = async (req, res) => {
       success: false,
       message: error.message,
     });
-  }
+    
 };
 
 // @desc    Get single order
@@ -164,11 +150,12 @@ exports.createOrder = async (req, res) => {
     const numSheetHeight = parseFloat(sheetHeight) || 0;
     
     let calculatedOrderSize = 0;
-    if (numRepeats > 0 && numSheetWidth > 0 && numSheetHeight > 0) {
-      calculatedOrderSize = numRepeats * numSheetWidth * numSheetHeight;
-      console.log('Order size calculation:', {
+    // Calculate the order size by height only (meters) * repeats
+    if (numRepeats > 0 && numSheetHeight > 0) {
+      calculatedOrderSize = numRepeats * numSheetHeight;
+      console.log('Order size calculation (height-only):', {
         repeats: numRepeats,
-        width: numSheetWidth,
+        width: numSheetWidth, // optional
         height: numSheetHeight,
         orderSize: calculatedOrderSize
       });
@@ -189,7 +176,7 @@ exports.createOrder = async (req, res) => {
       createdBy: req.user._id,
     };
     
-    // If material is selected, calculate total price as selling price per cm * order size
+    // If material is selected, calculate total price as selling price per meter * order size
     if (material) {
       const materialDoc = await Material.findById(material);
       if (materialDoc) {
@@ -197,8 +184,8 @@ exports.createOrder = async (req, res) => {
         orderData.type = materialDoc.name;
         
         if (materialDoc.sellingPrice) {
-          // Calculate total price as selling price per cm² * order size (cm²)
-          // This matches the frontend calculation: sellingPrice * (repeats * sheetWidth * sheetHeight)
+          // Calculate total price as selling price per meter * order size (meters)
+          // This matches the frontend calculation: sellingPrice * (repeats * sheetHeight)
           if (calculatedOrderSize > 0) {
             orderData.totalPrice = parseFloat(materialDoc.sellingPrice) * calculatedOrderSize;
             console.log('🔧 BACKEND PRICE CALCULATION DEBUG:', {
@@ -417,16 +404,15 @@ exports.updateOrder = async (req, res) => {
             
             if (materialDoc.sellingPrice) {
               // Calculate order size
-              const r = updateData.repeats !== undefined ? updateData.repeats : order.repeats;
-              const w = updateData.sheetWidth !== undefined ? updateData.sheetWidth : order.sheetWidth;
-              const h = updateData.sheetHeight !== undefined ? updateData.sheetHeight : order.sheetHeight;
-              
+              const r = parseFloat(updateData.repeats !== undefined ? updateData.repeats : (order.repeats || 0)) || 0;
+              const h = parseFloat(updateData.sheetHeight !== undefined ? updateData.sheetHeight : (order.sheetHeight || 0)) || 0;
+              // Width is kept as optional, primarily for display; pricing is based on height (meters) * repeats
               let calculatedOrderSize = 0;
-              if (r && w && h) {
-                calculatedOrderSize = r * (w * h);
+              if (r > 0 && h > 0) {
+                calculatedOrderSize = r * h;
               }
               
-              // Calculate total price as selling price per cm * order size
+              // Calculate total price as selling price per meter * order size
               if (calculatedOrderSize > 0) {
                 updateData.totalPrice = materialDoc.sellingPrice * calculatedOrderSize;
               } else {

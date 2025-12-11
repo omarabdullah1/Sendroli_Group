@@ -55,14 +55,14 @@ const OrderDetail = () => {
       </div>
 
       <div className="detail-card">
-        <h3>Order Information</h3>
+      <h3>Order Information</h3>
         <div className="detail-row">
           <span className="detail-label">Type:</span>
           <span className="detail-value">{order.type}</span>
         </div>
         <div className="detail-row">
-          <span className="detail-label">Size:</span>
-          <span className="detail-value">{order.size}</span>
+          <span className="detail-label">Height (m):</span>
+          <span className="detail-value">{order.sheetHeight || order.size}</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">Repeats:</span>
@@ -92,20 +92,20 @@ const OrderDetail = () => {
         )}
       </div>
 
-      <div className="detail-card">
+        <div className="detail-card">
         <h3>Financial Information</h3>
         <div className="detail-row">
           <span className="detail-label">Price:</span>
-          <span className="detail-value">{order.price.toFixed(2)} EGP</span>
+          <span className="detail-value">{(order.totalPrice || order.price).toFixed(2)} EGP</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">Deposit:</span>
           <span className="detail-value">{order.deposit.toFixed(2)} EGP</span>
         </div>
         <div className="detail-row">
-          <span className="detail-label">Balance:</span>
+          <span className="detail-label">Remaining:</span>
           <span className="detail-value">
-            <strong>{order.balance.toFixed(2)} EGP</strong>
+            <strong>{(order.remainingAmount || order.balance || 0).toFixed(2)} EGP</strong>
           </span>
         </div>
       </div>

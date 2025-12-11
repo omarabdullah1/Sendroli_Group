@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useDragScroll } from '../../hooks/useDragScroll';
 import clientService from '../../services/clientService';
 import invoiceService from '../../services/invoiceService';
 import { materialService } from '../../services/materialService';
 import orderService from '../../services/orderService';
-import { useDragScroll } from '../../hooks/useDragScroll';
+import OrderModal from '../Orders/OrderModal';
 import './Invoices.css';
 
 const InvoiceForm = () => {
@@ -82,254 +83,108 @@ const InvoiceForm = () => {
       // Get all materials with a high limit to get all materials
       const response = await materialService.getAll({ limit: 10000 });
       
-      // Handle the API response structure
-      // Response structure: { data: { success: true, data: { materials: [...], pagination: {...} } } }
+      // Handle different API response structures
       let data = [];
-      
-      if (response && response.data) {
-        // Check if it's the standard API response structure
-        if (response.data.data && response.data.data.materials) {
-          data = response.data.data.materials || [];
-        } 
-        // Check if materials are directly in response.data
-        else if (response.data.materials && Array.isArray(response.data.materials)) {
+      if (!response) {
+        data = [];
+      } else if (Array.isArray(response)) {
+        data = response;
+      } else if (response.data) {
+        if (Array.isArray(response.data)) {
+          data = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data.materials)) {
+          data = response.data.data.materials;
+        } else if (Array.isArray(response.data.materials)) {
           data = response.data.materials;
         }
-        // Check if response.data is directly an array
-        else if (Array.isArray(response.data)) {
-          data = response.data;
-        }
-        // Check if response.data.success exists and has data
-        else if (response.data.success && response.data.data) {
-          data = response.data.data.materials || response.data.data || [];
-        }
       }
-      
-      // Ensure we have an array
-      if (!Array.isArray(data)) {
-        console.warn('Materials data is not an array:', data);
-        data = [];
-      }
-      
-      // Filter materials that are marked as order types, or use all if none are marked
-      const orderTypeMaterials = data.filter(m => m && m.isOrderType === true);
-      
-      // If no materials are marked as order types, show all active materials
-      const materialsToShow = orderTypeMaterials.length > 0 
-        ? orderTypeMaterials 
-        : data.filter(m => m && (m.isActive !== false)); // Only show active materials
-      
-      setMaterials(materialsToShow);
-      
-      if (materialsToShow.length === 0) {
-        console.warn('No materials loaded. Check if materials exist in the database and are marked as order types.');
-      }
+
+      setMaterials(data);
     } catch (err) {
       console.error('Failed to load materials:', err);
-      console.error('Error details:', err.response?.data || err.message);
-      setMaterials([]);
-      setError('Failed to load materials. Please refresh the page.');
     } finally {
       setMaterialsLoading(false);
     }
   };
 
   const loadInvoice = async () => {
+    if (!id) return;
     try {
       setLoading(true);
       const response = await invoiceService.getInvoice(id);
-      const invoice = response.data;
-      
-      const clientId = invoice.client?._id || invoice.client || '';
-      const clientName = invoice.client?.name || invoice.clientSnapshot?.name || '';
-      
-      setFormData({
-        client: clientId,
-        invoiceDate: new Date(invoice.invoiceDate).toISOString().slice(0, 16),
-        tax: invoice.tax || 0,
-        shipping: invoice.shipping || 0,
-        discount: invoice.discount || 0,
-        status: invoice.status || 'draft',
-        notes: invoice.notes || '',
-      });
-      
-      // Set invoice client name for order forms
-      setInvoiceClientName(clientName);
-      
-      // Load orders separately
-      setOrders(invoice.orders || []);
-      
-      // Store backend-calculated totals for existing invoices
-      if (isEditMode) {
-        setInvoiceTotals({
-          subtotal: invoice.subtotal || 0,
-          total: invoice.total || 0,
-          totalRemaining: invoice.totalRemaining || 0,
-        });
+      const payload = response?.data || response;
+      if (payload) {
+        const inv = payload.data || payload;
+        setFormData((prev) => ({
+          ...prev,
+          client: inv.client?._id || inv.client || prev.client,
+          invoiceDate: inv.invoiceDate ? new Date(inv.invoiceDate).toISOString().slice(0, 16) : prev.invoiceDate,
+          tax: inv.tax || 0,
+          shipping: inv.shipping || 0,
+          discount: inv.discount || 0,
+          status: inv.status || prev.status,
+          notes: inv.notes || prev.notes,
+        }));
+        setOrders(inv.orders || []);
+        setInvoiceClientName(inv.client?.name || '');
+        setInvoiceTotals(inv.totals || null);
       }
     } catch (err) {
-      setError('Failed to load invoice');
-      console.error(err);
+      console.error('Failed to load invoice:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    
-    // Update invoice client name when client is selected
-    if (name === 'client') {
-      const selectedClient = clients.find(c => c._id === value);
-      if (selectedClient) {
-        setInvoiceClientName(selectedClient.name);
-      }
-    }
-    
-    // Clear backend totals when financial fields change to trigger real-time calculation
-    if (['tax', 'shipping', 'discount'].includes(name) && isEditMode) {
-      setInvoiceTotals(null);
-      // Optionally auto-update the invoice when financial fields change
-      if (id && ['tax', 'shipping', 'discount'].includes(name)) {
-        // Debounce the update to avoid too many API calls
-        clearTimeout(window.invoiceUpdateTimeout);
-        window.invoiceUpdateTimeout = setTimeout(async () => {
-          try {
-            const updateData = {
-              [name]: parseFloat(value) || 0
-            };
-            await invoiceService.updateInvoice(id, updateData);
-            // Reload to get updated backend totals
-            await loadInvoice();
-          } catch (err) {
-            console.error('Failed to auto-update invoice:', err);
-          }
-        }, 1000); // Wait 1 second after user stops typing
-      }
-    }
-  };
-
-  const handleOrderInputChange = (e) => {
-    const { name, value } = e.target;
-    setOrderForm((prev) => {
-      const updated = {
-        ...prev,
-        [name]: value,
-      };
-      
-      // Helper function to calculate total size
-      const calculateTotalSize = (form) => {
-        const { repeats, sheetWidth, sheetHeight } = form;
-        if (!repeats || !sheetWidth || !sheetHeight) return 0;
-        return parseFloat(repeats) * parseFloat(sheetWidth) * parseFloat(sheetHeight);
-      };
-      
-      // Recalculate price if material is selected and size fields change
-      const shouldRecalculatePrice = 
-        name === 'material' || 
-        name === 'repeats' || 
-        name === 'sheetWidth' || 
-        name === 'sheetHeight';
-      
-      if (shouldRecalculatePrice) {
-        const materialId = name === 'material' ? value : updated.material;
-        if (materialId) {
-          const selectedMaterial = materials.find(m => m._id === materialId);
-          if (selectedMaterial && selectedMaterial.sellingPrice) {
-            const totalSize = calculateTotalSize(updated);
-            if (totalSize > 0) {
-              // Calculate price as selling price per cm * total size
-              updated.totalPrice = parseFloat(selectedMaterial.sellingPrice) * totalSize;
-              console.log('Price recalculated:', selectedMaterial.sellingPrice, 'x', totalSize, '=', updated.totalPrice);
-            } else {
-              // If size is not available yet, use selling price directly
-              updated.totalPrice = parseFloat(selectedMaterial.sellingPrice) || 0;
-            }
-          } else if (name === 'material' && value) {
-            updated.totalPrice = 0;
-            console.warn('Selected material has no selling price');
-          }
-        }
-      }
-      
-      // Prevent manual price editing when material is selected
-      if (name === 'totalPrice' && updated.material) {
-        // If material is selected, ignore manual price changes and recalculate from material
-        const selectedMaterial = materials.find(m => m._id === updated.material);
-        if (selectedMaterial && selectedMaterial.sellingPrice) {
-          const totalSize = calculateTotalSize(updated);
-          if (totalSize > 0) {
-            updated.totalPrice = parseFloat(selectedMaterial.sellingPrice) * totalSize;
-          } else {
-            updated.totalPrice = parseFloat(selectedMaterial.sellingPrice) || 0;
-          }
-        }
-      }
-      
-      return updated;
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
     });
   };
 
-  const calculateOrderSize = () => {
-    const { repeats, sheetWidth, sheetHeight } = orderForm;
-    if (!repeats || !sheetWidth || !sheetHeight) return 0;
-    return repeats * sheetWidth * sheetHeight;
+  const calculateSubtotal = () => {
+    // Sum of all order totalPrice values or calculated from material sellingPrice
+    return orders.reduce((sum, order) => {
+      const price = parseFloat(order.totalPrice) || 0;
+      if (price > 0) return sum + price;
+      // Try to calculate via material sellingPrice x orderSize
+      const materialPrice = materials.find(m => m._id === (order.material?._id || order.material))?.sellingPrice || 0;
+      const repeats = Number(order.repeats) || 1;
+      const height = Number(order.sheetHeight) || 0;
+      const orderSize = repeats * height;
+      return sum + (materialPrice * orderSize || 0);
+    }, 0);
   };
 
-  const getStockStatus = () => {
-    if (!orderForm.material) {
-      return null;
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    const tax = parseFloat(formData.tax || 0);
+    const shipping = parseFloat(formData.shipping || 0);
+    const discount = parseFloat(formData.discount || 0);
+    return subtotal + tax + shipping - discount;
+  };
+
+  const calculateTotalRemaining = () => {
+    const invoiceTotal = calculateTotal();
+    const totalDeposits = orders.reduce((sum, order) => sum + (parseFloat(order.deposit || 0) || 0), 0);
+    return invoiceTotal - totalDeposits;
+  };
+
+  const getDisplayTotals = () => {
+    if (isEditMode && invoiceTotals !== null) {
+      return invoiceTotals;
     }
-    
-    const selectedMaterial = materials.find(m => m._id === orderForm.material);
-    if (!selectedMaterial) {
-      return null;
-    }
-    
-    const requiredStock = calculateOrderSize();
-    const availableStock = selectedMaterial.currentStock || 0;
-    const isEnough = availableStock >= requiredStock;
-    
     return {
-      materialName: selectedMaterial.name,
-      unit: selectedMaterial.unit || 'cm²',
-      required: requiredStock,
-      available: availableStock,
-      isEnough: isEnough,
-      shortage: isEnough ? 0 : requiredStock - availableStock,
+      subtotal: calculateSubtotal(),
+      total: calculateTotal(),
+      totalRemaining: calculateTotalRemaining(),
     };
   };
 
-  const calculateOrderRemaining = () => {
-    return (orderForm.totalPrice || 0) - (orderForm.deposit || 0);
-  };
-
   const openAddOrderForm = () => {
-    // Get client name from selected invoice client
-    let clientName = invoiceClientName;
-    
-    // If not set from invoice, try to get from selected client
-    if (!clientName && formData.client) {
-      const selectedClient = clients.find(c => c._id === formData.client);
-      if (selectedClient) {
-        clientName = selectedClient.name;
-        // Update invoiceClientName state for consistency
-        setInvoiceClientName(selectedClient.name);
-      }
-    }
-    
-    // If still no client name and no client selected, show warning
-    if (!clientName && !formData.client) {
-      alert('Please select a client for the invoice first before adding orders.');
-      return;
-    }
-    
     setOrderForm({
-      clientName: clientName || '',
+      clientName: clients.find(c => c._id === formData.client)?.name || '',
       material: '',
       sheetWidth: '',
       sheetHeight: '',
@@ -350,215 +205,41 @@ const InvoiceForm = () => {
       material: order.material?._id || order.material || '',
       sheetWidth: order.sheetWidth || '',
       sheetHeight: order.sheetHeight || '',
-      repeats: order.repeats,
-      totalPrice: order.totalPrice,
-      deposit: order.deposit,
-      orderState: order.orderState,
+      repeats: order.repeats || 1,
+      totalPrice: order.totalPrice || 0,
+      deposit: order.deposit || 0,
+      orderState: order.orderState || 'pending',
       notes: order.notes || '',
       designLink: order.designLink || '',
+      _id: order._id,
     });
     setEditingOrder(order);
     setShowOrderForm(true);
   };
 
-  const handleSaveOrder = async () => {
-    if (!orderForm.clientName || !orderForm.sheetWidth || !orderForm.sheetHeight) {
-      alert('Please fill in all required order fields');
-      return;
-    }
-
-    // Validate material is selected
-    if (!orderForm.material) {
-      alert('Please select a material type');
-      return;
-    }
-
-    // Calculate order price from material selling price * total size
-    let orderPrice = parseFloat(orderForm.totalPrice) || 0;
-    if (orderForm.material) {
-      const selectedMaterial = materials.find(m => m._id === orderForm.material);
-      if (selectedMaterial && selectedMaterial.sellingPrice) {
-        const totalSize = calculateOrderSize();
-        if (totalSize > 0) {
-          orderPrice = parseFloat(selectedMaterial.sellingPrice) * totalSize;
-        } else {
-          orderPrice = parseFloat(selectedMaterial.sellingPrice) || 0;
-        }
-      }
-    }
-
-    if (orderPrice === 0) {
-      alert('Material has no selling price. Please set a price for the material or select a different material.');
-      return;
-    }
-
-    if (!isEditMode || !id) {
-      // Get material object for display
-      const selectedMaterial = materials.find(m => m._id === orderForm.material);
-      
-      // If creating a new invoice, just add to local state
-      const newOrder = {
-        _id: `temp-${Date.now()}`,
-        clientName: orderForm.clientName,
-        material: selectedMaterial ? { _id: orderForm.material, name: selectedMaterial.name } : orderForm.material,
-        sheetWidth: parseFloat(orderForm.sheetWidth),
-        sheetHeight: parseFloat(orderForm.sheetHeight),
-        repeats: parseInt(orderForm.repeats) || 1,
-        totalPrice: orderPrice,
-        deposit: parseFloat(orderForm.deposit) || 0,
-        remainingAmount: orderPrice - (parseFloat(orderForm.deposit) || 0),
-        orderSize: calculateOrderSize(),
-        orderState: orderForm.orderState,
-        notes: orderForm.notes,
-        designLink: orderForm.designLink,
-      };
-      
-      console.log('Adding order with price:', newOrder.totalPrice, 'material:', newOrder.material);
-
-      if (editingOrder) {
-        setOrders(orders.map(o => o._id === editingOrder._id ? { ...newOrder, _id: editingOrder._id } : o));
-      } else {
-        setOrders([...orders, newOrder]);
-      }
+  const handleSaveOrder = (payload) => {
+    if (!payload) return;
+    if (editingOrder && editingOrder._id) {
+      setOrders((prev) => prev.map((o) => (o._id === editingOrder._id ? { ...o, ...payload } : o)));
+    } else if (editingOrder && editingOrder._id === undefined) {
+      // local unsaved order
+      setOrders((prev) => prev.map((o) => (o._id === editingOrder._id ? { ...o, ...payload } : o)));
     } else {
-      // If editing existing invoice, save order to database
-      try {
-        // Calculate order price from material selling price * total size
-        let orderPrice = parseFloat(orderForm.totalPrice) || 0;
-        if (orderForm.material) {
-          const selectedMaterial = materials.find(m => m._id === orderForm.material);
-          if (selectedMaterial && selectedMaterial.sellingPrice) {
-            const totalSize = calculateOrderSize();
-            if (totalSize > 0) {
-              orderPrice = parseFloat(selectedMaterial.sellingPrice) * totalSize;
-            } else {
-              orderPrice = parseFloat(selectedMaterial.sellingPrice) || 0;
-            }
-          }
-        }
-
-        const orderData = {
-          client: formData.client, // Include invoice client ID
-          clientName: orderForm.clientName,
-          material: orderForm.material,
-          sheetWidth: parseFloat(orderForm.sheetWidth),
-          sheetHeight: parseFloat(orderForm.sheetHeight),
-          repeats: parseInt(orderForm.repeats) || 1,
-          totalPrice: orderPrice,
-          deposit: parseFloat(orderForm.deposit) || 0,
-          orderState: orderForm.orderState,
-          notes: orderForm.notes,
-          designLink: orderForm.designLink,
-          invoice: id,
-        };
-        
-        console.log('🔧 FRONTEND ORDER DATA DEBUG:', {
-          materialId: orderForm.material,
-          selectedMaterial: materials.find(m => m._id === orderForm.material),
-          repeats: parseInt(orderForm.repeats) || 1,
-          sheetWidth: parseFloat(orderForm.sheetWidth),
-          sheetHeight: parseFloat(orderForm.sheetHeight),
-          totalSize: calculateOrderSize(),
-          calculatedPrice: orderPrice,
-          orderDataBeingSent: orderData
-        });
-
-        if (editingOrder && !editingOrder._id.startsWith('temp-')) {
-          // Update existing order
-          await orderService.updateOrder(editingOrder._id, orderData);
-        } else {
-          // Create new order
-          await orderService.createOrder(orderData);
-        }
-        
-        // Reload invoice to get updated totals and orders
-        await loadInvoice();
-      } catch (err) {
-        // Enhanced error message with material stock details if available
-        let errorMessage = 'Failed to save order: ' + (err.response?.data?.message || err.message);
-        
-        if (err.response?.data?.materialInfo) {
-          const info = err.response.data.materialInfo;
-          errorMessage += `\n\n📦 Material Stock Details:`;
-          errorMessage += `\n• Material: ${info.name}`;
-          errorMessage += `\n• Required: ${info.required.toFixed(2)} ${info.unit}`;
-          errorMessage += `\n• Available: ${info.available.toFixed(2)} ${info.unit}`;
-          errorMessage += `\n• Shortage: ${info.shortage.toFixed(2)} ${info.unit}`;
-          errorMessage += `\n• Stock Status: ${info.status}`;
-        }
-        
-        alert(errorMessage);
-        return;
-      }
+      const newOrder = {
+        ...payload,
+        _id: payload._id || `tmp_${Date.now()}`,
+      };
+      setOrders((prev) => [...prev, newOrder]);
     }
-
     setShowOrderForm(false);
     setEditingOrder(null);
   };
 
-  const handleDeleteOrder = async (order) => {
-    if (!window.confirm('Are you sure you want to delete this order?')) {
-      return;
-    }
-
-    if (isEditMode && !order._id.startsWith('temp-')) {
-      // Delete from database
-      try {
-        await orderService.deleteOrder(order._id);
-        // Reload invoice to get updated totals and orders
-        await loadInvoice();
-      } catch (err) {
-        alert('Failed to delete order: ' + (err.response?.data?.message || err.message));
-      }
-    } else {
-      // Remove from local state for new invoices
-      setOrders(orders.filter(o => o._id !== order._id));
-    }
+  const handleDeleteOrder = (order) => {
+    setOrders((prev) => prev.filter((o) => o._id !== order._id));
   };
 
-  const calculateSubtotal = () => {
-    // Subtotal: Raw sum of all order prices (before deposit, discount, shipping, tax)
-    const subtotal = orders.reduce((sum, order) => {
-      const price = parseFloat(order.totalPrice) || 0;
-      return sum + price;
-    }, 0);
-    return subtotal;
-  };
-
-  const calculateTotal = () => {
-    // Total: Subtotal + Tax + Shipping - Discount (after discount, shipping, tax, but before deposits)
-    const subtotal = calculateSubtotal();
-    const tax = parseFloat(formData.tax) || 0;
-    const shipping = parseFloat(formData.shipping) || 0;
-    const discount = parseFloat(formData.discount) || 0;
-    const total = subtotal + tax + shipping - discount;
-    return total;
-  };
-
-  const calculateTotalRemaining = () => {
-    // Total Remaining: Total - Total Deposits (after deposit, discount, shipping, tax)
-    // This is the amount the customer still owes
-    const invoiceTotal = calculateTotal();
-    const totalDeposits = orders.reduce((sum, order) => {
-      return sum + parseFloat(order.deposit || 0);
-    }, 0);
-    const remaining = invoiceTotal - totalDeposits;
-    return remaining;
-  };
-
-  // Get display totals - use backend totals if available and financial fields haven't changed
-  const getDisplayTotals = () => {
-    // If we have backend totals and financial fields haven't been modified, use backend values
-    if (isEditMode && invoiceTotals !== null) {
-      return invoiceTotals;
-    }
-    // Otherwise calculate frontend totals
-    return {
-      subtotal: calculateSubtotal(),
-      total: calculateTotal(),
-      totalRemaining: calculateTotalRemaining()
-    };
-  };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -744,7 +425,7 @@ const InvoiceForm = () => {
                   <tr>
                     <th>Client</th>
                     <th>Material</th>
-                    <th>Size (cm)</th>
+                    <th>Size (m)</th>
                     <th>Repeats</th>
                     <th>Order Size</th>
                     <th>Price</th>
@@ -937,291 +618,18 @@ const InvoiceForm = () => {
         </div>
       </form>
 
-      {/* Order Form Modal */}
       {showOrderForm && (
-        <div className="modal-overlay" onClick={() => setShowOrderForm(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingOrder ? 'Edit Order' : 'Add New Order'}</h2>
-              <button
-                type="button"
-                onClick={() => setShowOrderForm(false)}
-                className="btn-close"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="modal-body">
-              {/* Hide client name field completely - it's auto-filled from invoice client */}
-              {/* Only show if no client is selected (shouldn't happen, but safety check) */}
-              {!formData.client && !invoiceClientName && (
-                <div className="form-group">
-                  <label>Client Name *</label>
-                  <input
-                    type="text"
-                    name="clientName"
-                    value={orderForm.clientName}
-                    onChange={handleOrderInputChange}
-                    required
-                  />
-                </div>
-              )}
-              
-              {/* Always ensure clientName is set when invoice has a client */}
-              {(formData.client || invoiceClientName) && orderForm.clientName && (
-                <input
-                  type="hidden"
-                  name="clientName"
-                  value={orderForm.clientName}
-                />
-              )}
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Material Type *</label>
-                  <select
-                    name="material"
-                    value={orderForm.material}
-                    onChange={handleOrderInputChange}
-                    required
-                    disabled={materialsLoading}
-                  >
-                    <option value="">
-                      {materialsLoading ? 'Loading materials...' : materials.length === 0 ? 'No materials available' : 'Select Material'}
-                    </option>
-                    {materials.map((material) => (
-                      <option key={material._id} value={material._id}>
-                        {material.name} {material.sellingPrice ? `(${material.sellingPrice} EGP)` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                    Price will be set automatically from material
-                  </small>
-                </div>
-
-                <div className="form-group">
-                  <label>Status</label>
-                  <select
-                    name="orderState"
-                    value={orderForm.orderState}
-                    onChange={handleOrderInputChange}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="active">Active</option>
-                    <option value="done">Done</option>
-                    <option value="delivered">Delivered</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Sheet Width (cm) *</label>
-                  <input
-                    type="number"
-                    name="sheetWidth"
-                    value={orderForm.sheetWidth}
-                    onChange={handleOrderInputChange}
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Sheet Height (cm) *</label>
-                  <input
-                    type="number"
-                    name="sheetHeight"
-                    value={orderForm.sheetHeight}
-                    onChange={handleOrderInputChange}
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Repeats *</label>
-                  <input
-                    type="number"
-                    name="repeats"
-                    value={orderForm.repeats}
-                    onChange={handleOrderInputChange}
-                    min="1"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="order-size-display">
-                <strong>Order Size:</strong> {calculateOrderSize().toFixed(2)} cm²
-              </div>
-
-              {/* Stock Status Indicator */}
-              {(() => {
-                const stockStatus = getStockStatus();
-                if (!stockStatus || stockStatus.required === 0) return null;
-                
-                return (
-                  <div 
-                    className="stock-status-indicator"
-                    style={{
-                      padding: '12px',
-                      marginTop: '8px',
-                      borderRadius: '6px',
-                      backgroundColor: stockStatus.isEnough ? '#d1fae5' : '#fee2e2',
-                      border: `2px solid ${stockStatus.isEnough ? '#059669' : '#dc2626'}`,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '20px' }}>
-                        {stockStatus.isEnough ? '✓' : '⚠️'}
-                      </span>
-                      <strong style={{ color: stockStatus.isEnough ? '#059669' : '#dc2626' }}>
-                        {stockStatus.isEnough ? 'Stock Available' : 'Insufficient Stock'}
-                      </strong>
-                    </div>
-                    <div style={{ fontSize: '14px', color: '#374151', lineHeight: '1.6' }}>
-                      <div><strong>Material:</strong> {stockStatus.materialName}</div>
-                      <div><strong>Required:</strong> {stockStatus.required.toFixed(2)} {stockStatus.unit}</div>
-                      <div><strong>Available:</strong> {stockStatus.available.toFixed(2)} {stockStatus.unit}</div>
-                      {!stockStatus.isEnough && (
-                        <div style={{ marginTop: '4px', fontWeight: '600', color: '#dc2626' }}>
-                          <strong>Shortage:</strong> {stockStatus.shortage.toFixed(2)} {stockStatus.unit}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Price fields - Auto-calculated from material, not editable */}
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Total Price (EGP) *</label>
-                  {(() => {
-                    const selectedMaterial = orderForm.material ? materials.find(m => m._id === orderForm.material) : null;
-                    const materialPrice = selectedMaterial?.sellingPrice || 0;
-                    const displayPrice = orderForm.material ? materialPrice : (orderForm.totalPrice || 0);
-                    
-                    // Always read-only when material is selected (price comes from material)
-                    if (orderForm.material) {
-                      return (
-                        <input
-                          type="number"
-                          value={displayPrice}
-                          readOnly
-                          style={{ backgroundColor: '#e7f3ff', cursor: 'not-allowed' }}
-                          title="Price is automatically set from selected material"
-                        />
-                      );
-                    }
-                    
-                    // Only allow manual price entry if no material selected (admin only)
-                    return user?.role === 'admin' ? (
-                      <input
-                        type="number"
-                        name="totalPrice"
-                        value={displayPrice}
-                        onChange={handleOrderInputChange}
-                        min="0"
-                        step="0.01"
-                        required
-                      />
-                    ) : (
-                      <input
-                        type="number"
-                        value={displayPrice}
-                        readOnly
-                        style={{ backgroundColor: '#f0f0f0', cursor: 'not-allowed' }}
-                      />
-                    );
-                  })()}
-                  {orderForm.material && (() => {
-                    const selectedMaterial = materials.find(m => m._id === orderForm.material);
-                    return selectedMaterial ? (
-                      <small style={{ color: '#0066cc', fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                        Price automatically set from material: {selectedMaterial.sellingPrice || 0} EGP
-                      </small>
-                    ) : (
-                      <small style={{ color: '#ff0000', fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                        Material has no selling price. Please set a price for this material.
-                      </small>
-                    );
-                  })()}
-                </div>
-
-                <div className="form-group">
-                  <label>Deposit (EGP)</label>
-                  {(user?.role === 'admin' || user?.role === 'designer') ? (
-                    <input
-                      type="number"
-                      name="deposit"
-                      value={orderForm.deposit}
-                      onChange={handleOrderInputChange}
-                      min="0"
-                      step="0.01"
-                    />
-                  ) : (
-                    <input
-                      type="number"
-                      value={orderForm.deposit || 0}
-                      readOnly
-                      style={{ backgroundColor: '#f0f0f0', cursor: 'not-allowed' }}
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div className="remaining-display">
-                <strong>Remaining:</strong> {calculateOrderRemaining().toFixed(2)} EGP
-              </div>
-
-              <div className="form-group">
-                <label>Design Link</label>
-                <input
-                  type="url"
-                  name="designLink"
-                  value={orderForm.designLink}
-                  onChange={handleOrderInputChange}
-                  placeholder="https://..."
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Notes</label>
-                <textarea
-                  name="notes"
-                  value={orderForm.notes}
-                  onChange={handleOrderInputChange}
-                  rows="3"
-                  placeholder="Add order notes..."
-                />
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                type="button"
-                onClick={() => setShowOrderForm(false)}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveOrder}
-                className="btn-primary"
-              >
-                {editingOrder ? 'Update Order' : 'Add Order'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <OrderModal
+          show={showOrderForm}
+          onClose={() => setShowOrderForm(false)}
+          initialOrder={orderForm}
+          materials={materials}
+          clients={clients}
+          user={user}
+          onSave={handleSaveOrder}
+        />
       )}
+
     </div>
   );
 };

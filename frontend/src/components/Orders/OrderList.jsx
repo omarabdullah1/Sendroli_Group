@@ -1,10 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { orderService } from '../../services/orderService';
 import Loading from '../Loading';
-import SearchAndFilters from '../SearchAndFilters';
 import Pagination from '../Pagination';
+import SearchAndFilters from '../SearchAndFilters';
 import './Orders.css';
 
 const OrderList = () => {
@@ -204,6 +204,8 @@ const OrderList = () => {
               <tr>
                 <th>Client</th>
                 <th>Type</th>
+                <th>Height (m)</th>
+                <th>Order Size (m)</th>
                 <th>Repeats</th>
                 {/* Show financial columns only for financial roles */}
                 {['financial', 'admin'].includes(user?.role) && (
@@ -222,6 +224,8 @@ const OrderList = () => {
                 <tr key={order._id}>
                   <td>{order.client?.name || order.clientSnapshot?.name || 'N/A'}</td>
                   <td>{order.type}</td>
+                  <td>{order.sheetHeight || order.size}</td>
+                  <td>{order.orderSize?.toFixed(2) || 0} m</td>
                   <td>{order.repeats}</td>
                   
                   {/* Show financial columns only for financial roles */}

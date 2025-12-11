@@ -2,14 +2,18 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { clientService } from '../../services/clientService';
+import { materialService } from '../../services/materialService';
 import { orderService } from '../../services/orderService';
+import OrderModal from './OrderModal';
 import './Orders.css';
 
 const OrderForm = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     client: '',
+    material: '',
     repeats: '',
+    sheetHeight: '',
     type: '',
     price: '',
     deposit: '',
@@ -19,18 +23,32 @@ const OrderForm = () => {
     status: 'pending',
   });
   const [clients, setClients] = useState([]);
+  const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     loadClients();
+    loadMaterials();
     if (isEdit) {
       loadOrder();
+      setShowModal(true);
     }
   }, [id]);
+
+  const loadMaterials = async () => {
+    try {
+      const response = await materialService.getAll({ limit: 1000 });
+      const data = response.data?.data?.materials || response.data;
+      setMaterials(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load materials:', err);
+    }
+  };
 
   const loadClients = async () => {
     try {
@@ -46,7 +64,9 @@ const OrderForm = () => {
       const order = await orderService.getOrderById(id);
       setFormData({
         client: order.client._id,
+        material: order.material?._id || order.material || '',
         repeats: order.repeats,
+        sheetHeight: order.sheetHeight || '',
         type: order.type,
         price: order.totalPrice || order.price,
         deposit: order.deposit,
@@ -103,10 +123,20 @@ const OrderForm = () => {
       }
       // Admin can update everything
       else {
+        // Calculate total size using height-only approach
+        const totalSize = Number(formData.repeats) * Number(formData.sheetHeight || 0);
+        let calculatedPrice = Number(formData.price);
+        if (formData.material) {
+          const selectedMaterial = materials.find(m => m._id === formData.material);
+          if (selectedMaterial && selectedMaterial.sellingPrice) {
+            calculatedPrice = Number(selectedMaterial.sellingPrice) * (totalSize || 1);
+          }
+        }
         submitData = {
           ...formData,
           repeats: Number(formData.repeats),
-          totalPrice: Number(formData.price),
+          sheetHeight: Number(formData.sheetHeight),
+          totalPrice: calculatedPrice,
           deposit: Number(formData.deposit),
           orderState: formData.status,
           notes: formData.description,
@@ -140,11 +170,37 @@ const OrderForm = () => {
     }
   };
 
+  const handleModalSave = async (payload) => {
+    try {
+      setLoading(true);
+      setError('');
+      if (isEdit) {
+        await orderService.updateOrder(id, payload);
+        // reload and close
+        await loadOrder();
+      } else {
+        await orderService.createOrder(payload);
+        navigate('/orders');
+      }
+      setShowModal(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save order');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="form-container">
       <h1>{isEdit ? 'Edit Order' : 'Create New Order'}</h1>
       {error && <div className="error-message">{error}</div>}
-      <form onSubmit={handleSubmit} className="entity-form">
+      {/* Quick access to the shared Order Modal. This provides a unified UI similar to Invoice modal. */}
+      {(!isEdit) && ['admin', 'designer'].includes(user?.role) && (
+        <div style={{ margin: '8px 0' }}>
+          <button className="btn-primary" type="button" onClick={() => setShowModal(true)}>Open Order Dialog</button>
+        </div>
+      )}
+      <form onSubmit={handleSubmit} className="entity-form" style={{ display: 'none' }}>
         
         {/* Only show full form to admin, for worker/designer show limited fields */}
         {(user.role === 'admin' || !isEdit) && (
@@ -166,6 +222,40 @@ const OrderForm = () => {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="material">Material *</label>
+                <select
+                  id="material"
+                  name="material"
+                  value={formData.material}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select material</option>
+                  {materials.map((m) => (
+                    <option key={m._id} value={m._id}>
+                      {m.name} - {m.sellingPrice} per {m.unit || 'm'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="sheetHeight">Height (m) *</label>
+                <input
+                  type="number"
+                  id="sheetHeight"
+                  name="sheetHeight"
+                  value={formData.sheetHeight}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  required
+                  disabled={isEdit && user.role !== 'admin'}
+                />
+              </div>
             </div>
 
             <div className="form-row">
@@ -335,6 +425,18 @@ const OrderForm = () => {
           </button>
         </div>
       </form>
+
+      {showModal && (
+        <OrderModal
+          show={showModal}
+          onClose={() => setShowModal(false)}
+          initialOrder={formData}
+          materials={materials}
+          clients={clients}
+          user={user}
+          onSave={handleModalSave}
+        />
+      )}
     </div>
   );
 };

@@ -168,7 +168,7 @@ export const exportClientReportToPDF = (reportData) => {
     
     doc.autoTable({
       startY: yPos + 5,
-      head: [['Date', 'Type', 'Size (cm²)', 'Total Price', 'Deposit', 'Remaining', 'Status']],
+      head: [['Date', 'Type', 'Size (m)', 'Total Price', 'Deposit', 'Remaining', 'Status']],
       body: ordersData,
       theme: 'striped',
       headStyles: { fillColor: [0, 206, 209] },

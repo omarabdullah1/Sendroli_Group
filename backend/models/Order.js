@@ -98,12 +98,16 @@ const orderSchema = new mongoose.Schema(
 // Calculate remaining amount and order size before saving
 orderSchema.pre('save', async function (next) {
   try {
-    // Calculate order size first if dimensions are provided
-    if (this.repeats && this.sheetWidth && this.sheetHeight) {
-      this.orderSize = this.repeats * (this.sheetWidth * this.sheetHeight);
-    }
+    // Calculate order size in meters based on height only (repeats * sheetHeight)
+      if (this.repeats && this.sheetHeight !== undefined && this.sheetHeight !== null) {
+        // Convert strings to numbers safely if needed
+        const r = Number(this.repeats) || 0;
+        const h = Number(this.sheetHeight) || 0;
+        this.orderSize = r * h;
+        console.log('🔧 ORDER MODEL SIZE CALC (pre-save):', { repeats: r, sheetHeight: h, orderSize: this.orderSize });
+      }
     
-    // If material is selected, calculate total price as selling price per cm * order size
+    // If material is selected, calculate total price as selling price per meter * order size
     // Only recalculate if totalPrice is not already set (preserve price set by controller)
     if (this.material && !this.totalPrice) {
       const Material = mongoose.model('Material');
@@ -112,7 +116,7 @@ orderSchema.pre('save', async function (next) {
         // Set type from material name
         this.type = material.name;
         
-        // Calculate total price as selling price per cm² * order size (cm²)
+          // Calculate total price as selling price per meter * order size (meters)
         if (material.sellingPrice) {
           if (this.orderSize && this.orderSize > 0) {
             this.totalPrice = material.sellingPrice * this.orderSize;
@@ -163,14 +167,13 @@ orderSchema.pre('findOneAndUpdate', async function (next) {
     if (update.$set) {
       const { totalPrice, deposit, repeats, sheetWidth, sheetHeight, material } = update.$set;
       
-      // Calculate order size if dimensions changed
+      // Calculate order size based on repeats and sheetHeight only
       let calculatedOrderSize = null;
-      if (repeats !== undefined || sheetWidth !== undefined || sheetHeight !== undefined) {
-        const r = repeats !== undefined ? repeats : this.getQuery().repeats;
-        const w = sheetWidth !== undefined ? sheetWidth : this.getQuery().sheetWidth;
-        const h = sheetHeight !== undefined ? sheetHeight : this.getQuery().sheetHeight;
-        if (r && w && h) {
-          calculatedOrderSize = r * (w * h);
+      if (repeats !== undefined || sheetHeight !== undefined) {
+        const r = repeats !== undefined ? Number(repeats) : Number(this.getQuery().repeats);
+        const h = sheetHeight !== undefined ? Number(sheetHeight) : Number(this.getQuery().sheetHeight);
+        if (r && h) {
+          calculatedOrderSize = r * h;
           update.$set.orderSize = calculatedOrderSize;
         }
       } else {
@@ -239,13 +242,13 @@ orderSchema.post('save', async function(doc) {
       const material = await Material.findById(doc.material);
       if (material) {
         const previousStock = material.currentStock;
-        const usedQuantity = doc.orderSize; // Order size in cm²
+          const usedQuantity = doc.orderSize; // Order size in meters
         
         // Decrease material stock
         material.currentStock = Math.max(0, previousStock - usedQuantity);
         await material.save();
         
-        // Create inventory record for material usage
+        // Create inventory record for material usage (orderSize in meters)
         await Inventory.create({
           material: doc.material,
           previousStock,
@@ -253,7 +256,7 @@ orderSchema.post('save', async function(doc) {
           actualStock: material.currentStock,
           type: 'usage',
           reason: `Order completed: ${doc.clientName || 'N/A'}`,
-          notes: `Order size: ${usedQuantity.toFixed(2)} cm²`,
+          notes: `Order size: ${usedQuantity.toFixed(2)} m`,
           countedBy: doc.createdBy
         });
         
@@ -298,13 +301,13 @@ orderSchema.post('findOneAndUpdate', async function(doc) {
         
         if (material) {
           const previousStock = material.currentStock;
-          const usedQuantity = doc.orderSize; // Order size in cm²
+            const usedQuantity = doc.orderSize; // Order size in meters
           
           // Decrease material stock
           material.currentStock = Math.max(0, previousStock - usedQuantity);
           await material.save();
           
-          // Create inventory record for material usage
+          // Create inventory record for material usage (orderSize in meters)
           await Inventory.create({
             material: doc.material,
             previousStock,
@@ -312,7 +315,7 @@ orderSchema.post('findOneAndUpdate', async function(doc) {
             actualStock: material.currentStock,
             type: 'usage',
             reason: `Order completed: ${doc.clientName || 'N/A'}`,
-            notes: `Order size: ${usedQuantity.toFixed(2)} cm² | Order ID: ${doc._id}`,
+            notes: `Order size: ${usedQuantity.toFixed(2)} m | Order ID: ${doc._id}`,
             countedBy: doc.updatedBy || doc.createdBy
           });
           

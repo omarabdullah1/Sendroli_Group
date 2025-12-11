@@ -208,7 +208,7 @@ const ClientReports = () => {
                       <tr>
                         <th>Date</th>
                         <th>Type</th>
-                        <th>Size (cm²)</th>
+                        <th>Size (m)</th>
                         <th>Total Price</th>
                         <th>Deposit</th>
                         <th>Remaining</th>

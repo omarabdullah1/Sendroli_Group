@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import invoiceService from '../../services/invoiceService';
 import { useDragScroll } from '../../hooks/useDragScroll';
+import invoiceService from '../../services/invoiceService';
 import './Invoices.css';
 
 const InvoiceDetail = () => {
@@ -132,7 +132,7 @@ const InvoiceDetail = () => {
                   <tr>
                     <th>Client</th>
                     <th>Material</th>
-                    <th>Size (cm)</th>
+                    <th>Height (m)</th>
                     <th>Repeats</th>
                     <th>Order Size</th>
                     <th>Total Price</th>
@@ -150,9 +150,9 @@ const InvoiceDetail = () => {
                       <tr key={order._id || index}>
                         <td>{order.clientName || order.clientSnapshot?.name || 'N/A'}</td>
                         <td>{order.material?.name || order.type || 'N/A'}</td>
-                        <td>{order.sheetWidth} × {order.sheetHeight}</td>
+                        <td>{order.sheetHeight} m</td>
                         <td>{order.repeats}</td>
-                        <td>{order.orderSize?.toFixed(2)} cm²</td>
+                        <td>{order.orderSize?.toFixed(2)} m</td>
                         <td>{order.totalPrice?.toFixed(2)} EGP</td>
                         <td>{order.deposit?.toFixed(2)} EGP</td>
                         <td>{remaining?.toFixed(2)} EGP</td>
