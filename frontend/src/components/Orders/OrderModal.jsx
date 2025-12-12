@@ -21,6 +21,7 @@ const OrderModal = ({ show, onClose, initialOrder = {}, onSave, user = {}, mater
     repeats: initialOrder.repeats || 1,
     sheetHeight: initialOrder.sheetHeight || '',
     totalPrice: initialOrder.totalPrice || 0,
+    orderSize: initialOrder.orderSize || (initialOrder.repeats && initialOrder.sheetHeight ? Number(initialOrder.repeats) * Number(initialOrder.sheetHeight) : 0),
     deposit: initialOrder.deposit || 0,
     orderState: initialOrder.orderState || 'pending',
     notes: initialOrder.notes || '',
@@ -37,6 +38,7 @@ const OrderModal = ({ show, onClose, initialOrder = {}, onSave, user = {}, mater
       repeats: initialOrder.repeats || prev.repeats,
       sheetHeight: initialOrder.sheetHeight || prev.sheetHeight,
       totalPrice: initialOrder.totalPrice || prev.totalPrice,
+      orderSize: initialOrder.orderSize || (initialOrder.repeats && initialOrder.sheetHeight ? Number(initialOrder.repeats) * Number(initialOrder.sheetHeight) : prev.orderSize),
       deposit: initialOrder.deposit || prev.deposit,
       orderState: initialOrder.orderState || prev.orderState,
       notes: initialOrder.notes || prev.notes,
@@ -69,11 +71,14 @@ const OrderModal = ({ show, onClose, initialOrder = {}, onSave, user = {}, mater
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
 
-      if (['material', 'repeats', 'sheetHeight'].includes(name) && updated.material) {
+      // Always recalc orderSize when repeats or sheetHeight changes
+      if (['repeats', 'sheetHeight'].includes(name) || name === 'material') {
+        updated.orderSize = calculateTotalSize(updated);
+        // Recalc totalPrice when a material is selected or when price should be derived
         updated.totalPrice = recalcPrice(updated);
       }
 
-      // If user inputs manual totalPrice but a material is selected, re-calc
+      // If user manually changes totalPrice, keep it -- but if a material exists we may re-calc
       if (name === 'totalPrice' && updated.material) {
         updated.totalPrice = recalcPrice(updated);
       }
@@ -121,6 +126,7 @@ const OrderModal = ({ show, onClose, initialOrder = {}, onSave, user = {}, mater
         repeats: Number(formData.repeats) || 0,
         sheetHeight: Number(formData.sheetHeight) || 0,
         totalPrice: Number(formData.totalPrice) || 0,
+        orderSize: Number(formData.orderSize) || calculateTotalSize(formData),
         deposit: Number(formData.deposit) || 0,
         orderState: formData.orderState,
         notes: formData.notes,
@@ -139,7 +145,7 @@ const OrderModal = ({ show, onClose, initialOrder = {}, onSave, user = {}, mater
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
+      <div className="modal-content shared-order-modal">
         <div className="modal-header">
           <h3>{initialOrder._id ? 'Edit Order' : 'Add Order'}</h3>
           <button className="btn-close" onClick={onClose}>×</button>
