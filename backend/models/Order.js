@@ -161,11 +161,13 @@ orderSchema.pre('save', async function (next) {
 });
 
 // Update remaining amount and order size before updating
-orderSchema.pre('findOneAndUpdate', async function (next) {
+  orderSchema.pre('findOneAndUpdate', async function (next) {
   try {
     const update = this.getUpdate();
-    if (update.$set) {
-      const { totalPrice, deposit, repeats, sheetWidth, sheetHeight, material } = update.$set;
+    // Normalize update format to a single set object so that both
+    // plain updates and $set updates are handled consistently.
+    const set = update.$set || { ...update };
+    const { totalPrice, deposit, repeats, sheetWidth, sheetHeight, material } = set;
       
       // Calculate order size based on repeats and sheetHeight only
       let calculatedOrderSize = null;
@@ -173,16 +175,16 @@ orderSchema.pre('findOneAndUpdate', async function (next) {
       // Fetch existing document to use current field values if update only sets one dimension
       const existingOrder = await this.model.findOne(this.getQuery()).lean();
 
-      if (repeats !== undefined || sheetHeight !== undefined) {
-        const r = repeats !== undefined ? Number(repeats) : (existingOrder ? Number(existingOrder.repeats) : 0);
-        const h = sheetHeight !== undefined ? Number(sheetHeight) : (existingOrder ? Number(existingOrder.sheetHeight) : 0);
+        if (repeats !== undefined || sheetHeight !== undefined) {
+          const r = repeats !== undefined ? Number(repeats) : (existingOrder ? Number(existingOrder.repeats) : 0);
+          const h = sheetHeight !== undefined ? Number(sheetHeight) : (existingOrder ? Number(existingOrder.sheetHeight) : 0);
         if (r && h) {
-          calculatedOrderSize = r * h;
-          update.$set.orderSize = calculatedOrderSize;
+            calculatedOrderSize = r * h;
+            set.orderSize = calculatedOrderSize;
         } else if (r === 0 || h === 0) {
           // if either dimension is zero or missing, set orderSize to 0
           calculatedOrderSize = 0;
-          update.$set.orderSize = calculatedOrderSize;
+            set.orderSize = calculatedOrderSize;
         }
       } else {
         // If dimensions didn't change, keep existing order size
@@ -197,34 +199,36 @@ orderSchema.pre('findOneAndUpdate', async function (next) {
         if (materialId) {
           const Material = mongoose.model('Material');
           const materialDoc = await Material.findById(materialId);
-          if (materialDoc && materialDoc.sellingPrice !== undefined && materialDoc.sellingPrice !== null) {
+            if (materialDoc && materialDoc.sellingPrice !== undefined && materialDoc.sellingPrice !== null) {
             const orderSizeToUse = calculatedOrderSize !== null ? calculatedOrderSize : (existingOrder ? existingOrder.orderSize : 0) || 0;
             if (orderSizeToUse > 0) {
-              update.$set.totalPrice = materialDoc.sellingPrice * orderSizeToUse;
-              update.$set.type = materialDoc.name;
+              set.totalPrice = materialDoc.sellingPrice * orderSizeToUse;
+              set.type = materialDoc.name;
             } else if (materialDoc.sellingPrice) {
               // fallback when order size is zero/unknown: use selling price as base price
-              update.$set.totalPrice = materialDoc.sellingPrice;
-              update.$set.type = materialDoc.name;
+                set.totalPrice = materialDoc.sellingPrice;
+                set.type = materialDoc.name;
             }
           }
         }
       }
       
       // Calculate remaining amount if price or deposit changed
-      const finalPrice = update.$set.totalPrice !== undefined ? update.$set.totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
-      const dep = deposit !== undefined ? deposit : (existingOrder ? existingOrder.deposit : undefined);
-      if (finalPrice !== undefined && dep !== undefined) {
-        update.$set.remainingAmount = finalPrice - dep;
-      } else if (totalPrice !== undefined || deposit !== undefined) {
-        const price = totalPrice !== undefined ? totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
+        const finalPrice = set.totalPrice !== undefined ? set.totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
         const dep = deposit !== undefined ? deposit : (existingOrder ? existingOrder.deposit : undefined);
-        if (price !== undefined && dep !== undefined) {
-          update.$set.remainingAmount = price - dep;
+        if (finalPrice !== undefined && dep !== undefined) {
+          set.remainingAmount = finalPrice - dep;
+      } else if (totalPrice !== undefined || deposit !== undefined) {
+          const price = totalPrice !== undefined ? totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
+          const dep = deposit !== undefined ? deposit : (existingOrder ? existingOrder.deposit : undefined);
+          if (price !== undefined && dep !== undefined) {
+            set.remainingAmount = price - dep;
         }
       }
-    }
-    next();
+      }
+      // Write back computed fields to update.$set so the DB change applies
+      update.$set = { ...(update.$set || {}), ...set };
+      next();
   } catch (error) {
     next(error);
   }
