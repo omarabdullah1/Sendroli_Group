@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { clientService } from '../../services/clientService';
+import { materialService } from '../../services/materialService';
 import { orderService } from '../../services/orderService';
 import Loading from '../Loading';
 import Pagination from '../Pagination';
 import SearchAndFilters from '../SearchAndFilters';
+import OrderModal from './OrderModal';
 import './Orders.css';
 
 const OrderList = () => {
@@ -19,6 +22,11 @@ const OrderList = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
   const { user } = useAuth();
+  // Modal state for inline create/edit
+  const [showModal, setShowModal] = useState(false);
+  const [modalOrder, setModalOrder] = useState(null);
+  const [clients, setClients] = useState([]);
+  const [materials, setMaterials] = useState([]);
   const tableContainerRef = useRef(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -26,7 +34,28 @@ const OrderList = () => {
 
   useEffect(() => {
     fetchAllOrders();
+    loadClients();
+    loadMaterials();
   }, []);
+
+  const loadClients = async () => {
+    try {
+      const data = await clientService.getClients();
+      setClients(data);
+    } catch (err) {
+      console.error('Failed to load clients:', err);
+    }
+  };
+
+  const loadMaterials = async () => {
+    try {
+      const response = await materialService.getAll({ limit: 1000 });
+      const data = response.data?.data?.materials || response.data;
+      setMaterials(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load materials:', err);
+    }
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -159,6 +188,24 @@ const OrderList = () => {
     setCurrentPage(1);
   };
 
+  const handleModalSave = async (payload) => {
+    try {
+      // Update existing
+      if (modalOrder && modalOrder._id) {
+        await orderService.updateOrder(modalOrder._id, payload);
+      } else {
+        await orderService.createOrder(payload);
+      }
+      setShowModal(false);
+      // Refresh list
+      await fetchAllOrders();
+    } catch (err) {
+      console.error('Failed to save order from modal:', err);
+      // Let the modal's onSave handler catch and show the error
+      throw err;
+    }
+  };
+
   if (loading) return <Loading message="Loading orders..." size="medium" />;
   if (error) return <div className="error">{error}</div>;
 
@@ -167,9 +214,17 @@ const OrderList = () => {
       <div className="list-header">
         <h1>Orders</h1>
         {user?.role === 'admin' && (
-          <Link to="/orders/new" className="btn-primary">
-            Create New Order
-          </Link>
+          <>
+            <button
+              className="btn-primary"
+              type="button"
+              onClick={() => { setModalOrder(null); setShowModal(true); }}
+            >
+              + Add Order
+            </button>
+            {/* Keep deep linking for other contexts (hidden). */}
+            <Link to="/orders/new" state={{ openModal: true }} style={{ display: 'none' }} />
+          </>
         )}
       </div>
 
@@ -248,9 +303,13 @@ const OrderList = () => {
                     </Link>
                     
                     {['designer', 'worker', 'financial', 'admin'].includes(user?.role) && (
-                      <Link to={`/orders/edit/${order._id}`} className="btn-edit">
+                      <button
+                        type="button"
+                        className="btn-edit"
+                        onClick={() => { setModalOrder(order); setShowModal(true); }}
+                      >
                         {user?.role === 'worker' ? 'Update Status' : 'Edit'}
-                      </Link>
+                      </button>
                     )}
                     
                     {['designer', 'worker'].includes(user?.role) && order.designLink && (
@@ -301,6 +360,17 @@ const OrderList = () => {
           onPageChange={setCurrentPage}
         />
       )}
+        {showModal && (
+          <OrderModal
+            show={showModal}
+            onClose={() => setShowModal(false)}
+            initialOrder={modalOrder || {}}
+            materials={materials}
+            clients={clients}
+            user={user}
+            onSave={handleModalSave}
+          />
+        )}
     </div>
   );
 };

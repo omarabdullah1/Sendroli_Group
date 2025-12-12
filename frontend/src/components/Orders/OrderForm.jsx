@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { clientService } from '../../services/clientService';
 import { materialService } from '../../services/materialService';
@@ -29,6 +29,7 @@ const OrderForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const isEdit = !!id;
   const [showModal, setShowModal] = useState(false);
@@ -39,8 +40,11 @@ const OrderForm = () => {
     if (isEdit) {
       loadOrder();
       setShowModal(true);
+    } else if (location?.state?.openModal || (location?.pathname || '').endsWith('/new')) {
+      // Auto-open the shared OrderModal if the route indicates a new order or Link passed state
+      setShowModal(true);
     }
-  }, [id]);
+  }, [id, location?.state?.openModal, location?.pathname]);
 
   const loadMaterials = async () => {
     try {
@@ -172,6 +176,7 @@ const OrderForm = () => {
           repeats: Number(formData.repeats),
           sheetHeight: Number(formData.sheetHeight),
           totalPrice: calculatedPrice,
+          orderSize: totalSize,
           deposit: Number(formData.deposit),
           orderState: formData.status,
           notes: formData.description,
@@ -227,12 +232,12 @@ const OrderForm = () => {
 
   return (
     <div className="form-container">
-      <h1>{isEdit ? 'Edit Order' : 'Create New Order'}</h1>
+      <h1>{isEdit ? 'Edit Order' : 'Add Order'}</h1>
       {error && <div className="error-message">{error}</div>}
       {/* Quick access to the shared Order Modal. This provides a unified UI similar to Invoice modal. */}
       {(!isEdit) && ['admin', 'designer'].includes(user?.role) && (
         <div style={{ margin: '8px 0' }}>
-          <button className="btn-primary" type="button" onClick={() => setShowModal(true)}>Open Order Dialog</button>
+          <button className="btn-primary" type="button" onClick={() => setShowModal(true)}>+ Add Order</button>
         </div>
       )}
       <form onSubmit={handleSubmit} className="entity-form" style={{ display: 'none' }}>
@@ -464,7 +469,13 @@ const OrderForm = () => {
       {showModal && (
         <OrderModal
           show={showModal}
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            setShowModal(false);
+            // If we opened via the /orders/new route, return to the list page on close
+            if ((location?.pathname || '').endsWith('/new')) {
+              navigate('/orders');
+            }
+          }}
           initialOrder={formData}
           materials={materials}
           clients={clients}

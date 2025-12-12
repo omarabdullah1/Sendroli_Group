@@ -230,7 +230,7 @@ const OrderModal = ({ show, onClose, initialOrder = {}, onSave, user = {}, mater
 
         <div className="modal-footer">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? 'Saving...' : 'Save Order'}</button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? 'Saving...' : (initialOrder._id ? 'Update Order' : 'Add Order')}</button>
         </div>
       </div>
     </div>
