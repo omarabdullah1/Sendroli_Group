@@ -57,7 +57,7 @@ exports.getOrders = async (req, res) => {
       success: false,
       message: error.message,
     });
-    
+  }
 };
 
 // @desc    Get single order

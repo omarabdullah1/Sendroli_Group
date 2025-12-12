@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import Loading from '../components/Loading';
+import OrderModal from '../components/Orders/OrderModal';
 import PageLoader from '../components/PageLoader';
 import Pagination from '../components/Pagination';
 import SearchAndFilters from '../components/SearchAndFilters';
 import { useAuth } from '../context/AuthContext';
 import clientService from '../services/clientService';
+import { materialService } from '../services/materialService';
 import orderService from '../services/orderService';
 import { formatDateTime } from '../utils/dateUtils';
 import './Orders.css';
@@ -24,23 +26,18 @@ const Orders = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(10);
-  const [showForm, setShowForm] = useState(false);
+  // removed inline form toggle; using modal instead
   const [editingOrder, setEditingOrder] = useState(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [modalInitialOrder, setModalInitialOrder] = useState(null);
+  const [materials, setMaterials] = useState([]);
   const [showDesignModal, setShowDesignModal] = useState(false);
   const [designOrder, setDesignOrder] = useState(null);
   const [designFormData, setDesignFormData] = useState({
     orderState: 'pending',
     designLink: '',
   });
-  const [formData, setFormData] = useState({
-    client: '',
-    type: '',
-    repeats: 0,
-    totalPrice: 0,
-    deposit: 0,
-    orderState: 'pending',
-    notes: '',
-  });
+  // formData replaced by OrderModal state - modal manages its own form
   const { user, loading: authLoading } = useAuth();
 
   // Role-based permissions
@@ -51,6 +48,10 @@ const Orders = () => {
 
   useEffect(() => {
     fetchClients();
+  }, []);
+
+  useEffect(() => {
+    loadMaterials();
   }, []);
 
   useEffect(() => {
@@ -84,6 +85,23 @@ const Orders = () => {
     } catch (err) {
       console.error('Failed to fetch clients:', err);
       setClients([]); // Set empty array on error
+    }
+  };
+
+  const loadMaterials = async () => {
+    try {
+      const response = await materialService.getAll({ limit: 10000 });
+      let data = [];
+      if (!response) data = [];
+      else if (Array.isArray(response)) data = response;
+      else if (response.data) {
+        if (Array.isArray(response.data)) data = response.data;
+        else if (Array.isArray(response.data.materials)) data = response.data.materials;
+      }
+      setMaterials(data);
+    } catch (err) {
+      console.error('Failed to load materials:', err);
+      setMaterials([]);
     }
   };
 
@@ -192,47 +210,36 @@ const Orders = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!canAdd && !editingOrder) return;
-    if (!canEdit && editingOrder) return;
-
+  // Handle save from OrderModal
+  const handleSaveOrder = async (payload) => {
+    if (!payload) return;
     try {
-      if (editingOrder) {
-        await orderService.updateOrder(editingOrder._id, formData);
+      if (editingOrder && editingOrder._id) {
+        await orderService.updateOrder(editingOrder._id, payload);
       } else {
-        await orderService.createOrder(formData);
+        await orderService.createOrder(payload);
       }
-      setShowForm(false);
+      setShowOrderModal(false);
       setEditingOrder(null);
-      setFormData({
-        client: '',
-        type: '',
-        repeats: 0,
-        totalPrice: 0,
-        deposit: 0,
-        orderState: 'pending',
-        notes: '',
-      });
+      setModalInitialOrder(null);
       fetchAllOrders();
     } catch (err) {
-      alert(err.response?.data?.message || 'Operation failed');
+      console.error('Failed to save order:', err);
+      alert(err.response?.data?.message || 'Failed to save order');
     }
   };
+
+  // Order operations are handled via OrderModal (handleSaveOrder)
 
   const handleEdit = (order) => {
     if (!canEdit) return;
     setEditingOrder(order);
-    setFormData({
+    setModalInitialOrder({
+      ...order,
       client: order.client?._id || order.client || '',
-      type: order.type || '',
-      repeats: order.repeats || 0,
-      totalPrice: order.totalPrice || 0,
-      deposit: order.deposit || 0,
-      orderState: order.orderState || 'pending',
-      notes: order.notes || '',
+      material: order.material?._id || order.material || '',
     });
-    setShowForm(true);
+    setShowOrderModal(true);
   };
 
   const handleDelete = async (orderId) => {
@@ -289,19 +296,7 @@ const Orders = () => {
     });
   };
 
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditingOrder(null);
-    setFormData({
-      client: '',
-      type: '',
-      repeats: 0,
-      totalPrice: 0,
-      deposit: 0,
-      orderState: 'pending',
-      notes: '',
-    });
-  };
+  // Cancelling the modal handled via onClose passed to OrderModal
 
   return (
     <PageLoader
@@ -314,7 +309,25 @@ const Orders = () => {
         <div style={styles.header} className="orders-header">
           <h1 style={styles.title}>Order Management</h1>
           {canAdd && (
-            <button onClick={() => setShowForm(true)} style={styles.addButton}>
+            <button
+              onClick={() => {
+                setModalInitialOrder({
+                  client: '',
+                  material: '',
+                  sheetWidth: '',
+                  sheetHeight: '',
+                  repeats: 1,
+                  totalPrice: 0,
+                  deposit: 0,
+                  orderState: 'pending',
+                  notes: '',
+                  designLink: '',
+                });
+                setEditingOrder(null);
+                setShowOrderModal(true);
+              }}
+              style={styles.addButton}
+            >
               Add New Order
             </button>
           )}
@@ -344,107 +357,20 @@ const Orders = () => {
           searchPlaceholder="Search by client name, phone, or order number..."
         />
 
-        {showForm && (
-          <div style={styles.formOverlay} className="orders-form-overlay">
-            <div style={styles.formContainer} className="orders-form-container">
-              <h2 style={styles.formTitle}>
-                {editingOrder ? 'Edit Order' : 'Add New Order'}
-              </h2>
-              <form onSubmit={handleSubmit} style={styles.form}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Client *</label>
-                  <select
-                    value={formData.client}
-                    onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-                    required
-                    style={styles.input}
-                  >
-                    <option value="">Select a client</option>
-                    {Array.isArray(clients) && clients.map((client) => (
-                      <option key={client._id} value={client._id}>
-                        {client.name} - {client.factoryName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Type *</label>
-                  <input
-                    type="text"
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    required
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Repeats</label>
-                  <input
-                    type="number"
-                    value={formData.repeats}
-                    onChange={(e) => setFormData({ ...formData, repeats: parseInt(e.target.value) })}
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Total Price *</label>
-                  <input
-                    type="number"
-                    value={formData.totalPrice}
-                    onChange={(e) => setFormData({ ...formData, totalPrice: parseFloat(e.target.value) })}
-                    required
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Deposit</label>
-                  <input
-                    type="number"
-                    value={formData.deposit}
-                    onChange={(e) => setFormData({ ...formData, deposit: parseFloat(e.target.value) })}
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Order State</label>
-                  <select
-                    value={formData.orderState}
-                    onChange={(e) => setFormData({ ...formData, orderState: e.target.value })}
-                    style={styles.input}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="active">Active</option>
-                    <option value="done">Done</option>
-                    <option value="delivered">Delivered</option>
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Notes</label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    style={styles.textarea}
-                    rows="3"
-                  />
-                </div>
-
-                <div style={styles.formButtons}>
-                  <button type="submit" style={styles.submitButton}>
-                    {editingOrder ? 'Update' : 'Create'}
-                  </button>
-                  <button type="button" onClick={handleCancel} style={styles.cancelButton}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+        {showOrderModal && (
+          <OrderModal
+            show={showOrderModal}
+            onClose={() => {
+              setShowOrderModal(false);
+              setEditingOrder(null);
+              setModalInitialOrder(null);
+            }}
+            initialOrder={modalInitialOrder}
+            materials={materials}
+            clients={clients}
+            user={user}
+            onSave={handleSaveOrder}
+          />
         )}
 
         {showDesignModal && (

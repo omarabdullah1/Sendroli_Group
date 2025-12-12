@@ -371,7 +371,7 @@ const Dashboard = () => {
               <Link to="/clients/new" className="action-btn">
                 Add New Client
               </Link>
-              <Link to="/orders/new" className="action-btn">
+              <Link to="/orders/new" state={{ openModal: true }} className="action-btn">
                 Create New Order
               </Link>
               <Link to="/users/new" className="action-btn">

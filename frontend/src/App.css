@@ -277,6 +277,34 @@
   background: var(--gray-50);
 }
 
+/* Shared order modal style to ensure consistent look across Orders and Invoices */
+div.modal-content.shared-order-modal {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content.shared-order-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.modal-content.shared-order-modal .modal-body {
+  padding: 30px;
+}
+
+.modal-content.shared-order-modal .modal-footer {
+  padding: 20px 30px;
+  border-top: 2px solid #e9ecef;
+}
+
 /* ========== EMPTY STATES ========== */
 .empty-state {
   text-align: center;
