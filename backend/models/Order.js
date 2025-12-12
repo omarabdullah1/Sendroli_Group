@@ -169,33 +169,41 @@ orderSchema.pre('findOneAndUpdate', async function (next) {
       
       // Calculate order size based on repeats and sheetHeight only
       let calculatedOrderSize = null;
+
+      // Fetch existing document to use current field values if update only sets one dimension
+      const existingOrder = await this.model.findOne(this.getQuery()).lean();
+
       if (repeats !== undefined || sheetHeight !== undefined) {
-        const r = repeats !== undefined ? Number(repeats) : Number(this.getQuery().repeats);
-        const h = sheetHeight !== undefined ? Number(sheetHeight) : Number(this.getQuery().sheetHeight);
+        const r = repeats !== undefined ? Number(repeats) : (existingOrder ? Number(existingOrder.repeats) : 0);
+        const h = sheetHeight !== undefined ? Number(sheetHeight) : (existingOrder ? Number(existingOrder.sheetHeight) : 0);
         if (r && h) {
           calculatedOrderSize = r * h;
           update.$set.orderSize = calculatedOrderSize;
+        } else if (r === 0 || h === 0) {
+          // if either dimension is zero or missing, set orderSize to 0
+          calculatedOrderSize = 0;
+          update.$set.orderSize = calculatedOrderSize;
         }
       } else {
-        // Get existing order size if dimensions didn't change
-        const existingOrder = await this.model.findOne(this.getQuery());
-        if (existingOrder && existingOrder.orderSize) {
+        // If dimensions didn't change, keep existing order size
+        if (existingOrder && existingOrder.orderSize !== undefined && existingOrder.orderSize !== null) {
           calculatedOrderSize = existingOrder.orderSize;
         }
       }
       
       // If material changed or size changed, recalculate price from material selling price * order size
       if (material !== undefined || (calculatedOrderSize !== null && material === undefined)) {
-        const materialId = material !== undefined ? material : (await this.model.findOne(this.getQuery()))?.material;
+        const materialId = material !== undefined ? material : (existingOrder ? existingOrder.material : null);
         if (materialId) {
           const Material = mongoose.model('Material');
           const materialDoc = await Material.findById(materialId);
-          if (materialDoc && materialDoc.sellingPrice) {
-            const orderSizeToUse = calculatedOrderSize !== null ? calculatedOrderSize : (await this.model.findOne(this.getQuery()))?.orderSize || 0;
+          if (materialDoc && materialDoc.sellingPrice !== undefined && materialDoc.sellingPrice !== null) {
+            const orderSizeToUse = calculatedOrderSize !== null ? calculatedOrderSize : (existingOrder ? existingOrder.orderSize : 0) || 0;
             if (orderSizeToUse > 0) {
               update.$set.totalPrice = materialDoc.sellingPrice * orderSizeToUse;
               update.$set.type = materialDoc.name;
             } else if (materialDoc.sellingPrice) {
+              // fallback when order size is zero/unknown: use selling price as base price
               update.$set.totalPrice = materialDoc.sellingPrice;
               update.$set.type = materialDoc.name;
             }
@@ -204,13 +212,13 @@ orderSchema.pre('findOneAndUpdate', async function (next) {
       }
       
       // Calculate remaining amount if price or deposit changed
-      const finalPrice = update.$set.totalPrice !== undefined ? update.$set.totalPrice : (await this.model.findOne(this.getQuery()))?.totalPrice;
-      const dep = deposit !== undefined ? deposit : (await this.model.findOne(this.getQuery()))?.deposit;
+      const finalPrice = update.$set.totalPrice !== undefined ? update.$set.totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
+      const dep = deposit !== undefined ? deposit : (existingOrder ? existingOrder.deposit : undefined);
       if (finalPrice !== undefined && dep !== undefined) {
         update.$set.remainingAmount = finalPrice - dep;
       } else if (totalPrice !== undefined || deposit !== undefined) {
-        const price = totalPrice !== undefined ? totalPrice : (await this.model.findOne(this.getQuery()))?.totalPrice;
-        const dep = deposit !== undefined ? deposit : (await this.model.findOne(this.getQuery()))?.deposit;
+        const price = totalPrice !== undefined ? totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
+        const dep = deposit !== undefined ? deposit : (existingOrder ? existingOrder.deposit : undefined);
         if (price !== undefined && dep !== undefined) {
           update.$set.remainingAmount = price - dep;
         }
