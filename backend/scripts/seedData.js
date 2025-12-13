@@ -114,6 +114,46 @@ const seedData = async () => {
 
     console.log('Clients created...');
 
+      // Create sample materials (used for orders)
+      const materialsData = [
+        {
+          name: 'A4 Paper - 80gsm',
+          category: 'paper',
+          unit: 'sheet',
+          minStockLevel: 100,
+          currentStock: 1000,
+          costPerUnit: 0.5,
+          sellingPrice: 0.75,
+          isOrderType: true,
+          createdBy: users[0]._id,
+        },
+        {
+          name: 'Glossy Paper - 120gsm',
+          category: 'paper',
+          unit: 'sheet',
+          minStockLevel: 50,
+          currentStock: 500,
+          costPerUnit: 0.9,
+          sellingPrice: 1.25,
+          isOrderType: true,
+          createdBy: users[0]._id,
+        },
+        {
+          name: 'Black Ink (1L)',
+          category: 'ink',
+          unit: 'liter',
+          minStockLevel: 10,
+          currentStock: 100,
+          costPerUnit: 30,
+          sellingPrice: 50,
+          isOrderType: false,
+          createdBy: users[0]._id,
+        }
+      ];
+      const Material = require('../models/Material');
+      const materials = await Material.create(materialsData);
+      console.log('Materials created...', materials.map(m => m.name).join(', '));
+
     // Also create corresponding client User entries (for phone-only login)
     const clientUsers = [];
     for (const client of clients) {

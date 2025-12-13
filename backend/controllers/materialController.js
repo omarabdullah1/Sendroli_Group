@@ -6,6 +6,7 @@ const { createNotification } = require('./notificationController');
 // Get all materials with filtering and pagination
 exports.getAllMaterials = async (req, res, next) => {
   try {
+    console.log(`GET /materials requested by user: ${req.user?.username} (role: ${req.user?.role})`);
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;

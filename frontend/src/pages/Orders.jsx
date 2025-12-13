@@ -91,16 +91,33 @@ const Orders = () => {
   const loadMaterials = async () => {
     try {
       const response = await materialService.getAll({ limit: 10000 });
+      // Backend returns: { success: true, data: { materials: [...], pagination: {..} } }
+      // axios returns that under response.data, so materials live in response.data.data.materials
       let data = [];
-      if (!response) data = [];
-      else if (Array.isArray(response)) data = response;
-      else if (response.data) {
-        if (Array.isArray(response.data)) data = response.data;
-        else if (Array.isArray(response.data.materials)) data = response.data.materials;
+      if (!response) {
+        data = [];
+      } else if (Array.isArray(response)) {
+        data = response;
+      } else if (Array.isArray(response.data)) {
+        data = response.data;
+      } else if (response.data) {
+        // First preference: response.data.data.materials
+        if (response.data.data && Array.isArray(response.data.data.materials)) {
+          data = response.data.data.materials;
+        } else if (Array.isArray(response.data.materials)) {
+          data = response.data.materials;
+        } else if (Array.isArray(response.data.data)) {
+          data = response.data.data;
+        }
       }
+      console.debug('Loaded materials count:', data.length, 'Sample:', data[0]);
       setMaterials(data);
     } catch (err) {
-      console.error('Failed to load materials:', err);
+      if (err.response && err.response.status === 403) {
+        console.error('Forbidden: current user may not have permission to fetch materials (403).', err);
+      } else {
+        console.error('Failed to load materials:', err);
+      }
       setMaterials([]);
     }
   };

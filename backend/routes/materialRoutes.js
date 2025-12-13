@@ -7,8 +7,9 @@ const materialController = require('../controllers/materialController');
 router.use(protect);
 
 // Main material routes
+// Allow receptionists as well since receptionists create orders and need materials list
 router.route('/')
-  .get(authorize('admin', 'designer', 'worker'), materialController.getAllMaterials) // Allow designers and workers to read materials for invoices/orders
+  .get(authorize('admin', 'designer', 'worker', 'receptionist'), materialController.getAllMaterials) // Allow designers, workers and receptionists to read materials for invoices/orders
   .post(authorize('admin'), materialController.createMaterial); // Only admin can create
 
 // Low stock materials

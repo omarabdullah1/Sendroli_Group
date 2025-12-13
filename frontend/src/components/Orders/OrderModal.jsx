@@ -155,14 +155,19 @@ const OrderModal = ({ show, onClose, initialOrder = {}, onSave, user = {}, mater
           {error && <div className="error-message">{error}</div>}
           <div className="form-row">
               <div className="form-group">
-              <label>Material *</label>
-              <select name="material" value={formData.material} onChange={handleChange} disabled={isWorker || (isDesigner && !isAdmin)}>
-                <option value="">Select material</option>
-                {materials.map(m => (
-                  <option key={m._id} value={m._id}>{m.name} - {m.sellingPrice} per {m.unit || 'm'}</option>
-                ))}
-              </select>
-            </div>
+                <label>Material *</label>
+                <select name="material" value={formData.material} onChange={handleChange} disabled={isWorker || (isDesigner && !isAdmin)}>
+                  <option value="">Select material</option>
+                  {materials.map(m => (
+                    <option key={m._id} value={m._id}>{m.name} - {m.sellingPrice} per {m.unit || 'm'}</option>
+                  ))}
+                </select>
+                {materials.length === 0 && (
+                  <div className="hint-message" style={{marginTop: '6px', color: '#6b7280', fontSize: '0.9rem'}}>
+                    No materials available. If you believe this is an error, ensure materials are added, or that you have permission to view materials.
+                  </div>
+                )}
+              </div>
 
                 <div className="form-group">
                   <label>Height (m) *</label>
