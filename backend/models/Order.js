@@ -95,53 +95,77 @@ const orderSchema = new mongoose.Schema(
   }
 );
 
-// Calculate remaining amount and order size before savingorderSchema.pre('save', async function (next) {
+// Calculate remaining amount and order size before saving
+orderSchema.pre('save', async function (next) {
   try {
-    // Calculate order size (repeats * sheetHeight) safely
-    if (this.repeats !== undefined && this.sheetHeight !== undefined && this.sheetHeight !== null) {
-      const r = Number(this.repeats) || 0;
-      const h = Number(this.sheetHeight) || 0;
-      this.orderSize = r * h;
-      console.log('🔧 ORDER MODEL SIZE CALC (pre-save):', { repeats: r, sheetHeight: h, orderSize: this.orderSize });
-    }
-
-    // If material is selected and totalPrice isn't provided, derive it
+    // Calculate order size in meters based on height only (repeats * sheetHeight)
+      if (this.repeats && this.sheetHeight !== undefined && this.sheetHeight !== null) {
+        // Convert strings to numbers safely if needed
+        const r = Number(this.repeats) || 0;
+        const h = Number(this.sheetHeight) || 0;
+        this.orderSize = r * h;
+        console.log('🔧 ORDER MODEL SIZE CALC (pre-save):', { repeats: r, sheetHeight: h, orderSize: this.orderSize });
+      }
+    
+    // If material is selected, calculate total price as selling price per meter * order size
+    // Only recalculate if totalPrice is not already set (preserve price set by controller)
     if (this.material && !this.totalPrice) {
       const Material = mongoose.model('Material');
       const material = await Material.findById(this.material);
       if (material) {
+        // Set type from material name
         this.type = material.name;
-        if (material.sellingPrice !== undefined && this.orderSize && this.orderSize > 0) {
-          this.totalPrice = material.sellingPrice * this.orderSize;
-          console.log('🔧 ORDER MODEL PRICE CALC (pre-save):', { materialName: material.name, sellingPrice: material.sellingPrice, orderSize: this.orderSize, totalPrice: this.totalPrice });
-        } else if (material.sellingPrice !== undefined) {
-          this.totalPrice = material.sellingPrice; // fallback base price
-          console.log('🔧 ORDER MODEL PRICE DEBUG (no size, pre-save):', { materialName: material.name, sellingPrice: material.sellingPrice, totalPrice: this.totalPrice });
+        
+          // Calculate total price as selling price per meter * order size (meters)
+        if (material.sellingPrice) {
+          if (this.orderSize && this.orderSize > 0) {
+            this.totalPrice = material.sellingPrice * this.orderSize;
+            console.log('🔧 ORDER MODEL PRICE CALCULATION (pre-save):', {
+              materialName: material.name,
+              sellingPrice: material.sellingPrice,
+              orderSize: this.orderSize,
+              totalPrice: this.totalPrice,
+              calculation: `${material.sellingPrice} * ${this.orderSize} = ${this.totalPrice}`
+            });
+          } else {
+            // If order size is not available yet, use selling price directly (will be recalculated when size is set)
+            this.totalPrice = material.sellingPrice;
+            console.log('🔧 ORDER MODEL PRICE DEBUG (no size, pre-save):', {
+              materialName: material.name,
+              sellingPrice: material.sellingPrice,
+              totalPrice: this.totalPrice
+            });
+          }
         }
       }
     } else if (this.material && this.totalPrice) {
-      // Ensure type is set when material is present
+      // Material is set and totalPrice is already set, just update type
       const Material = mongoose.model('Material');
       const material = await Material.findById(this.material);
       if (material) {
         this.type = material.name;
+        console.log('🔧 ORDER MODEL PRICE DEBUG (price already set):', {
+          materialName: material.name,
+          existingTotalPrice: this.totalPrice
+        });
       }
     }
-
+    
     // Calculate remaining amount
-    this.remainingAmount = (this.totalPrice || 0) - (this.deposit || 0);
+    this.remainingAmount = this.totalPrice - (this.deposit || 0);
+    
     next();
   } catch (error) {
     next(error);
   }
-  }
 });
 
-// Update remaining amount and order size before updatingorderSchema.pre('findOneAndUpdate', async function (next) {
+// Update remaining amount and order size before updating
+orderSchema.pre('findOneAndUpdate', async function (next) {
   try {
     const update = this.getUpdate();
-    const set = update.$set ? { ...update.$set } : { ...update };
-    const { totalPrice, deposit, repeats, sheetWidth, sheetHeight, material } = set;
+    if (update.$set) {
+      const { totalPrice, deposit, repeats, sheetWidth, sheetHeight, material } = update.$set;
       
       // Calculate order size based on repeats and sheetHeight only
       let calculatedOrderSize = null;
@@ -154,11 +178,11 @@ const orderSchema = new mongoose.Schema(
         const h = sheetHeight !== undefined ? Number(sheetHeight) : (existingOrder ? Number(existingOrder.sheetHeight) : 0);
         if (r && h) {
           calculatedOrderSize = r * h;
-            set.orderSize = calculatedOrderSize;
+          update.$set.orderSize = calculatedOrderSize;
         } else if (r === 0 || h === 0) {
           // if either dimension is zero or missing, set orderSize to 0
           calculatedOrderSize = 0;
-            set.orderSize = calculatedOrderSize;
+          update.$set.orderSize = calculatedOrderSize;
         }
       } else {
         // If dimensions didn't change, keep existing order size
@@ -176,39 +200,30 @@ const orderSchema = new mongoose.Schema(
           if (materialDoc && materialDoc.sellingPrice !== undefined && materialDoc.sellingPrice !== null) {
             const orderSizeToUse = calculatedOrderSize !== null ? calculatedOrderSize : (existingOrder ? existingOrder.orderSize : 0) || 0;
             if (orderSizeToUse > 0) {
-              set.totalPrice = materialDoc.sellingPrice * orderSizeToUse;
-              set.type = materialDoc.name;
+              update.$set.totalPrice = materialDoc.sellingPrice * orderSizeToUse;
+              update.$set.type = materialDoc.name;
             } else if (materialDoc.sellingPrice) {
               // fallback when order size is zero/unknown: use selling price as base price
-                set.totalPrice = materialDoc.sellingPrice;
-                set.type = materialDoc.name;
+              update.$set.totalPrice = materialDoc.sellingPrice;
+              update.$set.type = materialDoc.name;
             }
           }
         }
       }
-
-      // Calculate remaining amount if price or deposit change
-      const finalPrice = set.totalPrice !== undefined ? set.totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
+      
+      // Calculate remaining amount if price or deposit changed
+      const finalPrice = update.$set.totalPrice !== undefined ? update.$set.totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
       const dep = deposit !== undefined ? deposit : (existingOrder ? existingOrder.deposit : undefined);
       if (finalPrice !== undefined && dep !== undefined) {
-        set.remainingAmount = finalPrice - dep;
+        update.$set.remainingAmount = finalPrice - dep;
       } else if (totalPrice !== undefined || deposit !== undefined) {
         const price = totalPrice !== undefined ? totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
         const dep = deposit !== undefined ? deposit : (existingOrder ? existingOrder.deposit : undefined);
         if (price !== undefined && dep !== undefined) {
-          set.remainingAmount = price - dep;
+          update.$set.remainingAmount = price - dep;
         }
       }
-      }
-
-      // Set computed fields back into the update object
-      if (update.$set) {
-        update.$set = { ...update.$set, ...set };
-      } else {
-        // If the caller used a non-$set update, convert to $set
-        Object.assign(update, { $set: { ...set } });
-      }
-      this.setUpdate(update);
+    }
     next();
   } catch (error) {
     next(error);
@@ -326,7 +341,8 @@ orderSchema.post('findOneAndUpdate', async function(doc) {
   }
 });
 
-// After delete, update invoice totals if order was part of an invoiceorderSchema.post('findOneAndDelete', async function(doc) {
+// After delete, update invoice totals if order was part of an invoice
+orderSchema.post('findOneAndDelete', async function(doc) {
   if (doc && doc.invoice) {
     const Invoice = mongoose.model('Invoice');
     const invoice = await Invoice.findById(doc.invoice);
@@ -336,7 +352,8 @@ orderSchema.post('findOneAndUpdate', async function(doc) {
   }
 });
 
-// Create indexes for search and filteringorderSchema.index({ orderState: 1, createdAt: -1 });
+// Create indexes for search and filtering
+orderSchema.index({ orderState: 1, createdAt: -1 });
 orderSchema.index({ client: 1 });
 orderSchema.index({ invoice: 1 });
 
