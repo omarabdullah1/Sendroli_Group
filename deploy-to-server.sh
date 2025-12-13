@@ -50,9 +50,11 @@ echo -e "${GREEN}✓ Files already cleaned${NC}"
 echo ""
 echo -e "${YELLOW}[3/7] Creating deployment package...${NC}"
 cd "$LOCAL_DIR"
-tar czf /tmp/sendroli-deploy.tar.gz \
+    tar czf /tmp/sendroli-deploy.tar.gz \
   --exclude='node_modules' \
   --exclude='.git' \
+    --exclude='.env' \
+    --exclude='.env.*' \
   --exclude='*.log' \
   --exclude='.DS_Store' \
   --exclude='uploads' \
