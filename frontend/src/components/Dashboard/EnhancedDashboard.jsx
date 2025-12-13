@@ -18,6 +18,7 @@ import { materialService } from '../../services/materialService';
 import orderService from '../../services/orderService';
 import Loading from '../Loading';
 import PageLoader from '../PageLoader';
+import { RevenueLineChart, StatusPieChart } from './Charts';
 import './Dashboard.css'; // Import Dashboard.css for client analytics styles
 import './EnhancedDashboard.css';
 
@@ -85,8 +86,32 @@ const EnhancedDashboard = () => {
           });
 
           // Get recent orders
-          const ordersResponse = await orderService.getOrders();
-          data.recentOrders = (ordersResponse.data || []).slice(0, 5);
+          const ordersResponse = await orderService.getOrders({ limit: 10000 });
+          // Normalize response shape into an array of orders
+          const ordersArr = Array.isArray(ordersResponse)
+            ? ordersResponse
+            : ordersResponse?.data || ordersResponse?.orders || [];
+          data.recentOrders = (ordersArr || []).slice(0, 5);
+
+          // Build revenue timeseries for last 30 days
+          const days = 30;
+          const revenueMap = {};
+          const labels = [];
+          for (let i = days - 1; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const key = date.toISOString().slice(0, 10);
+            labels.push(key);
+            revenueMap[key] = 0;
+          }
+          (ordersArr || []).forEach((order) => {
+            const dateKey = order.createdAt ? new Date(order.createdAt).toISOString().slice(0, 10) : null;
+            if (!dateKey) return;
+            if (revenueMap[dateKey] === undefined) revenueMap[dateKey] = 0;
+            revenueMap[dateKey] += Number(order.totalPrice) || Number(order.price) || 0;
+          });
+          data.revenueLabels = labels;
+          data.revenueData = labels.map((l) => revenueMap[l] || 0);
         } catch (error) {
           console.error('Error loading order stats:', error);
         }
@@ -355,14 +380,15 @@ const EnhancedDashboard = () => {
           </div>
         )}
 
-        {/* Status Breakdown Chart */}
+        {/* Status Breakdown Chart and Revenue Trend */}
         {dashboardData.statusBreakdown.length > 0 && (
           <div className="dashboard-card status-chart">
             <div className="card-header">
               <h2 className="card-title">📈 Order Status Distribution</h2>
             </div>
             <div className="card-body">
-              <div className="status-bars">
+              <div className="status-chart-grid">
+                <div className="status-bars">
                 {dashboardData.statusBreakdown.map((status) => {
                   const percentage = (status.count / dashboardData.stats.totalOrders) * 100;
                   return (
@@ -382,7 +408,13 @@ const EnhancedDashboard = () => {
                     </div>
                   );
                 })}
-              </div>
+                  </div>
+
+                  {/* Right column: revenue line chart */}
+                  <div className="status-chart-revenue">
+                    <RevenueLineChart labels={dashboardData?.revenueLabels || []} data={dashboardData?.revenueData || []} height={220} />
+                  </div>
+                </div>
             </div>
           </div>
         )}
@@ -410,6 +442,22 @@ const EnhancedDashboard = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Status Distribution Pie Chart */}
+        {dashboardData.statusBreakdown.length > 0 && (
+          <div className="dashboard-card pie-chart-card">
+            <div className="card-header">
+              <h2 className="card-title">Order Status Pie</h2>
+            </div>
+            <div className="card-body">
+              <StatusPieChart
+                labels={dashboardData.statusBreakdown.map(s => s._id)}
+                data={dashboardData.statusBreakdown.map(s => s.count)}
+                height={240}
+              />
             </div>
           </div>
         )}

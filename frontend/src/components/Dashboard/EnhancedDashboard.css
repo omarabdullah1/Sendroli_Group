@@ -365,6 +365,31 @@
   gap: 1rem;
 }
 
+/* ========== STATUS CHART + REVENUE LAYOUT ========== */
+.status-chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.status-chart-revenue {
+  background: transparent;
+  padding: 0.5rem 0;
+}
+
+.pie-chart-card .card-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 260px;
+}
+
+.status-chart-revenue .chart-container {
+  height: 220px;
+}
+
+
 .stock-item {
   display: flex;
   justify-content: space-between;

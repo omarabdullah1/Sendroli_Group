@@ -12,6 +12,8 @@
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "lottie-react": "^2.4.1",
+    "chart.js": "^4.4.0",
+    "react-chartjs-2": "^5.3.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.15.0"
