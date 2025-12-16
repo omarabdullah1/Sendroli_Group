@@ -48,6 +48,12 @@ const orderService = {
     const response = await api.get('/orders/stats/financial');
     return response.data;
   },
+
+  // Get revenue timeseries for charts
+  getRevenueTimeseries: async (period = 30, interval = 'day') => {
+    const response = await api.get(`/orders/stats/timeseries?period=${period}&interval=${interval}`);
+    return response.data;
+  },
 };
 
 export default orderService;

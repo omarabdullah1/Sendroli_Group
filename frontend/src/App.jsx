@@ -85,7 +85,7 @@ const Layout = ({ children }) => {
   return (
     <div className="app-container">
       {!isAuthPage && !isWebsitePage && isERPage && <Sidebar />}
-      <main className={`main-content ${!isAuthPage && !isWebsitePage && isERPage ? 'with-sidebar' : ''}`}>
+      <main className={`main-content ${!isAuthPage && !isWebsitePage && isERPage ? 'with-sidebar' : ''} ${location.pathname.startsWith('/dashboard') ? 'dashboard-page' : ''}`}>
         {!isAuthPage && !isWebsitePage && isERPage && <TopHeader />}
         <div className={`content-wrapper ${!isAuthPage && !isWebsitePage && isERPage ? 'with-header' : ''}`}>
           {!isWebsitePage && <DeviceConflictNotification />}

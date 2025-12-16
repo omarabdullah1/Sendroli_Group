@@ -798,29 +798,14 @@
     justify-content: center;
     flex-shrink: 0;
     border-radius: 8px; /* Rounded when standalone */
-    border: 1px solid transparent; /* No border when standalone */
     background: transparent;
+    border: none;
+    color: #6b7280;
   }
 
   .header-search.mobile-active .search-icon-btn {
-    border-radius: 8px 0 0 8px;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-right: none;
-  }
-
-  .search-input {
-    display: none; /* Hidden by default on mobile */
-    font-size: 0.875rem;
-    padding: 0.5rem;
-    border-radius: 0 8px 8px 0;
-    width: 100%;
-    height: 36px;
-  }
-
-  .header-search.mobile-active .search-input {
-    display: block !important;
-    flex: 1;
+    pointer-events: none; /* Icon becomes purely decorative/label in active state */
+    padding-left: 0.5rem;
   }
 
   .search-close-btn {
@@ -829,9 +814,67 @@
     justify-content: center;
     width: 36px;
     height: 36px;
-    background: transparent;
+    background: #f3f4f6;
     border: none;
+    border-radius: 8px;
     color: #6b7280;
+    cursor: pointer;
+    margin-left: 0.5rem;
+  }
+
+  .search-input {
+    /* When not active on mobile, input is hidden by width/opacity usually, but here we depend on parent class */
+    display: none; 
+  }
+
+  .header-search.mobile-active .search-input {
+    display: block;
+    height: 100%;
+    border: none;
+    background: transparent;
+    padding: 0 0.5rem;
+    font-size: 1rem; /* Better for mobile input to avoid zoom */
+    border-radius: 0;
+  }
+  
+  .header-search.mobile-active .search-input:focus {
+    box-shadow: none;
+  }
+
+  /* Ensure dropdown is visible on mobile */
+  .search-results-dropdown {
+    position: fixed;
+    top: 60px; /* Below the header overlay */
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    max-height: calc(100vh - 80px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  }
+  /* Removed duplicate/broken search styles */
+  
+  .header-search.mobile-active .search-input {
+    display: block !important;
+    height: 100%;
+    border: none;
+    background: transparent;
+    padding: 0 0.5rem;
+    font-size: 1rem;
+    border-radius: 0;
+    flex: 1;
+  }
+  
+  .search-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 8px;
+    color: #6b7280;
+    cursor: pointer;
     margin-left: 0.5rem;
     flex-shrink: 0;
   }

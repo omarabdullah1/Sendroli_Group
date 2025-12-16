@@ -6,6 +6,7 @@ const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const { securityMiddleware, sanitizeInput } = require('./middleware/security');
+const cache = require('./utils/cache');
 
 dotenv.config();
 
@@ -17,6 +18,11 @@ if (!process.env.JWT_SECRET) {
 
 // Connect to database
 connectDB();
+
+// Initialize cache (Redis or NodeCache fallback)
+cache.initCache().catch((err) => {
+  console.warn('Cache initialization failed:', err?.message || err);
+});
 
 // Initialize express app
 const app = express();
@@ -184,6 +190,7 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
@@ -196,6 +203,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/website', websiteRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -220,10 +228,42 @@ app.get('/api/version', (req, res) => {
 // Error handler
 app.use(errorHandler);
 
-// Start server only locally
+// Start server and optional socket server only locally
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  const http = require('http');
+  const server = http.createServer(app);
+
+  // Optional socket.io integration for live updates
+  if (process.env.ENABLE_SOCKET === 'true') {
+    try {
+      const { Server } = require('socket.io');
+      const io = new Server(server, {
+        cors: {
+          origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+          methods: ['GET', 'POST']
+        }
+      });
+
+      // Basic subscription interface
+      io.on('connection', (socket) => {
+        console.log('Socket connected:', socket.id);
+        socket.on('subscribe', ({ channel }) => {
+          if (channel) socket.join(channel);
+        });
+        socket.on('unsubscribe', ({ channel }) => {
+          if (channel) socket.leave(channel);
+        });
+      });
+
+      // Attach io to app for convenience
+      app.set('io', io);
+    } catch (err) {
+      console.warn('Socket.io optional dependency not installed. Enable by adding socket.io to dependencies.');
+    }
+  }
+
+  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
 module.exports = app;

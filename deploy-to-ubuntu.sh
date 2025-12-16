@@ -252,6 +252,16 @@ VITE_API_URL=${DOMAIN_NAME}/api
 # App Configuration
 VITE_APP_NAME=Sendroli Factory Management
 EOF
+    # Add socket support environment variable
+    print_info "Adding optional socket enable toggle to environment files (default: false)"
+    if [ -z "$ENABLE_SOCKET" ]; then
+        ENABLE_SOCKET=false
+    fi
+    echo "ENABLE_SOCKET=${ENABLE_SOCKET}" >> "$INSTALL_DIR/backend/.env.production"
+    if [ -z "$VITE_ENABLE_SOCKET" ]; then
+        VITE_ENABLE_SOCKET=${ENABLE_SOCKET}
+    fi
+    echo "VITE_ENABLE_SOCKET=${VITE_ENABLE_SOCKET}" >> "$INSTALL_DIR/frontend/.env.production"
     print_success "Frontend environment file created"
     
     # Create MongoDB .env

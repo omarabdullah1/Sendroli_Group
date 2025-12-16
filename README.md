@@ -750,6 +750,30 @@ cd frontend
 docker build -t sendroli-frontend .
 ```
 
+### Running Server Seed (after deploy)
+
+If you need to seed the production database after deployment, you can run the seed command remotely. Example (preferred, using SSH key):
+
+```bash
+ssh -i ~/.ssh/id_ed25519 root@72.62.38.191 "cd /opt/Sendroli_Group && docker compose -f docker-compose.prod.yml exec -T backend npm run seed"
+```
+
+Or locally with the included helper script (uses SSH key or sshpass):
+
+```bash
+# With SSH key
+./seed-on-server.sh
+
+# With password (requires sshpass installed):
+./seed-on-server.sh --ssh-pass "YOUR_PASSWORD"
+```
+
+You can also pass `--seed` to `deploy-to-server.sh` to run the seed step at the end of deployment:
+
+```bash
+./deploy-to-server.sh --seed
+```
+
 ### Cloud Deployment Options
 
 #### Railway (Recommended)

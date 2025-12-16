@@ -1,2 +1,1 @@
-/* This file is now managed by designSystem.css */
-/* Import design system in App.jsx instead */
+@import "./designSystem.css";

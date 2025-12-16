@@ -1,5 +1,6 @@
 const Client = require('../models/Client');
 const User = require('../models/User');
+const cache = require('../utils/cache');
 const { createNotification } = require('./notificationController');
 
 // @desc    Get all clients
@@ -152,6 +153,14 @@ exports.createClient = async (req, res) => {
       console.error('❌ ===== END ERROR =====\n');
     }
 
+    // Invalidate dashboard cache when clients change
+    try {
+      await cache.delPattern('dashboard_summary_*');
+      console.log('ℹ️ Cleared dashboard cache after client creation');
+    } catch (err) {
+      console.warn('⚠️ Failed to clear dashboard cache after client creation:', err?.message || err);
+    }
+
     res.status(201).json({
       success: true,
       data: client,
@@ -268,6 +277,14 @@ exports.updateClient = async (req, res) => {
       console.error('❌ ===== END ERROR =====\n');
     }
 
+    // Clear dashboard cache when client updated
+    try {
+      await cache.delPattern('dashboard_summary_*');
+      console.log('ℹ️ Cleared dashboard cache after client update');
+    } catch (err) {
+      console.warn('⚠️ Failed to clear dashboard cache after client update:', err?.message || err);
+    }
+
     res.status(200).json({
       success: true,
       data: client,
@@ -328,6 +345,14 @@ exports.deleteClient = async (req, res) => {
     const clientFactory = client.factoryName;
 
     await client.deleteOne();
+
+    // Clear dashboard cache when client deleted
+    try {
+      await cache.delPattern('dashboard_summary_*');
+      console.log('ℹ️ Cleared dashboard cache after client deletion');
+    } catch (err) {
+      console.warn('⚠️ Failed to clear dashboard cache after client deletion:', err?.message || err);
+    }
     
     // Notify relevant users about client deletion
     try {

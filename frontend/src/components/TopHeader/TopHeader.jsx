@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSidebar } from '../../context/SidebarContext';
 import clientService from '../../services/clientService';
@@ -12,6 +12,8 @@ const TopHeader = () => {
   const { user, logout } = useAuth();
   const { toggleSidebar, isOpen } = useSidebar();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isDashboardRoute = location.pathname === '/' || location.pathname.startsWith('/dashboard');
   const [searchValue, setSearchValue] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -81,7 +83,7 @@ const TopHeader = () => {
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       setLoadingNotifications(true);
       const response = await notificationService.getNotifications({ limit: 50 });
@@ -106,7 +108,7 @@ const TopHeader = () => {
   // Fetch unread count only (lighter request)
   const fetchUnreadCount = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       const response = await notificationService.getUnreadCount();
       if (response.success) {
@@ -125,7 +127,7 @@ const TopHeader = () => {
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      
+
       // Poll for unread count every 30 seconds
       notificationPollIntervalRef.current = setInterval(() => {
         fetchUnreadCount();
@@ -178,16 +180,16 @@ const TopHeader = () => {
 
     try {
       const searchQuery = query.trim();
-      
+
       // Make parallel requests with abort signal support
       const canSearchClients = ['receptionist', 'designer', 'financial', 'admin'].includes(user?.role);
 
       const [clientsRes, ordersRes, invoicesRes] = await Promise.allSettled([
-        canSearchClients 
+        canSearchClients
           ? clientService.getClients({ search: searchQuery }).catch(err => {
-              if (err.name === 'AbortError' || signal.aborted) throw err;
-              return { error: err };
-            })
+            if (err.name === 'AbortError' || signal.aborted) throw err;
+            return { error: err };
+          })
           : Promise.resolve({ data: [] }),
         orderService.getOrders({ search: searchQuery }).catch(err => {
           if (err.name === 'AbortError' || signal.aborted) throw err;
@@ -287,7 +289,7 @@ const TopHeader = () => {
       if (error.name === 'AbortError' || signal.aborted) {
         return; // Search was cancelled, ignore error
       }
-      
+
       console.error('Search error:', error);
       if (error?.response?.status === 429) {
         setSearchError(error.response?.data?.message || 'Too many requests. Please wait a moment before searching again.');
@@ -321,7 +323,7 @@ const TopHeader = () => {
   const handleSearch = useCallback((e) => {
     e?.preventDefault();
     const query = e?.target?.value || searchValue;
-    
+
     // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -349,7 +351,7 @@ const TopHeader = () => {
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchValue(value);
-    
+
     if (!value.trim()) {
       setSearchResults([]);
       setShowSearchResults(false);
@@ -377,7 +379,7 @@ const TopHeader = () => {
     setShowNotifications(!showNotifications);
     setShowHelp(false);
     setShowProfileMenu(false);
-    
+
     // Fetch notifications when opening dropdown
     if (!wasOpen) {
       await fetchNotifications();
@@ -390,7 +392,7 @@ const TopHeader = () => {
       const response = await notificationService.markAsRead(notificationId);
       if (response.success) {
         setUnreadCount(response.unreadCount || 0);
-        setNotifications(prev => 
+        setNotifications(prev =>
           prev.map(n => n._id === notificationId ? { ...n, read: true, readAt: new Date() } : n)
         );
       }
@@ -405,7 +407,7 @@ const TopHeader = () => {
       const response = await notificationService.markAllAsRead();
       if (response.success) {
         setUnreadCount(0);
-        setNotifications(prev => 
+        setNotifications(prev =>
           prev.map(n => ({ ...n, read: true, readAt: new Date() }))
         );
       }
@@ -419,7 +421,7 @@ const TopHeader = () => {
     if (!notification.read) {
       handleMarkAsRead(notification._id);
     }
-    
+
     // Navigate if actionUrl exists
     if (notification.actionUrl) {
       setShowNotifications(false);
@@ -450,7 +452,7 @@ const TopHeader = () => {
     <header className="top-header">
       <div className="header-content">
         {/* Mobile Menu Button */}
-        <button 
+        <button
           className="mobile-menu-btn"
           onClick={toggleSidebar}
           aria-label="Toggle menu"
@@ -460,31 +462,31 @@ const TopHeader = () => {
             {isOpen ? (
               // Close icon (X)
               <>
-                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </>
             ) : (
               // Hamburger icon
               <>
-                <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </>
             )}
           </svg>
         </button>
 
         {/* Search Bar */}
-        <form 
-          onSubmit={handleSearch} 
-          className={`header-search ${mobileSearchActive ? 'mobile-active' : ''}`} 
+        <form
+          onSubmit={handleSearch}
+          className={`header-search ${mobileSearchActive ? 'mobile-active' : ''}`}
           ref={searchRef}
         >
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="search-icon-btn"
             onClick={handleSearchClick}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7.33333 12.6667C10.2789 12.6667 12.6667 10.2789 12.6667 7.33333C12.6667 4.38781 10.2789 2 7.33333 2C4.38781 2 2 4.38781 2 7.33333C2 10.2789 4.38781 12.6667 7.33333 12.6667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M14 14L11.1 11.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M7.33333 12.6667C10.2789 12.6667 12.6667 10.2789 12.6667 7.33333C12.6667 4.38781 10.2789 2 7.33333 2C4.38781 2 2 4.38781 2 7.33333C2 10.2789 4.38781 12.6667 7.33333 12.6667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M14 14L11.1 11.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
           <input
@@ -501,11 +503,11 @@ const TopHeader = () => {
             className="search-input"
             disabled={isSearching}
           />
-          
+
           {/* Close Button for Mobile */}
           {mobileSearchActive && (
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="search-close-btn"
               onClick={(e) => {
                 e.preventDefault();
@@ -517,14 +519,14 @@ const TopHeader = () => {
               </svg>
             </button>
           )}
-          
+
           {/* Loading indicator */}
           {isSearching && (
             <div className="search-loading">
               <div className="search-spinner"></div>
             </div>
           )}
-          
+
           {/* Search Results Dropdown */}
           {showSearchResults && (
             <div className="search-results-dropdown">
@@ -547,9 +549,32 @@ const TopHeader = () => {
                       className="search-result-item"
                       onClick={() => handleResultClick(result)}
                     >
-                  <div className="search-result-icon">
-                    {/* Icons removed for unified design */}
-                  </div>
+                      <div className="search-result-icon">
+                        {result.type === 'client' && (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                          </svg>
+                        )}
+                        {result.type === 'order' && (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                          </svg>
+                        )}
+                        {result.type === 'invoice' && (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                          </svg>
+                        )}
+                      </div>
                       <div className="search-result-content">
                         <div className="search-result-title">{result.title}</div>
                         <div className="search-result-subtitle">{result.subtitle}</div>
@@ -566,18 +591,19 @@ const TopHeader = () => {
 
         {/* Right Side Actions */}
         <div className="top-header-actions">
+
           {/* Help Icon */}
           <div className="header-dropdown-wrapper" ref={helpRef}>
-            <button 
-              className="header-icon-btn" 
+            <button
+              className="header-icon-btn"
               title="Help & Support"
               onClick={handleHelpClick}
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M10 14.1667H10.0083" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M10 10.8333C10.4602 10.8333 10.8333 10.4602 10.8333 10C10.8333 9.53976 10.4602 9.16667 10 9.16667C9.53976 9.16667 9.16667 9.53976 9.16667 10C9.16667 10.4602 9.53976 10.8333 10 10.8333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M10 5.83333C9.12452 5.83333 8.33333 6.62452 8.33333 7.5C8.33333 7.96024 8.70643 8.33333 9.16667 8.33333H10.8333C11.2936 8.33333 11.6667 7.96024 11.6667 7.5C11.6667 6.12452 10.8755 5.83333 10 5.83333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10 14.1667H10.0083" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10 10.8333C10.4602 10.8333 10.8333 10.4602 10.8333 10C10.8333 9.53976 10.4602 9.16667 10 9.16667C9.53976 9.16667 9.16667 9.53976 9.16667 10C9.16667 10.4602 9.53976 10.8333 10 10.8333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10 5.83333C9.12452 5.83333 8.33333 6.62452 8.33333 7.5C8.33333 7.96024 8.70643 8.33333 9.16667 8.33333H10.8333C11.2936 8.33333 11.6667 7.96024 11.6667 7.5C11.6667 6.12452 10.8755 5.83333 10 5.83333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
             {showHelp && (
@@ -598,14 +624,14 @@ const TopHeader = () => {
 
           {/* Notifications Icon */}
           <div className="header-dropdown-wrapper" ref={notificationRef}>
-            <button 
-              className="header-icon-btn notification-btn" 
+            <button
+              className="header-icon-btn notification-btn"
               title="Notifications"
               onClick={handleNotificationClick}
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M15 6.66667C15 5.34058 14.4732 4.06881 13.5355 3.13115C12.5979 2.19349 11.3261 1.66667 10 1.66667C8.67392 1.66667 7.40215 2.19349 6.46447 3.13115C5.52681 4.06881 5 5.34058 5 6.66667C5 12.5 2.5 14.1667 2.5 14.1667H17.5C17.5 14.1667 15 12.5 15 6.66667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M11.4417 17.5C11.1435 17.7631 10.7656 17.9014 10.375 17.9014C9.98441 17.9014 9.60654 17.7631 9.30833 17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M15 6.66667C15 5.34058 14.4732 4.06881 13.5355 3.13115C12.5979 2.19349 11.3261 1.66667 10 1.66667C8.67392 1.66667 7.40215 2.19349 6.46447 3.13115C5.52681 4.06881 5 5.34058 5 6.66667C5 12.5 2.5 14.1667 2.5 14.1667H17.5C17.5 14.1667 15 12.5 15 6.66667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M11.4417 17.5C11.1435 17.7631 10.7656 17.9014 10.375 17.9014C9.98441 17.9014 9.60654 17.7631 9.30833 17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               {unreadCount > 0 && (
                 <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
@@ -616,8 +642,8 @@ const TopHeader = () => {
                 <div className="notification-dropdown-header">
                   <span>Notifications</span>
                   {unreadCount > 0 && (
-                    <span 
-                      className="notification-mark-all" 
+                    <span
+                      className="notification-mark-all"
                       onClick={handleMarkAllAsRead}
                       style={{ cursor: 'pointer' }}
                     >
@@ -687,6 +713,7 @@ const TopHeader = () => {
             )}
           </div>
         </div>
+
       </div>
     </header>
   );

@@ -352,56 +352,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Role-based quick actions */}
-      <div className="quick-actions">
-        <h2>Quick Actions</h2>
-        <div className="action-buttons">
-          {user?.role === 'receptionist' && (
-            <>
-              <Link to="/clients/new" className="action-btn">
-                Add New Client
-              </Link>
-              <Link to="/clients/analytics" className="action-btn analytics-btn">
-                📊 Client Analytics
-              </Link>
-            </>
-          )}
-          {user?.role === 'admin' && (
-            <>
-              <Link to="/clients/new" className="action-btn">
-                Add New Client
-              </Link>
-              <Link to="/orders/new" state={{ openModal: true }} className="action-btn">
-                Create New Order
-              </Link>
-              <Link to="/users/new" className="action-btn">
-                Add New User
-              </Link>
-              <Link to="/clients/analytics" className="action-btn analytics-btn">
-                📊 Client Analytics
-              </Link>
-            </>
-          )}
-          {['designer', 'worker'].includes(user?.role) && (
-            <Link to="/orders" className="action-btn">
-              View All Orders
-            </Link>
-          )}
-          {user?.role === 'financial' && (
-            <>
-              <Link to="/orders" className="action-btn">
-                View Orders
-              </Link>
-              <Link to="/financial-stats" className="action-btn">
-                Financial Reports
-              </Link>
-              <Link to="/clients/analytics" className="action-btn analytics-btn">
-                📊 Client Analytics
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
+      {/* Quick actions were intentionally removed from the legacy dashboard to avoid duplicate CTA across new EnhancedDashboard */}
     </div>
   );
 };

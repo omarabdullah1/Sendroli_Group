@@ -1,0 +1,1 @@
+.skeleton-loader{background:linear-gradient(90deg,#f3f4f6,#e5e7eb,#f3f4f6);border-radius:6px;animation:skeletonShimmer 1.2s ease-in-out infinite;background-size:200% 100%}.skeleton-loader.small{height:14px}.skeleton-loader.round{border-radius:9999px}@keyframes skeletonShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}

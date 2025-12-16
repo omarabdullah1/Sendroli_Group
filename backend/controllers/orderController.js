@@ -3,6 +3,7 @@ const Client = require('../models/Client');
 const Material = require('../models/Material');
 const User = require('../models/User');
 const { createNotification } = require('./notificationController');
+const cache = require('../utils/cache');
 
 // @desc    Get all orders
 // @route   GET /api/orders
@@ -320,6 +321,23 @@ exports.createOrder = async (req, res) => {
       console.error('❌ ===== END ERROR =====\n');
     }
 
+    // Emit socket event for real-time subscribers if socket server is present
+    try {
+      const io = req?.app?.get('io');
+      if (io) io.emit('order:created', populatedOrder);
+    } catch (err) {
+      console.warn('Socket emit failed for order:created:', err?.message || err);
+    }
+
+    // Invalidate cached dashboard summaries if any
+    try {
+      await cache.delPattern('dashboard_summary_*');
+      await cache.delPattern('orders:timeseries:*');
+      console.log('ℹ️ Cleared dashboard cache after order creation');
+    } catch (err) {
+      console.warn('⚠️ Failed to clear dashboard cache after order creation:', err?.message || err);
+    }
+
     res.status(201).json({
       success: true,
       data: populatedOrder,
@@ -596,6 +614,23 @@ exports.updateOrder = async (req, res) => {
       console.error('❌ ===== END ERROR =====\n');
     }
 
+    // Emit socket event for real-time subscribers if socket server is present
+    try {
+      const io = req?.app?.get('io');
+      if (io) io.emit('order:updated', order);
+    } catch (err) {
+      console.warn('Socket emit failed for order:updated:', err?.message || err);
+    }
+
+    // Invalidate cached dashboard summaries
+    try {
+      await cache.delPattern('dashboard_summary_*');
+      await cache.delPattern('orders:timeseries:*');
+      console.log('ℹ️ Cleared dashboard cache after order update');
+    } catch (err) {
+      console.warn('⚠️ Failed to clear dashboard cache after order update:', err?.message || err);
+    }
+
     res.status(200).json({
       success: true,
       data: order,
@@ -654,6 +689,15 @@ exports.deleteOrder = async (req, res) => {
     const orderStateText = order.orderState;
 
     await order.deleteOne();
+
+    // Invalidate cached dashboard summaries
+    try {
+      await cache.delPattern('dashboard_summary_*');
+      await cache.delPattern('orders:timeseries:*');
+      console.log('ℹ️ Cleared dashboard cache after order deletion');
+    } catch (err) {
+      console.warn('⚠️ Failed to clear dashboard cache after order deletion:', err?.message || err);
+    }
     
     // Notify relevant users about order deletion
     try {
@@ -765,5 +809,155 @@ exports.getFinancialStats = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// @desc    Get revenue timeseries (grouped by day)
+// @route   GET /api/orders/stats/timeseries?period=30
+// @access  Private (Financial, Admin, Designer)
+const cacheUtil = require('../utils/cache');
+exports.getRevenueTimeseries = async (req, res, next) => {
+  try {
+    const period = parseInt(req.query.period) || undefined; // numeric period
+    const interval = (req.query.interval || 'day').toLowerCase();
+    const allowed = ['day', 'week', 'month'];
+    if (!allowed.includes(interval)) {
+      return res.status(400).json({ success: false, message: 'Invalid interval. Use day, week, or month.' });
+    }
+
+    // Default period based on interval
+    let defaultPeriod = 30;
+    if (interval === 'week') defaultPeriod = 12; // 12 weeks
+    if (interval === 'month') defaultPeriod = 12; // 12 months
+    const p = Number.isFinite(period) && parseInt(period) > 0 ? parseInt(period) : defaultPeriod;
+
+    // Determine cache key and check cache
+    const cacheKey = `orders:timeseries:${interval}:${p}`;
+    try {
+      const cached = await cacheUtil.get(cacheKey);
+      if (cached) {
+        return res.status(200).json({ success: true, data: cached });
+      }
+    } catch (err) {
+      // Cache failed to read - continue to compute
+      console.warn('Cache read failed (timeseries) - computing live:', err?.message || err);
+    }
+
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+
+    let start = new Date(end);
+    let groupStage = null;
+    let labels = [];
+
+    if (interval === 'day') {
+      start.setHours(0, 0, 0, 0);
+      start.setDate(end.getDate() - (p - 1));
+      groupStage = {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          totalRevenue: { $sum: { $ifNull: ['$totalPrice', 0] } }
+        }
+      };
+      // build labels for each day
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        labels.push(d.toISOString().slice(0, 10));
+      }
+    } else if (interval === 'week') {
+      // start at the beginning of the week (Mon)
+      const now = new Date(end);
+      const dayOfWeek = (now.getDay() + 6) % 7; // 0 = Monday
+      const currentMonday = new Date(now);
+      currentMonday.setDate(now.getDate() - dayOfWeek);
+      currentMonday.setHours(0, 0, 0, 0);
+      start = new Date(currentMonday);
+      start.setDate(start.getDate() - (p - 1) * 7);
+      // group by week number and iso year
+      groupStage = {
+        $group: {
+          _id: {
+            year: { $isoWeekYear: '$createdAt' },
+            week: { $isoWeek: '$createdAt' }
+          },
+          totalRevenue: { $sum: { $ifNull: ['$totalPrice', 0] } }
+        }
+      };
+      // Build labels as YYYY-Wxx for each week
+      const weekStart = new Date(start);
+      for (let i = 0; i < p; i++) {
+        const y = weekStart.getFullYear();
+        // compute iso week number for weekStart
+        const isoWeekNumber = (() => {
+          const tmp = new Date(weekStart);
+          // ISO week calc: Thursday is in same week
+          tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
+          const firstThursday = new Date(tmp.getFullYear(), 0, 4);
+          const diff = Math.round((tmp - firstThursday) / 86400000);
+          return Math.floor(diff / 7) + 1;
+        })();
+        labels.push(`${weekStart.getFullYear()}-W${String(isoWeekNumber).padStart(2, '0')}`);
+        weekStart.setDate(weekStart.getDate() + 7);
+      }
+    } else if (interval === 'month') {
+      // set to first day of current month
+      const now = new Date(end);
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      firstOfMonth.setHours(0, 0, 0, 0);
+      start = new Date(firstOfMonth);
+      start.setMonth(start.getMonth() - (p - 1));
+      groupStage = {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+          totalRevenue: { $sum: { $ifNull: ['$totalPrice', 0] } }
+        }
+      };
+      // Build labels for months - YYYY-MM
+      const mStart = new Date(start);
+      for (let i = 0; i < p; i++) {
+        labels.push(`${mStart.getFullYear()}-${String(mStart.getMonth() + 1).padStart(2, '0')}`);
+        mStart.setMonth(mStart.getMonth() + 1);
+      }
+    }
+
+    const matchStage = {
+      $match: {
+        createdAt: { $gte: start, $lte: end }
+      }
+    };
+
+    // build aggregation pipeline
+    const sortStage = (interval === 'week') ? { $sort: { '_id.year': 1, '_id.week': 1 } } : { $sort: { '_id': 1 } };
+    const pipeline = [matchStage, groupStage, sortStage];
+    const timeseries = await Order.aggregate(pipeline);
+
+    const map = {};
+    // transform group key depending on interval
+    if (interval === 'week') {
+      timeseries.forEach((t) => {
+        if (t._id && t._id.year && t._id.week) {
+          const lbl = `${t._id.year}-W${String(t._id.week).padStart(2, '0')}`;
+          map[lbl] = t.totalRevenue;
+        }
+      });
+    } else {
+      // day or month: _id directly a string in YYYY-MM-DD or YYYY-MM
+      timeseries.forEach((t) => {
+        if (t._id) map[t._id] = t.totalRevenue;
+      });
+    }
+
+    const data = labels.map((l) => map[l] || 0);
+    const responseData = { labels, data };
+    // Save to cache with TTL if available
+    try {
+      const ttl = Number(process.env.TIMESERIES_CACHE_TTL) || 300; // 5 minutes
+      await cacheUtil.set(cacheKey, responseData, ttl);
+    } catch (err) {
+      console.warn('Cache write failed (timeseries):', err?.message || err);
+    }
+
+    res.status(200).json({ success: true, data: responseData });
+  } catch (error) {
+    next(error);
   }
 };

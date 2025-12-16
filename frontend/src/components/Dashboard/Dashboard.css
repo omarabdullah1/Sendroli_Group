@@ -398,10 +398,11 @@
 
 .badge {
   text-align: center;
-  padding: 8px 15px;
+  /* slightly larger padding for dashboard card tags */
+  padding: 10px 18px;
   border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-top: 10px;

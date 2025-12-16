@@ -9,6 +9,8 @@
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
+.kpi-card.clickable{cursor:pointer;}
+.kpi-card.clickable:focus{outline: 2px solid rgba(37,99,235,0.25);box-shadow: 0 0 0 4px rgba(37,99,235,0.05);} 
 
 .kpi-card:hover {
   transform: translateY(-2px);
@@ -53,6 +55,15 @@
 .kpi-icon .kpi-emoji {
   font-size: 1.5rem;
   line-height: 1;
+}
+
+/* Force icons (SVG/FontAwesome) to be white for improved contrast */
+.kpi-icon svg,
+.kpi-icon .kpi-emoji,
+.kpi-icon .kpi-emoji svg,
+.kpi-icon svg.svg-inline--fa {
+  color: #ffffff !important;
+  fill: #ffffff !important;
 }
 
 .kpi-content {

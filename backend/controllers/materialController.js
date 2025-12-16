@@ -2,6 +2,7 @@ const Material = require('../models/Material');
 const Inventory = require('../models/Inventory');
 const User = require('../models/User');
 const { createNotification } = require('./notificationController');
+const cache = require('../utils/cache');
 
 // Get all materials with filtering and pagination
 exports.getAllMaterials = async (req, res, next) => {
@@ -173,6 +174,14 @@ exports.createMaterial = async (req, res, next) => {
       console.error('❌ ===== END ERROR =====\n');
     }
     
+    // Clear dashboard cache after material creation
+    try {
+      await cache.delPattern('dashboard_summary_*');
+      console.log('ℹ️ Cleared dashboard cache after material creation');
+    } catch (err) {
+      console.warn('⚠️ Failed to clear dashboard cache after material creation:', err?.message || err);
+    }
+
     res.status(201).json({
       success: true,
       data: material,
@@ -285,6 +294,14 @@ exports.updateMaterial = async (req, res, next) => {
       console.error('❌ ===== END ERROR =====\n');
     }
     
+    // Clear dashboard cache after material update
+    try {
+      await cache.delPattern('dashboard_summary_*');
+      console.log('ℹ️ Cleared dashboard cache after material update');
+    } catch (err) {
+      console.warn('⚠️ Failed to clear dashboard cache after material update:', err?.message || err);
+    }
+
     res.status(200).json({
       success: true,
       data: material,
@@ -373,6 +390,14 @@ exports.deleteMaterial = async (req, res, next) => {
       console.error('❌ ===== END ERROR =====\n');
     }
     
+    // Clear dashboard cache after material delete
+    try {
+      await cache.delPattern('dashboard_summary_*');
+      console.log('ℹ️ Cleared dashboard cache after material deletion');
+    } catch (err) {
+      console.warn('⚠️ Failed to clear dashboard cache after material deletion:', err?.message || err);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Material deleted successfully'

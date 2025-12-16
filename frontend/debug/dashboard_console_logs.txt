@@ -1,0 +1,33 @@
+[console:log] 🔧 API Base URL: /api
+[console:log] 🔧 Environment: production
+[console:log] 🎨 Gallery render check: {hasGallery: true, hasItems: true, itemsLength: 0, willRender: false, items: Array(0)}
+[console:log] 🎨 Gallery render check: {hasGallery: true, hasItems: true, itemsLength: 0, willRender: false, items: Array(0)}
+[console:log] LandingPage loaded completely
+[console:log] LandingPage loaded completely
+[console:log] LandingPage loaded completely
+[console:debug] Search endpoint requested!
+[console:log] 🔍 Settings fetched: {hero: Object, about: Object, whyChooseUs: Object, gallery: Object, contact: Object}
+[console:log] 🖼️ Gallery data: {title: Our Gallery, items: Array(0)}
+[console:log] 📊 Gallery items count: 0
+[console:log] 🗺️ Map configuration: {phone: +20 123 456 7890, whatsapp: +20 123 456 7890, email: info@sendroligroup.com, address: Cairo, Egypt, mapEmbedUrl: https://www.google.com/maps/embed?pb=!1m18!1m12!1m…t!5e0!3m2!1sen!2sus!4v1701234567890!5m2!1sen!2sus}
+[console:log] 🗺️ Map Embed URL: https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d220790.48587489217!2d31.04534893359375!3d30.064742000000003!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14583fa60b21beeb%3A0x79dfb296e8423bba!2sCairo%2C%20Egypt!5e0!3m2!1sen!2sus!4v1701234567890!5m2!1sen!2sus
+[console:log] 🗺️ Map Location: Cairo, Egypt
+[console:log] 🎨 Gallery render check: {hasGallery: true, hasItems: true, itemsLength: 0, willRender: false, items: Array(0)}
+[console:log] LandingPage loaded completely
+[console:error] Failed to load resource: the server responded with a status of 404 ()
+[console:warning] Error: Failed to load image: /assets/hero-bg.jpg
+    at r.onerror (https://sendroligroup.cloud/assets/index-D3B82Fu9.js:561:14113)
+[console:log] Preloaded 1 images
+[console:log] 🎨 Gallery render check: {hasGallery: true, hasItems: true, itemsLength: 0, willRender: false, items: Array(0)}
+[console:log] Login success {_id: 693d9313037df34fa2befd3f, username: admin, role: admin, fullName: Admin User, email: admin@factory.com}
+[loginResult] {"success":true,"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5M2Q5MzEzMDM3ZGYzNGZhMmJlZmQzZiIsImlhdCI6MTc2NTY0OTM0NiwiZXhwIjoxNzY2MjU0MTQ2fQ.CBH7dwwxVpMvPQRdk02zRDReOSb4uSFGPYcKKKhQghE","user":{"_id":"693d9313037df34fa2befd3f","username":"admin","role":"admin","fullName":"Admin User","email":"admin@factory.com"},"sessionInfo":{"loginTime":"2025-12-13T18:09:06.378Z","deviceName":"Chrome Browser","ipAddress":"41.199.174.86"},"message":"Previous session terminated. New session created.","previousSession":{"deviceName":"Chrome Browser","loginTime":"2025-12-13T18:02:26.871Z","lastActivity":"2025-12-13T18:07:33.871Z"}}
+[console:log] 🔧 API Base URL: /api
+[console:log] 🔧 Environment: production
+[console:log] 🏁 ENHANCED DASHBOARD RENDERING
+[console:log] 👤 EnhancedDashboard - User: {_id: 693d9313037df34fa2befd3f, username: admin, role: admin, fullName: Admin User, email: admin@factory.com}
+[console:log] ✅ Loading client statistics for role: admin
+[console:log] 📊 Client stats response: {success: true, data: Object}
+[console:log] ✨ Client stats set successfully: {clients: Array(5), overallStats: Object}
+[console:log] 🏁 ENHANCED DASHBOARD RENDERING
+[console:log] 👤 EnhancedDashboard - User: {_id: 693d9313037df34fa2befd3f, username: admin, role: admin, fullName: Admin User, email: admin@factory.com}
+[console:warning] Tried to use the 'fill' option without the 'Filler' plugin enabled. Please import and register the 'Filler' plugin and make sure it is not disabled in the options

@@ -27,6 +27,11 @@
   border: 1px solid var(--border-light, #e5e7eb);
 }
 
+/* Hide any page header actions while on the dashboard - target only the dashboard's subtree */
+.enhanced-dashboard .header-actions {
+  display: none !important;
+}
+
 .welcome-section {
   flex: 1;
 }
@@ -143,6 +148,19 @@
   position: relative;
 }
 
+/* Force svg icon color inside kpi container to white in case the SVG has inline fill/stroke */
+.kpi-icon svg {
+  color: #fff !important;
+  fill: #fff !important;
+  stroke: #fff !important;
+}
+
+.kpi-icon svg path {
+  color: #fff !important;
+  fill: #fff !important;
+  stroke: #fff !important;
+}
+
 .kpi-icon .kpi-image {
   width: 100%;
   height: 100%;
@@ -205,7 +223,7 @@
 /* ========== DASHBOARD GRID ========== */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 2rem;
   padding: 0.5rem 0;
 }
@@ -368,7 +386,7 @@
 /* ========== STATUS CHART + REVENUE LAYOUT ========== */
 .status-chart-grid {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 420px; /* wider column for the revenue chart */
   gap: 1.5rem;
   align-items: stretch;
 }
@@ -376,6 +394,41 @@
 .status-chart-revenue {
   background: transparent;
   padding: 0.5rem 0;
+  min-height: 220px;
+}
+
+.timeseries-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.timeseries-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.timeseries-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.timeseries-btn {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 0.35rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.timeseries-btn.active {
+  background: var(--theme-primary);
+  color: #ffffff;
+  border-color: var(--theme-primary);
 }
 
 .pie-chart-card .card-body {
@@ -384,6 +437,32 @@
   justify-content: center;
   height: 260px;
 }
+
+.bar-chart-card .card-body {
+  height: 260px;
+}
+
+.client-analytics-section .top-clients-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.client-highlight-card {
+  padding: 1rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.client-highlight-card .card-icon { font-size: 1.6rem; }
+.client-highlight-card .client-name { font-weight: 700; }
+.client-highlight-card .client-metric { margin: 4px 0; font-size: 0.9rem; color: #374151; }
+.client-highlight-card .badge { margin-top: 0.5rem; display:inline-block; }
+
+.dashboard-card { padding: 0; overflow: hidden; }
+.card-body { padding: 1rem 1.25rem; }
 
 .status-chart-revenue .chart-container {
   height: 220px;
@@ -463,9 +542,10 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
+  /* increase padding and font-size so tags in dashboard cards feel more prominent */
+  padding: 0.4rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
   border-radius: 9999px;
   line-height: 1;
 }

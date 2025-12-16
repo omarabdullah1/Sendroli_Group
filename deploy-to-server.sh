@@ -8,6 +8,27 @@
 
 set -e  # Exit on error
 
+# Optional flags
+RUN_SEED=false
+SSH_PASS=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --seed)
+            RUN_SEED=true
+            shift
+            ;;
+        --ssh-pass)
+            SSH_PASS="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -116,6 +137,27 @@ ssh -i "$SSH_KEY" "$SSH_USER@$SERVER_IP" << 'EOF'
     export DOMAIN_NAME="https://sendroligroup.cloud"
     ./deploy-to-ubuntu.sh
 EOF
+
+if [ "$RUN_SEED" = true ]; then
+    echo ""
+    echo -e "${YELLOW}[6.1/7] Running database seed on server...${NC}"
+
+    # Prefer SSH key, fall back to sshpass if a password was provided
+    if [ -f "$SSH_KEY" ]; then
+        ssh -i "$SSH_KEY" "$SSH_USER@$SERVER_IP" "cd $REMOTE_DIR && docker compose -f docker-compose.prod.yml exec -T backend npm run seed"
+    elif [ -n "$SSH_PASS" ]; then
+        if command -v sshpass >/dev/null 2>&1; then
+            sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no "$SSH_USER@$SERVER_IP" "cd $REMOTE_DIR && docker compose -f docker-compose.prod.yml exec -T backend npm run seed"
+        else
+            echo -e "${RED}sshpass is not installed locally. Install sshpass or provide an SSH key to run the seed step.${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}No SSH key found at $SSH_KEY and no password supplied. Skipping seed.${NC}"
+    fi
+
+    echo -e "${GREEN}✓ Seed command executed (check server logs to confirm).${NC}"
+fi
 
 # Step 7: Get credentials
 echo ""

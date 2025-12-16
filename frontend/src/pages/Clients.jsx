@@ -7,6 +7,8 @@ import SearchAndFilters from '../components/SearchAndFilters';
 import { useAuth } from '../context/AuthContext';
 import clientService from '../services/clientService';
 import { formatDateTime } from '../utils/dateUtils';
+import './Clients.css';
+
 
 const Clients = () => {
   const { user } = useAuth();
@@ -62,7 +64,7 @@ const Clients = () => {
   // Apply filters and pagination on client-side
   const applyFiltersAndPagination = useCallback(() => {
     let filteredClients = [...allClients];
-    
+
     // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -71,7 +73,7 @@ const Clients = () => {
         const phone = client.phone || '';
         const factoryName = client.factoryName || '';
         const address = client.address || '';
-        
+
         return (
           name.toLowerCase().includes(searchLower) ||
           phone.toLowerCase().includes(searchLower) ||
@@ -80,7 +82,7 @@ const Clients = () => {
         );
       });
     }
-    
+
     // Date range filter
     if (startDate || endDate) {
       filteredClients = filteredClients.filter(client => {
@@ -90,17 +92,17 @@ const Clients = () => {
         return true;
       });
     }
-    
+
     // Calculate pagination
     const total = filteredClients.length;
     setTotalItems(total);
     setTotalPages(Math.ceil(total / itemsPerPage) || 1);
-    
+
     // Apply pagination
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedClients = filteredClients.slice(startIndex, endIndex);
-    
+
     setClients(paginatedClients);
   }, [allClients, searchTerm, startDate, endDate, currentPage, itemsPerPage]);
 
@@ -127,7 +129,7 @@ const Clients = () => {
     e.preventDefault();
     if (!canAdd && !editingClient) return;
     if (!canEdit && editingClient) return;
-    
+
     try {
       if (editingClient) {
         await clientService.updateClient(editingClient._id, formData);
@@ -180,374 +182,172 @@ const Clients = () => {
       loadingMessage="Loading clients..."
       onLoadComplete={() => console.log('Clients page loaded')}
     >
-      <div style={styles.container}>
-      <div style={styles.content}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Client Management</h1>
-          {canAdd && (
-            <button onClick={() => setShowForm(true)} style={styles.addButton}>
-              Add New Client
-            </button>
-          )}
-        </div>
-
-        {/* Search and Filters */}
-        <SearchAndFilters
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          showClientFilter={false}
-          showStateFilter={false}
-          startDate={startDate}
-          onStartDateChange={setStartDate}
-          endDate={endDate}
-          onEndDateChange={setEndDate}
-          onClearFilters={handleClearFilters}
-          searchPlaceholder="Search by name, phone, or factory name..."
-        />
-
-        {showForm && (
-          <div style={styles.formOverlay}>
-            <div style={styles.formContainer}>
-              <h2 style={styles.formTitle}>
-                {editingClient ? 'Edit Client' : 'Add New Client'}
-              </h2>
-              <form onSubmit={handleSubmit} style={styles.form}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Phone *</label>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    required
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Factory Name</label>
-                  <input
-                    type="text"
-                    value={formData.factoryName}
-                    onChange={(e) => setFormData({ ...formData, factoryName: e.target.value })}
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Address</label>
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Notes</label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    style={styles.textarea}
-                    rows="3"
-                  />
-                </div>
-
-                <div style={styles.formButtons}>
-                  <button type="submit" style={styles.submitButton}>
-                    {editingClient ? 'Update' : 'Create'}
-                  </button>
-                  <button type="button" onClick={handleCancel} style={styles.cancelButton}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
+      <div className="clients-container">
+        <div className="clients-content">
+          <div className="clients-header">
+            <h1 className="clients-title">Client Management</h1>
+            {canAdd && (
+              <button onClick={() => setShowForm(true)} className="add-client-btn">
+                Add New Client
+              </button>
+            )}
           </div>
-        )}
 
-        {error && <div style={styles.error}>{error}</div>}
+          {/* Search and Filters */}
+          <SearchAndFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            showClientFilter={false}
+            showStateFilter={false}
+            startDate={startDate}
+            onStartDateChange={setStartDate}
+            endDate={endDate}
+            onEndDateChange={setEndDate}
+            onClearFilters={handleClearFilters}
+            searchPlaceholder="Search by name, phone, or factory name..."
+          />
 
-        {loading ? (
-          <Loading message="Loading clients..." size="medium" />
-        ) : (
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Date</th>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>Phone</th>
-                  <th style={styles.th}>Factory Name</th>
-                  <th style={styles.th}>Address</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clients.length === 0 ? (
+          {showForm && (
+            <div className="form-overlay">
+              <div className="form-container">
+                <h2 className="form-title">
+                  {editingClient ? 'Edit Client' : 'Add New Client'}
+                </h2>
+                <form onSubmit={handleSubmit} className="client-form">
+                  <div className="form-group">
+                    <label className="form-label">Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Phone *</label>
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      required
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Factory Name</label>
+                    <input
+                      type="text"
+                      value={formData.factoryName}
+                      onChange={(e) => setFormData({ ...formData, factoryName: e.target.value })}
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Address</label>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Notes</label>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      className="form-textarea"
+                      rows="3"
+                    />
+                  </div>
+
+                  <div className="form-buttons">
+                    <button type="submit" className="submit-btn">
+                      {editingClient ? 'Update' : 'Create'}
+                    </button>
+                    <button type="button" onClick={handleCancel} className="cancel-btn">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {error && <div className="error-message">{error}</div>}
+
+          {loading ? (
+            <Loading message="Loading clients..." size="medium" />
+          ) : (
+            <div className="table-container">
+              <table className="clients-table">
+                <thead>
                   <tr>
-                    <td colSpan="6" style={styles.noData}>
-                      No clients found
-                    </td>
+                    <th>Date</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Factory Name</th>
+                    <th>Address</th>
+                    <th>Actions</th>
                   </tr>
-                ) : (
-                  clients.map((client) => (
-                    <tr key={client._id}>
-                      <td style={styles.td}>{formatDateTime(client.createdAt || client.date)}</td>
-                      <td style={styles.td}>{client.name}</td>
-                      <td style={styles.td}>{client.phone}</td>
-                      <td style={styles.td}>{client.factoryName || '-'}</td>
-                      <td style={styles.td}>{client.address || '-'}</td>
-                      <td style={styles.td}>
-                        {canEdit && (
-                          <button onClick={() => handleEdit(client)} style={styles.editButton}>
-                            Edit
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button onClick={() => handleDelete(client._id)} style={styles.deleteButton}>
-                            Delete
-                          </button>
-                        )}
-                        {!canEdit && !canDelete && (
-                          <span style={{color: '#7f8c8d', fontStyle: 'italic'}}>View Only</span>
-                        )}
+                </thead>
+                <tbody>
+                  {clients.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="no-data-cell">
+                        No clients found
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  ) : (
+                    clients.map((client) => (
+                      <tr key={client._id}>
+                        <td data-label="Date">{formatDateTime(client.createdAt || client.date)}</td>
+                        <td data-label="Name">{client.name}</td>
+                        <td data-label="Phone">{client.phone}</td>
+                        <td data-label="Factory Name">{client.factoryName || '-'}</td>
+                        <td data-label="Address">{client.address || '-'}</td>
+                        <td data-label="Actions">
+                          {canEdit && (
+                            <button onClick={() => handleEdit(client)} className="edit-btn">
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button onClick={() => handleDelete(client._id)} className="delete-btn">
+                              Delete
+                            </button>
+                          )}
+                          {!canEdit && !canDelete && (
+                            <span className="view-only-text">View Only</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-        {/* Pagination */}
-        {!loading && clients.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
-        )}
+          {/* Pagination */}
+          {!loading && clients.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </div>
       </div>
-    </div>
     </PageLoader>
   );
-};
-
-const styles = {
-  container: {
-    minHeight: 'calc(100vh - 80px)',
-    backgroundColor: 'var(--bg-primary, #f0fdfd)',
-    padding: '2rem',
-  },
-  content: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '2rem',
-  },
-  title: {
-    fontSize: '2rem',
-    color: 'var(--text-primary, #111827)',
-  },
-  addButton: {
-    backgroundColor: 'var(--theme-primary, #00CED1)',
-    color: '#fff',
-    padding: '0.75rem 1.5rem',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: '500',
-    transition: 'all 0.2s ease',
-  },
-  searchBar: {
-    display: 'flex',
-    gap: '1rem',
-    marginBottom: '2rem',
-  },
-  searchInput: {
-    flex: 1,
-    padding: '0.75rem',
-    border: '1px solid var(--border-medium, #d1d5db)',
-    borderRadius: '8px',
-    fontSize: '1rem',
-  },
-  searchButton: {
-    backgroundColor: 'var(--theme-primary, #00CED1)',
-    color: '#fff',
-    padding: '0.75rem 1.5rem',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: '500',
-    transition: 'all 0.2s ease',
-  },
-  formOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  formContainer: {
-    backgroundColor: 'var(--surface, #fff)',
-    padding: '2rem',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '500px',
-    maxHeight: '90vh',
-    overflow: 'auto',
-    boxShadow: 'var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1))',
-  },
-  formTitle: {
-    fontSize: '1.5rem',
-    color: 'var(--text-primary, #111827)',
-    marginBottom: '1.5rem',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-  },
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  label: {
-    marginBottom: '0.5rem',
-    color: 'var(--text-primary, #111827)',
-    fontWeight: '500',
-  },
-  input: {
-    padding: '0.75rem',
-    border: '1px solid var(--border-medium, #d1d5db)',
-    borderRadius: '8px',
-    fontSize: '1rem',
-  },
-  textarea: {
-    padding: '0.75rem',
-    border: '1px solid var(--border-medium, #d1d5db)',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    resize: 'vertical',
-  },
-  formButtons: {
-    display: 'flex',
-    gap: '1rem',
-    marginTop: '1rem',
-  },
-  submitButton: {
-    flex: 1,
-    backgroundColor: 'var(--theme-primary, #00CED1)',
-    color: '#fff',
-    padding: '0.75rem',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: '500',
-    transition: 'all 0.2s ease',
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: 'var(--gray-400, #9ca3af)',
-    color: '#fff',
-    padding: '0.75rem',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: '500',
-    transition: 'all 0.2s ease',
-  },
-  error: {
-    backgroundColor: '#e74c3c',
-    color: '#fff',
-    padding: '1rem',
-    borderRadius: '4px',
-    marginBottom: '1rem',
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '2rem',
-    fontSize: '1.2rem',
-    color: '#7f8c8d',
-  },
-  tableContainer: {
-    backgroundColor: 'var(--surface, #fff)',
-    borderRadius: '12px',
-    overflow: 'hidden',
-    boxShadow: 'var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05))',
-    border: '1px solid var(--border-light, #e5e7eb)',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    backgroundColor: 'var(--theme-primary, #00CED1)',
-    color: '#fff',
-    padding: '1rem',
-    textAlign: 'left',
-    fontWeight: '600',
-  },
-  td: {
-    padding: '1rem',
-    borderBottom: '1px solid var(--border-light, #e5e7eb)',
-  },
-  noData: {
-    textAlign: 'center',
-    padding: '2rem',
-    color: '#7f8c8d',
-  },
-  editButton: {
-    backgroundColor: 'var(--theme-primary, #00CED1)',
-    color: '#fff',
-    padding: '0.5rem 1rem',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    marginRight: '0.5rem',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    transition: 'all 0.2s ease',
-  },
-  deleteButton: {
-    backgroundColor: 'var(--error, #ef4444)',
-    color: '#fff',
-    padding: '0.5rem 1rem',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    transition: 'all 0.2s ease',
-  },
 };
 
 export default Clients;

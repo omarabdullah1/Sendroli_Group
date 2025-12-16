@@ -143,7 +143,7 @@ const Orders = () => {
   const applyFiltersAndPagination = () => {
     try {
       let filteredOrders = [...allOrders];
-      
+
       // Search filter
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
@@ -152,7 +152,7 @@ const Orders = () => {
           const clientPhone = order.client?.phone || order.clientSnapshot?.phone || '';
           const factoryName = order.client?.factoryName || order.clientSnapshot?.factoryName || '';
           const orderType = order.type || '';
-          
+
           return (
             clientName.toLowerCase().includes(searchLower) ||
             clientPhone.toLowerCase().includes(searchLower) ||
@@ -162,21 +162,21 @@ const Orders = () => {
           );
         });
       }
-      
+
       // Client filter
       if (selectedClient) {
-        filteredOrders = filteredOrders.filter(order => 
+        filteredOrders = filteredOrders.filter(order =>
           order.client?._id === selectedClient || order.client === selectedClient
         );
       }
-      
+
       // State filter
       if (selectedState) {
-        filteredOrders = filteredOrders.filter(order => 
+        filteredOrders = filteredOrders.filter(order =>
           order.orderState === selectedState
         );
       }
-      
+
       // Date range filter
       if (startDate || endDate) {
         filteredOrders = filteredOrders.filter(order => {
@@ -186,17 +186,17 @@ const Orders = () => {
           return true;
         });
       }
-      
+
       // Calculate pagination
       const total = filteredOrders.length;
       setTotalItems(total);
       setTotalPages(Math.ceil(total / itemsPerPage) || 1);
-      
+
       // Apply pagination
       const startIndex = (currentPage - 1) * itemsPerPage;
       const endIndex = startIndex + itemsPerPage;
       const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
-      
+
       setOrders(paginatedOrders);
     } catch (err) {
       console.error('Error applying filters:', err);
@@ -212,7 +212,7 @@ const Orders = () => {
     } catch (err) {
       // Enhanced error message with material stock details if available
       let errorMessage = err.response?.data?.message || 'Failed to update order';
-      
+
       if (err.response?.data?.materialInfo) {
         const info = err.response.data.materialInfo;
         errorMessage += `\n\n📦 Material Stock Details:`;
@@ -222,7 +222,7 @@ const Orders = () => {
         errorMessage += `\n• Shortage: ${info.shortage.toFixed(2)} ${info.unit}`;
         errorMessage += `\n• Stock Status: ${info.status}`;
       }
-      
+
       alert(errorMessage);
     }
   };
@@ -322,249 +322,249 @@ const Orders = () => {
       onLoadComplete={() => console.log('Orders page loaded')}
     >
       <div style={styles.container} className="orders-container">
-      <div style={styles.content}>
-        <div style={styles.header} className="orders-header">
-          <h1 style={styles.title}>Order Management</h1>
-          {canAdd && (
-            <button
-              onClick={() => {
-                setModalInitialOrder({
-                  client: '',
-                  material: '',
-                  sheetWidth: '',
-                  sheetHeight: '',
-                  repeats: 1,
-                  totalPrice: 0,
-                  deposit: 0,
-                  orderState: 'pending',
-                  notes: '',
-                  designLink: '',
-                });
+        <div style={styles.content}>
+          <div style={styles.header} className="orders-header">
+            <h1 style={styles.title}>Order Management</h1>
+            {canAdd && (
+              <button
+                onClick={() => {
+                  setModalInitialOrder({
+                    client: '',
+                    material: '',
+                    sheetWidth: '',
+                    sheetHeight: '',
+                    repeats: 1,
+                    totalPrice: 0,
+                    deposit: 0,
+                    orderState: 'pending',
+                    notes: '',
+                    designLink: '',
+                  });
+                  setEditingOrder(null);
+                  setShowOrderModal(true);
+                }}
+                style={styles.addButton}
+              >
+                Add New Order
+              </button>
+            )}
+          </div>
+
+          {/* Search and Filters */}
+          <SearchAndFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            clients={clients}
+            selectedClient={selectedClient}
+            onClientChange={setSelectedClient}
+            states={[
+              { value: '', label: 'All States' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'active', label: 'Active' },
+              { value: 'done', label: 'Done' },
+              { value: 'delivered', label: 'Delivered' },
+            ]}
+            selectedState={selectedState}
+            onStateChange={setSelectedState}
+            startDate={startDate}
+            onStartDateChange={setStartDate}
+            endDate={endDate}
+            onEndDateChange={setEndDate}
+            onClearFilters={handleClearFilters}
+            searchPlaceholder="Search by client name, phone, or order number..."
+          />
+
+          {showOrderModal && (
+            <OrderModal
+              show={showOrderModal}
+              onClose={() => {
+                setShowOrderModal(false);
                 setEditingOrder(null);
-                setShowOrderModal(true);
+                setModalInitialOrder(null);
               }}
-              style={styles.addButton}
-            >
-              Add New Order
-            </button>
+              initialOrder={modalInitialOrder}
+              materials={materials}
+              clients={clients}
+              user={user}
+              onSave={handleSaveOrder}
+            />
+          )}
+
+          {showDesignModal && (
+            <div style={styles.formOverlay} className="orders-form-overlay">
+              <div style={styles.formContainer} className="orders-form-container">
+                <h2 style={styles.formTitle}>Update Design Information</h2>
+                <form onSubmit={handleDesignSubmit} style={styles.form}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Order Status *</label>
+                    <select
+                      value={designFormData.orderState}
+                      onChange={(e) => setDesignFormData({ ...designFormData, orderState: e.target.value })}
+                      required
+                      style={styles.input}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="active">Active</option>
+                      <option value="done">Done</option>
+                      <option value="delivered">Delivered</option>
+                    </select>
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Design Link</label>
+                    <input
+                      type="url"
+                      value={designFormData.designLink}
+                      onChange={(e) => setDesignFormData({ ...designFormData, designLink: e.target.value })}
+                      placeholder="https://example.com/design-link"
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formButtons}>
+                    <button type="submit" style={styles.submitButton}>
+                      Update Design
+                    </button>
+                    <button type="button" onClick={handleDesignCancel} style={styles.cancelButton}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {error && <div style={styles.error}>{error}</div>}
+
+          {loading ? (
+            <Loading message="Loading orders..." size="medium" />
+          ) : (
+            <div className="orders-table-section">
+              <div className="table-container">
+                <table className="data-table orders-page-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Client</th>
+                      <th>Type</th>
+                      <th>Repeats</th>
+                      <th>Total Price</th>
+                      <th>Deposit</th>
+                      <th>Remaining</th>
+                      <th>Status</th>
+                      <th>Notes</th>
+                      {(user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin') && (
+                        <th>Design Link</th>
+                      )}
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.length === 0 ? (
+                      <tr>
+                        <td colSpan={user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin' ? "11" : "10"} className="no-data">
+                          No orders found
+                        </td>
+                      </tr>
+                    ) : (
+                      orders.map((order) => (
+                        <tr key={order._id}>
+                          <td data-label="Date">{formatDateTime(order.createdAt || order.date)}</td>
+                          <td data-label="Client">
+                            {order.client?.name || order.clientSnapshot?.name}
+                          </td>
+                          <td data-label="Type">{order.type || '-'}</td>
+                          <td data-label="Repeats">{order.repeats || 0}</td>
+                          <td data-label="Total Price">{order.totalPrice} EGP</td>
+                          <td data-label="Deposit">{order.deposit} EGP</td>
+                          <td data-label="Remaining">{order.remainingAmount} EGP</td>
+                          <td data-label="Status">
+                            <span className="status-badge" style={getStatusStyle(order.orderState || 'pending')}>
+                              {order.orderState || 'pending'}
+                            </span>
+                          </td>
+                          <td data-label="Notes">
+                            <div className="notes-cell">
+                              {order.notes ? (
+                                <span title={order.notes}>
+                                  {order.notes.length > 30 ? `${order.notes.substring(0, 30)}...` : order.notes}
+                                </span>
+                              ) : (
+                                <span className="no-notes">No notes</span>
+                              )}
+                            </div>
+                          </td>
+                          {(user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin') && (
+                            <td data-label="Design Link">
+                              {order.designLink ? (
+                                <a
+                                  href={order.designLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-sm btn-primary"
+                                >
+                                  View Design
+                                </a>
+                              ) : (
+                                <span className="no-link">No link</span>
+                              )}
+                            </td>
+                          )}
+                          <td className="actions" data-label="Actions">
+                            <div className="orders-action-buttons">
+                              {canEditStatus && (
+                                <select
+                                  value={order.orderState}
+                                  onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
+                                  className="btn btn-sm"
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="active">Active</option>
+                                  <option value="done">Done</option>
+                                  <option value="delivered">Delivered</option>
+                                </select>
+                              )}
+                              {user?.role === 'designer' && (
+                                <button onClick={() => handleDesignUpdate(order)} className="btn btn-sm btn-primary">
+                                  Design
+                                </button>
+                              )}
+                              {canEdit && user?.role !== 'designer' && (
+                                <button onClick={() => handleEdit(order)} className="btn btn-sm btn-secondary">
+                                  Edit
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button onClick={() => handleDelete(order._id)} className="btn btn-sm btn-danger">
+                                  Delete
+                                </button>
+                              )}
+                              {!canEditStatus && !canEdit && !canDelete && user?.role !== 'designer' && (
+                                <span className="view-only">View Only</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && orders.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
           )}
         </div>
-
-        {/* Search and Filters */}
-        <SearchAndFilters
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          clients={clients}
-          selectedClient={selectedClient}
-          onClientChange={setSelectedClient}
-          states={[
-            { value: '', label: 'All States' },
-            { value: 'pending', label: 'Pending' },
-            { value: 'active', label: 'Active' },
-            { value: 'done', label: 'Done' },
-            { value: 'delivered', label: 'Delivered' },
-          ]}
-          selectedState={selectedState}
-          onStateChange={setSelectedState}
-          startDate={startDate}
-          onStartDateChange={setStartDate}
-          endDate={endDate}
-          onEndDateChange={setEndDate}
-          onClearFilters={handleClearFilters}
-          searchPlaceholder="Search by client name, phone, or order number..."
-        />
-
-        {showOrderModal && (
-          <OrderModal
-            show={showOrderModal}
-            onClose={() => {
-              setShowOrderModal(false);
-              setEditingOrder(null);
-              setModalInitialOrder(null);
-            }}
-            initialOrder={modalInitialOrder}
-            materials={materials}
-            clients={clients}
-            user={user}
-            onSave={handleSaveOrder}
-          />
-        )}
-
-        {showDesignModal && (
-          <div style={styles.formOverlay} className="orders-form-overlay">
-            <div style={styles.formContainer} className="orders-form-container">
-              <h2 style={styles.formTitle}>Update Design Information</h2>
-              <form onSubmit={handleDesignSubmit} style={styles.form}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Order Status *</label>
-                  <select
-                    value={designFormData.orderState}
-                    onChange={(e) => setDesignFormData({ ...designFormData, orderState: e.target.value })}
-                    required
-                    style={styles.input}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="active">Active</option>
-                    <option value="done">Done</option>
-                    <option value="delivered">Delivered</option>
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Design Link</label>
-                  <input
-                    type="url"
-                    value={designFormData.designLink}
-                    onChange={(e) => setDesignFormData({ ...designFormData, designLink: e.target.value })}
-                    placeholder="https://example.com/design-link"
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.formButtons}>
-                  <button type="submit" style={styles.submitButton}>
-                    Update Design
-                  </button>
-                  <button type="button" onClick={handleDesignCancel} style={styles.cancelButton}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {error && <div style={styles.error}>{error}</div>}
-
-        {loading ? (
-          <Loading message="Loading orders..." size="medium" />
-        ) : (
-          <div className="orders-table-section">
-            <div className="table-container">
-              <table className="data-table orders-page-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Client</th>
-                  <th>Type</th>
-                  <th>Repeats</th>
-                  <th>Total Price</th>
-                  <th>Deposit</th>
-                  <th>Remaining</th>
-                  <th>Status</th>
-                  <th>Notes</th>
-                  {(user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin') && (
-                    <th>Design Link</th>
-                  )}
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.length === 0 ? (
-                  <tr>
-                    <td colSpan={user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin' ? "11" : "10"} className="no-data">
-                      No orders found
-                    </td>
-                  </tr>
-                ) : (
-                  orders.map((order) => (
-                    <tr key={order._id}>
-                      <td>{formatDateTime(order.createdAt || order.date)}</td>
-                      <td>
-                        {order.client?.name || order.clientSnapshot?.name}
-                      </td>
-                      <td>{order.type || '-'}</td>
-                      <td>{order.repeats || 0}</td>
-                      <td>{order.totalPrice} EGP</td>
-                      <td>{order.deposit} EGP</td>
-                      <td>{order.remainingAmount} EGP</td>
-                      <td>
-                        <span className="status-badge" style={getStatusStyle(order.orderState || 'pending')}>
-                          {order.orderState || 'pending'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="notes-cell">
-                          {order.notes ? (
-                            <span title={order.notes}>
-                              {order.notes.length > 30 ? `${order.notes.substring(0, 30)}...` : order.notes}
-                            </span>
-                          ) : (
-                            <span className="no-notes">No notes</span>
-                          )}
-                        </div>
-                      </td>
-                      {(user?.role === 'designer' || user?.role === 'worker' || user?.role === 'admin') && (
-                        <td>
-                          {order.designLink ? (
-                            <a 
-                              href={order.designLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="btn btn-sm btn-primary"
-                            >
-                              View Design
-                            </a>
-                          ) : (
-                            <span className="no-link">No link</span>
-                          )}
-                        </td>
-                      )}
-                      <td className="actions">
-                        <div className="orders-action-buttons">
-                          {canEditStatus && (
-                            <select
-                              value={order.orderState}
-                              onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
-                              className="btn btn-sm"
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="active">Active</option>
-                              <option value="done">Done</option>
-                              <option value="delivered">Delivered</option>
-                            </select>
-                          )}
-                          {user?.role === 'designer' && (
-                            <button onClick={() => handleDesignUpdate(order)} className="btn btn-sm btn-primary">
-                              Design
-                            </button>
-                          )}
-                          {canEdit && user?.role !== 'designer' && (
-                            <button onClick={() => handleEdit(order)} className="btn btn-sm btn-secondary">
-                              Edit
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button onClick={() => handleDelete(order._id)} className="btn btn-sm btn-danger">
-                              Delete
-                            </button>
-                          )}
-                          {!canEditStatus && !canEdit && !canDelete && user?.role !== 'designer' && (
-                            <span className="view-only">View Only</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {!loading && orders.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
-        )}
       </div>
-    </div>
     </PageLoader>
   );
 };

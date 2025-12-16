@@ -43,6 +43,19 @@
   padding-top: var(--header-height, 80px); /* Use CSS variable to match header height */
 }
 
+/* Hide page-level header actions when on dashboard route */
+.main-content.dashboard-page .header-actions {
+  display: none !important;
+}
+
+/* Also hide action buttons & quick action grids on dashboard to remove page-level CTA elements */
+.main-content.dashboard-page .action-buttons,
+.main-content.dashboard-page .action-card,
+.main-content.dashboard-page .action-btn,
+.main-content.dashboard-page .page-actions {
+  display: none !important;
+}
+
 /* Auth pages (no sidebar) */
 .main-content:not(.with-sidebar) {
   width: 100%;

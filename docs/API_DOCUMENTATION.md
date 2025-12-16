@@ -1,3 +1,36 @@
+### Get Revenue Timeseries
+
+**GET** `/orders/stats/timeseries?period=30&interval=day|week|month`
+
+Retrieve a time series of revenue aggregation.
+
+Query parameters:
+- `period` (optional): integer controlling how many intervals to return; default depends on `interval` (day=30, week=12, month=12)
+- `interval` (optional): `day|week|month` — default is `day`.
+
+Examples:
+```
+GET /orders/stats/timeseries?period=30&interval=day
+GET /orders/stats/timeseries?period=12&interval=week
+GET /orders/stats/timeseries?period=6&interval=month
+```
+
+Return format:
+
+```json
+{
+  "success": true,
+  "data": {
+    "labels": ["2025-11-14", "2025-11-15", ...],
+    "data": [1234.0, 0.0, 300.0, ...]
+  }
+}
+```
+
+Notes:
+- `day` groups by day (YYYY-MM-DD), `week` uses ISO week-year (YYYY-W##), `month` groups by month (YYYY-MM).
+- The API returns zeros for missing intervals so charts can render continuous lines.
+
 # 📚 Sendroli Factory Management System - API Documentation
 
 <div align="center">

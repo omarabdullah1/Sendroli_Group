@@ -7,6 +7,7 @@ const {
   updateOrder,
   deleteOrder,
   getFinancialStats,
+  getRevenueTimeseries,
 } = require('../controllers/orderController');
 const { protect, authorize } = require('../middleware/auth');
 const { searchLimiter } = require('../middleware/rateLimiter');
@@ -24,6 +25,8 @@ const conditionalSearchLimiter = (req, res, next) => {
 
 // Financial statistics route
 router.get('/stats/financial', authorize('financial', 'admin'), getFinancialStats);
+// Revenue timeseries route (last N days grouped by day)
+router.get('/stats/timeseries', authorize('financial', 'admin', 'designer'), getRevenueTimeseries);
 
 // Main order routes
 router
