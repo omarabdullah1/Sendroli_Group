@@ -143,9 +143,9 @@ app.use(cors({
 
     // Allow all Vercel preview URLs dynamically, localhost, self-hosted server, and custom domain
     if (origin && (
-      origin.includes('.vercel.app') || 
-      origin.includes('localhost') || 
-      origin.includes('72.62.38.191') || 
+      origin.includes('.vercel.app') ||
+      origin.includes('localhost') ||
+      origin.includes('72.62.38.191') ||
       origin.includes('sendroligroup.cloud') ||
       allowedOrigins.includes(origin)
     )) {
@@ -184,6 +184,7 @@ const clientRoutes = require('./routes/clientRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const userRoutes = require('./routes/userRoutes');
 const materialRoutes = require('./routes/materialRoutes');
+const products = require('./routes/products');
 const supplierRoutes = require('./routes/supplierRoutes');
 const purchaseRoutes = require('./routes/purchaseRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
@@ -197,6 +198,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/materials', materialRoutes);
+app.use('/api/products', products);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/inventory', inventoryRoutes);
@@ -212,8 +214,8 @@ app.get('/api/health', (req, res) => {
 
 // Version check endpoint to verify deployed code
 app.get('/api/version', (req, res) => {
-  res.status(200).json({ 
-    success: true, 
+  res.status(200).json({
+    success: true,
     version: '1.2.0-explicit-user-inclusion',
     timestamp: new Date().toISOString(),
     features: [

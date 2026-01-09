@@ -61,26 +61,27 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/unauthorized';
   // Website pages: root, website routes, client portal
-  const isWebsitePage = location.pathname === '/' || 
-                        location.pathname.startsWith('/website') || 
-                        location.pathname === '/client-portal';
+  const isWebsitePage = location.pathname === '/' ||
+    location.pathname.startsWith('/website') ||
+    location.pathname === '/client-portal';
   // ERP pages: dashboard and all other protected routes
-  const isERPage = location.pathname.startsWith('/dashboard') || 
-                    location.pathname.startsWith('/clients') ||
-                    location.pathname.startsWith('/orders') ||
-                    location.pathname.startsWith('/invoices') ||
-                    location.pathname.startsWith('/financial-stats') ||
-                    location.pathname.startsWith('/financial-report') ||
-                    location.pathname.startsWith('/client-reports') ||
-                    location.pathname.startsWith('/reports') ||
-                    location.pathname.startsWith('/users') ||
-                    location.pathname.startsWith('/notifications') ||
-                    location.pathname.startsWith('/materials') ||
-                    location.pathname.startsWith('/suppliers') ||
-                    location.pathname.startsWith('/purchases') ||
-                    location.pathname.startsWith('/inventory') ||
-                    location.pathname.startsWith('/material-withdrawal') ||
-                    location.pathname.startsWith('/website-settings');
+  const isERPage = location.pathname.startsWith('/dashboard') ||
+    location.pathname.startsWith('/clients') ||
+    location.pathname.startsWith('/orders') ||
+    location.pathname.startsWith('/invoices') ||
+    location.pathname.startsWith('/financial-stats') ||
+    location.pathname.startsWith('/financial-report') ||
+    location.pathname.startsWith('/client-reports') ||
+    location.pathname.startsWith('/reports') ||
+    location.pathname.startsWith('/users') ||
+    location.pathname.startsWith('/notifications') ||
+    location.pathname.startsWith('/materials') ||
+    location.pathname.startsWith('/products') ||
+    location.pathname.startsWith('/suppliers') ||
+    location.pathname.startsWith('/purchases') ||
+    location.pathname.startsWith('/inventory') ||
+    location.pathname.startsWith('/material-withdrawal') ||
+    location.pathname.startsWith('/website-settings');
 
   return (
     <div className="app-container">
@@ -102,182 +103,191 @@ function App() {
     <AuthProvider>
       <NotificationProvider>
         <SidebarProvider>
-        <Router future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true
-        }}>
-          <Layout>
-          <Routes>
-            {/* Public Website - Main Page */}
-            <Route path="/" element={<LandingPage />} />
-            
-            {/* Main Login Page - Website Login */}
-            <Route path="/login" element={<WebsiteLogin />} />
-            <Route path="/register" element={<ClientRegister />} />
-            <Route path="/website/login" element={<Navigate to="/login" replace />} />
-            
-            {/* Client Portal */}
-            <Route
-              path="/client-portal"
-              element={
-                <PrivateRoute roles={['client']}>
-                  <ClientPortal />
-                </PrivateRoute>
-              }
-            />
+          <Router future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}>
+            <Layout>
+              <Routes>
+                {/* Public Website - Main Page */}
+                <Route path="/" element={<LandingPage />} />
 
-            {/* Other Routes */}
-            <Route path="/unauthorized" element={<Unauthorized />} />
-            
-            {/* ERP Dashboard */}
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Home />
-                </PrivateRoute>
-              }
-            />
+                {/* Main Login Page - Website Login */}
+                <Route path="/login" element={<WebsiteLogin />} />
+                <Route path="/register" element={<ClientRegister />} />
+                <Route path="/website/login" element={<Navigate to="/login" replace />} />
 
-            <Route
-              path="/clients"
-              element={
-                <PrivateRoute roles={['receptionist', 'admin']}>
-                  <Clients />
-                </PrivateRoute>
-              }
-            />
+                {/* Client Portal */}
+                <Route
+                  path="/client-portal"
+                  element={
+                    <PrivateRoute roles={['client']}>
+                      <ClientPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/reports/client-analytics"
-              element={
-                <PrivateRoute roles={['financial', 'admin']}>
-                  <ClientAnalytics />
-                </PrivateRoute>
-              }
-            />
+                {/* Other Routes */}
+                <Route path="/unauthorized" element={<Unauthorized />} />
 
-            <Route
-              path="/orders"
-              element={
-                <PrivateRoute roles={['designer', 'worker', 'financial', 'admin']}>
-                  <Orders />
-                </PrivateRoute>
-              }
-            />
+                {/* ERP Dashboard */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <PrivateRoute>
+                      <Home />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/invoices/*"
-              element={
-                <PrivateRoute roles={['designer', 'financial', 'admin']}>
-                  <Invoices />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/clients"
+                  element={
+                    <PrivateRoute roles={['receptionist', 'admin']}>
+                      <Clients />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/financial-stats"
-              element={
-                <PrivateRoute roles={['financial', 'admin']}>
-                  <FinancialStats />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/reports/client-analytics"
+                  element={
+                    <PrivateRoute roles={['financial', 'admin']}>
+                      <ClientAnalytics />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/financial-report"
-              element={
-                <PrivateRoute roles={['financial', 'admin']}>
-                  <FinancialReport />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/orders"
+                  element={
+                    <PrivateRoute roles={['designer', 'worker', 'financial', 'admin']}>
+                      <Orders />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/client-reports"
-              element={
-                <PrivateRoute roles={['admin', 'financial']}>
-                  <ClientReports />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/invoices/*"
+                  element={
+                    <PrivateRoute roles={['designer', 'financial', 'admin']}>
+                      <Invoices />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/users"
-              element={
-                <PrivateRoute roles={['admin']}>
-                  <Users />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/financial-stats"
+                  element={
+                    <PrivateRoute roles={['financial', 'admin']}>
+                      <FinancialStats />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/notifications"
-              element={
-                <PrivateRoute>
-                  <Notifications />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/financial-report"
+                  element={
+                    <PrivateRoute roles={['financial', 'admin']}>
+                      <FinancialReport />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/materials"
-              element={
-                <PrivateRoute roles={['admin']}>
-                  <Materials />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/client-reports"
+                  element={
+                    <PrivateRoute roles={['admin', 'financial']}>
+                      <ClientReports />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/suppliers"
-              element={
-                <PrivateRoute roles={['admin']}>
-                  <Suppliers />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/users"
+                  element={
+                    <PrivateRoute roles={['admin']}>
+                      <Users />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/purchases"
-              element={
-                <PrivateRoute roles={['admin']}>
-                  <Purchases />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/notifications"
+                  element={
+                    <PrivateRoute>
+                      <Notifications />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/inventory"
-              element={
-                <PrivateRoute roles={['admin', 'worker']}>
-                  <Inventory />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/materials"
+                  element={
+                    <PrivateRoute roles={['admin']}>
+                      <Materials />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/material-withdrawal"
-              element={
-                <PrivateRoute roles={['admin', 'worker']}>
-                  <MaterialWithdrawal />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/products"
+                  element={
+                    <PrivateRoute roles={['admin', 'designer']}>
+                      <Products />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path="/website-settings"
-              element={
-                <PrivateRoute roles={['admin']}>
-                  <WebsiteSettings />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path="/suppliers"
+                  element={
+                    <PrivateRoute roles={['admin']}>
+                      <Suppliers />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Layout>
-      </Router>
+                <Route
+                  path="/purchases"
+                  element={
+                    <PrivateRoute roles={['admin']}>
+                      <Purchases />
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/inventory"
+                  element={
+                    <PrivateRoute roles={['admin', 'worker']}>
+                      <Inventory />
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/material-withdrawal"
+                  element={
+                    <PrivateRoute roles={['admin', 'worker']}>
+                      <MaterialWithdrawal />
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/website-settings"
+                  element={
+                    <PrivateRoute roles={['admin']}>
+                      <WebsiteSettings />
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Layout>
+          </Router>
         </SidebarProvider>
       </NotificationProvider>
     </AuthProvider>

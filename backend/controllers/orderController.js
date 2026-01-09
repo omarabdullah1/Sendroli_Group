@@ -33,7 +33,7 @@ exports.getOrders = async (req, res) => {
           total: 0,
         });
       }
-    // Role-based filter for client is already applied above.
+      // Role-based filter for client is already applied above.
     }
 
     const orders = await Order.find(query)
@@ -83,7 +83,7 @@ exports.getOrder = async (req, res) => {
     const isOwner = order.createdBy._id.toString() === req.user._id.toString();
     const isAdmin = userRole === 'admin';
     const hasOrderAccess = ['designer', 'worker', 'financial'].includes(userRole);
-    
+
     let isClientOwner = false;
     if (userRole === 'client') {
       const clientDoc = await Client.findOne({ user: req.user._id });
@@ -93,7 +93,7 @@ exports.getOrder = async (req, res) => {
         isClientOwner = true;
       }
     }
-    
+
     // Only owner, admin, users with order access, or the client who owns the order can view
     if (!isOwner && !isAdmin && !hasOrderAccess && !isClientOwner) {
       return res.status(403).json({
@@ -128,6 +128,7 @@ exports.createOrder = async (req, res) => {
       sheetHeight,
       type,
       material,
+      product, // Add product to destructuring
       totalPrice,
       deposit,
       orderState,
@@ -150,17 +151,11 @@ exports.createOrder = async (req, res) => {
     const numRepeats = parseFloat(repeats) || 0;
     const numSheetWidth = parseFloat(sheetWidth) || 0;
     const numSheetHeight = parseFloat(sheetHeight) || 0;
-    
+
     let calculatedOrderSize = 0;
     // Calculate the order size by height only (meters) * repeats
     if (numRepeats > 0 && numSheetHeight > 0) {
       calculatedOrderSize = numRepeats * numSheetHeight;
-      console.log('Order size calculation (height-only):', {
-        repeats: numRepeats,
-        width: numSheetWidth, // optional
-        height: numSheetHeight,
-        orderSize: calculatedOrderSize
-      });
     }
 
     let orderData = {
@@ -170,6 +165,7 @@ exports.createOrder = async (req, res) => {
       sheetHeight: numSheetHeight,
       type,
       material: material || null,
+      product: product || null, // Add product to orderData
       deposit: parseFloat(deposit) || 0,
       orderState: orderState || 'pending',
       notes,
@@ -177,57 +173,70 @@ exports.createOrder = async (req, res) => {
       invoice: invoice || null,
       createdBy: req.user._id,
     };
-    
-    // If material is selected, calculate total price as selling price per meter * order size
-    if (material) {
+
+    // Priority: Product > Material > Manual Price
+
+    if (product) {
+      const Product = require('../models/Product');
+      const productDoc = await Product.findById(product);
+
+      if (productDoc) {
+        orderData.type = productDoc.name;
+        // Use product selling price
+        // If we want to support multiple products (quantity), we might need another field or use repeats
+        // For now, assuming repeats acts as quantity if valid
+        const quantity = numRepeats > 0 ? numRepeats : 1;
+        orderData.totalPrice = productDoc.sellingPrice * (numRepeats > 0 ? 1 : 1); // Logic check: current requirement says "every product have price". 
+        // If I strictly follow "product have price", then totalPrice = product.price. 
+        // But usually if I buy 2, it's 2x price. 
+        // The prompt: "order... uses a product".
+        // Let's assume repeats is NOT quantity for Product unless specified. 
+        // But wait, existing logic uses repeats for printing.
+        // If this is a Product (e.g. Rollup Stand), repeats might be quantity. 
+        // If this is printing service using Material, repeats is copies.
+
+        // Let's rely on the frontend to calculate, OR do backend calculation. 
+        // Safe bet: Use product price. If frontend sent totalPrice, maybe verify? 
+        // But here we are setting it.
+        // Let's set it to product.sellingPrice.
+        orderData.totalPrice = productDoc.sellingPrice;
+
+        console.log('🔧 BACKEND PRICE CALCULATION (Product):', {
+          product: productDoc.name,
+          price: productDoc.sellingPrice
+        });
+      }
+    } else if (material) {
       const materialDoc = await Material.findById(material);
       if (materialDoc) {
         // Set type from material name
         orderData.type = materialDoc.name;
-        
+
         if (materialDoc.sellingPrice) {
           // Calculate total price as selling price per meter * order size (meters)
-          // This matches the frontend calculation: sellingPrice * (repeats * sheetHeight)
           if (calculatedOrderSize > 0) {
             orderData.totalPrice = parseFloat(materialDoc.sellingPrice) * calculatedOrderSize;
-            console.log('🔧 BACKEND PRICE CALCULATION DEBUG:', {
-              materialId: material,
-              materialName: materialDoc.name,
-              sellingPrice: materialDoc.sellingPrice,
-              sellingPriceType: typeof materialDoc.sellingPrice,
-              sellingPriceParsed: parseFloat(materialDoc.sellingPrice),
-              repeats: numRepeats,
-              sheetWidth: numSheetWidth,
-              sheetHeight: numSheetHeight,
-              calculatedOrderSize: calculatedOrderSize,
-              totalPrice: orderData.totalPrice,
-              calculation: `${parseFloat(materialDoc.sellingPrice)} * ${calculatedOrderSize} = ${orderData.totalPrice}`
-            });
           } else {
-            // If order size is not available, use selling price directly (will be recalculated when size is set)
+            // If order size is not available, use selling price directly
             orderData.totalPrice = parseFloat(materialDoc.sellingPrice);
-            console.log('🔧 BACKEND PRICE DEBUG (no size):', {
-              sellingPrice: materialDoc.sellingPrice,
-              totalPrice: orderData.totalPrice
-            });
           }
         } else {
           // If no material price, use provided totalPrice or require it
           if (!totalPrice) {
             return res.status(400).json({
               success: false,
-              message: 'Material has no selling price. Please set price manually or select a different material.',
+              message: 'Material has no selling price. Please set price manually.',
             });
           }
           orderData.totalPrice = totalPrice;
         }
       }
     } else {
-      // No material selected, use provided price and type
+      // No material or product selected, use provided price and type
       if (!totalPrice) {
         return res.status(400).json({
           success: false,
-          message: 'Total price is required when no material is selected',
+          message: 'Total price is required when no material/product is selected',
         });
       }
       orderData.totalPrice = totalPrice;
@@ -274,21 +283,21 @@ exports.createOrder = async (req, res) => {
         username: req.user.username,
         role: req.user.role
       });
-      
+
       // Find all admin, designer, and worker users (including current user for testing)
       const allUsers = await User.find({
         role: { $in: ['admin', 'designer', 'worker'] },
         isActive: true,
       }).select('_id username role email isActive');
-      
+
       console.log(`📧 Total admin/designer/worker users in database: ${allUsers.length}`);
       allUsers.forEach(u => {
         console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
       });
-      
+
       const clientDisplay = populatedOrder.clientSnapshot?.name || populatedOrder.clientName || 'Unknown Client';
       const orderType = orderData.type || 'Order';
-      
+
       let notificationCount = 0;
       for (const user of allUsers) {
         console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
@@ -303,7 +312,7 @@ exports.createOrder = async (req, res) => {
             actionUrl: `/orders/${order._id}`,
           };
           console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
-          
+
           const notification = await createNotification(user._id, notificationData);
           notificationCount++;
           console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
@@ -371,7 +380,7 @@ exports.updateOrder = async (req, res) => {
     const isDesigner = userRole === 'designer';
     const isWorker = userRole === 'worker';
     const isFinancial = userRole === 'financial';
-    
+
     // Only admin, owner (if admin), or users with specific roles can modify
     if (!isAdmin && !isDesigner && !isWorker && !isFinancial && !isOwner) {
       return res.status(403).json({
@@ -391,53 +400,64 @@ exports.updateOrder = async (req, res) => {
       // remainingAmount will be recalculated if needed
       delete updateData.client; // Can't change client
       delete updateData.invoice; // Can't change invoice
-      
+
       // Allowed fields for designers: size, repeats, status, designLink, notes, material, deposit
       const allowedFields = [
-        'orderState', 
-        'designLink', 
+        'orderState',
+        'designLink',
         'material', // Can change material (price will auto-update)
-        'sheetWidth', 
-        'sheetHeight', 
-        'repeats', 
+        'sheetWidth',
+        'sheetHeight',
+        'repeats',
         'notes',
         'deposit', // Can now update deposit
         'clientName' // Can update client name display
       ];
-      
+
       Object.keys(updateData).forEach((key) => {
         if (!allowedFields.includes(key)) {
           delete updateData[key];
         }
       });
-      
-      // If material is changed or size changed, recalculate price from material selling price * order size
-      if (updateData.material || updateData.repeats !== undefined || updateData.sheetWidth !== undefined || updateData.sheetHeight !== undefined) {
-        const materialId = updateData.material || order.material;
-        if (materialId) {
+
+      // If material/product is changed or size changed, recalculate price
+      if (updateData.material || updateData.product || updateData.repeats !== undefined || updateData.sheetWidth !== undefined || updateData.sheetHeight !== undefined) {
+        const materialId = updateData.material || (order.material && !updateData.product ? order.material : null);
+        const productId = updateData.product || (order.product && !updateData.material ? order.product : null);
+
+        if (productId) {
+          const Product = require('../models/Product');
+          const productDoc = await Product.findById(productId);
+          if (productDoc) {
+            updateData.type = productDoc.name;
+            updateData.totalPrice = productDoc.sellingPrice;
+            const depositAmount = updateData.deposit !== undefined ? updateData.deposit : (order.deposit || 0);
+            updateData.remainingAmount = updateData.totalPrice - depositAmount;
+          }
+        } else if (materialId) {
           const Material = require('../models/Material');
           const materialDoc = await Material.findById(materialId);
           if (materialDoc) {
             // Set type from material name
             updateData.type = materialDoc.name;
-            
+
             if (materialDoc.sellingPrice) {
               // Calculate order size
               const r = parseFloat(updateData.repeats !== undefined ? updateData.repeats : (order.repeats || 0)) || 0;
               const h = parseFloat(updateData.sheetHeight !== undefined ? updateData.sheetHeight : (order.sheetHeight || 0)) || 0;
-              // Width is kept as optional, primarily for display; pricing is based on height (meters) * repeats
+              // Width is kept as optional
               let calculatedOrderSize = 0;
               if (r > 0 && h > 0) {
                 calculatedOrderSize = r * h;
               }
-              
+
               // Calculate total price as selling price per meter * order size
               if (calculatedOrderSize > 0) {
                 updateData.totalPrice = materialDoc.sellingPrice * calculatedOrderSize;
               } else {
                 updateData.totalPrice = materialDoc.sellingPrice;
               }
-              
+
               // Use updated deposit if provided, otherwise use existing deposit
               const depositAmount = updateData.deposit !== undefined ? updateData.deposit : (order.deposit || 0);
               updateData.remainingAmount = updateData.totalPrice - depositAmount;
@@ -445,7 +465,7 @@ exports.updateOrder = async (req, res) => {
           }
         }
       }
-      
+
       // Validate orderState transitions
       const validStates = ['pending', 'active', 'done', 'delivered'];
       if (updateData.orderState && !validStates.includes(updateData.orderState)) {
@@ -454,7 +474,7 @@ exports.updateOrder = async (req, res) => {
           message: 'Invalid order state',
         });
       }
-      
+
       // Validate deposit if being updated
       if (updateData.deposit !== undefined) {
         if (updateData.deposit < 0) {
@@ -463,7 +483,7 @@ exports.updateOrder = async (req, res) => {
             message: 'Deposit cannot be negative',
           });
         }
-        
+
         // Recalculate remainingAmount if deposit is updated
         const currentTotalPrice = updateData.totalPrice !== undefined ? updateData.totalPrice : order.totalPrice;
         updateData.remainingAmount = currentTotalPrice - updateData.deposit;
@@ -478,7 +498,7 @@ exports.updateOrder = async (req, res) => {
           delete updateData[key];
         }
       });
-      
+
       // Validate orderState transitions
       const validStates = ['pending', 'active', 'done', 'delivered'];
       if (updateData.orderState && !validStates.includes(updateData.orderState)) {
@@ -497,7 +517,7 @@ exports.updateOrder = async (req, res) => {
           delete updateData[key];
         }
       });
-      
+
       // Validate payment amounts
       if (updateData.deposit && updateData.deposit < 0) {
         return res.status(400).json({
@@ -505,7 +525,7 @@ exports.updateOrder = async (req, res) => {
           message: 'Deposit cannot be negative',
         });
       }
-      
+
       if (updateData.totalPrice && updateData.totalPrice < 0) {
         return res.status(400).json({
           success: false,
@@ -522,11 +542,11 @@ exports.updateOrder = async (req, res) => {
     if (updateData.orderState === 'done' && order.orderState !== 'done') {
       if (order.material && order.orderSize) {
         const material = await Material.findById(order.material);
-        
+
         if (material) {
           const requiredStock = order.orderSize;
           const availableStock = material.currentStock;
-          
+
           if (availableStock < requiredStock) {
             return res.status(400).json({
               success: false,
@@ -567,21 +587,21 @@ exports.updateOrder = async (req, res) => {
         username: req.user.username,
         role: req.user.role
       });
-      
+
       // Find all admin, designer, and worker users (including current user for testing)
       const allUsers = await User.find({
         role: { $in: ['admin', 'designer', 'worker', 'financial'] },
         isActive: true,
       }).select('_id username role email isActive');
-      
+
       console.log(`📧 Total admin/designer/worker/financial users in database: ${allUsers.length}`);
       allUsers.forEach(u => {
         console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
       });
-      
+
       const clientDisplay = order.clientSnapshot?.name || order.clientName || 'Unknown Client';
       const orderType = order.type || 'Order';
-      
+
       let notificationCount = 0;
       for (const user of allUsers) {
         console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
@@ -596,7 +616,7 @@ exports.updateOrder = async (req, res) => {
             actionUrl: `/orders/${order._id}`,
           };
           console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
-          
+
           const notification = await createNotification(user._id, notificationData);
           notificationCount++;
           console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);
@@ -661,7 +681,7 @@ exports.deleteOrder = async (req, res) => {
     const userRole = req.user.role;
     const isOwner = order.createdBy.toString() === req.user._id.toString();
     const isAdmin = userRole === 'admin';
-    
+
     // Only admin or owner (if admin) can delete
     if (!isAdmin && !isOwner) {
       return res.status(403).json({
@@ -698,7 +718,7 @@ exports.deleteOrder = async (req, res) => {
     } catch (err) {
       console.warn('⚠️ Failed to clear dashboard cache after order deletion:', err?.message || err);
     }
-    
+
     // Notify relevant users about order deletion
     try {
       console.log('🔍 ===== ORDER DELETE NOTIFICATION START =====');
@@ -709,18 +729,18 @@ exports.deleteOrder = async (req, res) => {
         username: req.user.username,
         role: req.user.role
       });
-      
+
       // Find all admin, designer, and worker users (including current user for testing)
       const allUsers = await User.find({
         role: { $in: ['admin', 'designer', 'worker', 'financial'] },
         isActive: true,
       }).select('_id username role email isActive');
-      
+
       console.log(`📧 Total admin/designer/worker/financial users in database: ${allUsers.length}`);
       allUsers.forEach(u => {
         console.log(`  - ${u.username} (${u.role}) - ID: ${u._id.toString()} - Active: ${u.isActive} - ${u._id.toString() === req.user._id.toString() ? '(YOU)' : ''}`);
       });
-      
+
       let notificationCount = 0;
       for (const user of allUsers) {
         console.log(`\n📤 Attempting to create notification for user: ${user.username} (${user._id.toString()})`);
@@ -735,7 +755,7 @@ exports.deleteOrder = async (req, res) => {
             actionUrl: '/orders',
           };
           console.log('📦 Notification data:', JSON.stringify(notificationData, null, 2));
-          
+
           const notification = await createNotification(user._id, notificationData);
           notificationCount++;
           console.log(`✅ SUCCESS - Notification created with ID: ${notification._id.toString()}`);

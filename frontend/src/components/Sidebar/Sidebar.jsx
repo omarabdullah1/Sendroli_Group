@@ -1,23 +1,23 @@
 import {
-    faArrowUp,
-    faBell,
-    faBox,
-    faChartBar,
-    faChartLine,
-    faChartPie,
-    faChevronDown,
-    faClipboard,
-    faCog,
-    faDollarSign,
-    faFileInvoice,
-    faGlobe,
-    faIndustry,
-    faPalette,
-    faShoppingBag,
-    faShoppingCart,
-    faUser,
-    faUsers,
-    faWarehouse
+  faArrowUp,
+  faBell,
+  faBox,
+  faChartBar,
+  faChartLine,
+  faChartPie,
+  faChevronDown,
+  faClipboard,
+  faCog,
+  faDollarSign,
+  faFileInvoice,
+  faGlobe,
+  faIndustry,
+  faPalette,
+  faShoppingBag,
+  faShoppingCart,
+  faUser,
+  faUsers,
+  faWarehouse
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useState } from 'react';
@@ -97,6 +97,7 @@ const Sidebar = () => {
       collapsible: true,
       items: [
         { path: '/materials', label: 'Materials', icon: faPalette, roles: ['admin'] },
+        { path: '/products', label: 'Products', icon: faBoxOpen, roles: ['admin', 'designer'] },
         { path: '/inventory', label: 'Stock Management', icon: faChartLine, roles: ['admin', 'worker'] },
         { path: '/material-withdrawal', label: 'Material Withdrawal', icon: faArrowUp, roles: ['admin', 'worker'] },
         { path: '/suppliers', label: 'Suppliers', icon: faIndustry, roles: ['admin'] },
@@ -128,19 +129,19 @@ const Sidebar = () => {
       ],
     };
     const menu = [...baseItems];
-    
+
     if (user.role === 'admin' || user.role === 'receptionist' || user.role === 'designer' || user.role === 'worker' || user.role === 'financial') {
       menu.push(salesSection);
     }
-    
+
     if (user.role === 'admin' || user.role === 'worker') {
       menu.push(inventorySection);
     }
-    
+
     if (user.role === 'admin' || user.role === 'financial' || user.role === 'receptionist') {
       menu.push(reportsSection);
     }
-    
+
     if (user.role === 'admin') {
       menu.push(settingsSection);
     }
@@ -154,111 +155,110 @@ const Sidebar = () => {
     <>
       {/* Mobile backdrop overlay */}
       {isOpen && typeof window !== 'undefined' && window.innerWidth <= 768 && (
-        <div 
-          className="sidebar-backdrop" 
+        <div
+          className="sidebar-backdrop"
           onClick={closeSidebar}
           aria-hidden="true"
         />
       )}
-      
-      <div 
+
+      <div
         className={`sidebar ${collapsed ? 'collapsed' : ''} ${isOpen ? 'open' : ''}`}
         style={isOpen && typeof window !== 'undefined' && window.innerWidth <= 768 ? { transform: 'translateX(0)', zIndex: 1002, display: 'flex' } : {}}
       >
-      {/* Logo & Brand */}
-      <div className="sidebar-header">
-        <Link to="/dashboard" className="sidebar-brand">
-          <div className="brand-logo">
-            <Logo 
-              variant={collapsed ? 'icon' : 'full'} 
-              size="medium" 
-              alt="Sendroli Group" 
-            />
-          </div>
-        </Link>
-      </div>
-
-      {/* User Info */}
-      <div className="sidebar-user">
-        <div className="user-avatar">
-          {user.fullName?.charAt(0).toUpperCase() || 'U'}
+        {/* Logo & Brand */}
+        <div className="sidebar-header">
+          <Link to="/dashboard" className="sidebar-brand">
+            <div className="brand-logo">
+              <Logo
+                variant={collapsed ? 'icon' : 'full'}
+                size="medium"
+                alt="Sendroli Group"
+              />
+            </div>
+          </Link>
         </div>
-        {!collapsed && (
-          <div className="user-info">
-            <span className="user-name">{user.fullName}</span>
-            <span className="user-role">{user.role}</span>
-          </div>
-        )}
-      </div>
 
-      {/* Navigation Menu */}
-      <nav className="sidebar-nav">
-        {menuItems.map((section, sectionIndex) => (
-          <div key={sectionIndex} className="nav-section">
-            {section.label && section.collapsible && !collapsed && (
-              <div
-                className="section-header"
-                onClick={() => toggleSection(section.section)}
+        {/* User Info */}
+        <div className="sidebar-user">
+          <div className="user-avatar">
+            {user.fullName?.charAt(0).toUpperCase() || 'U'}
+          </div>
+          {!collapsed && (
+            <div className="user-info">
+              <span className="user-name">{user.fullName}</span>
+              <span className="user-role">{user.role}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation Menu */}
+        <nav className="sidebar-nav">
+          {menuItems.map((section, sectionIndex) => (
+            <div key={sectionIndex} className="nav-section">
+              {section.label && section.collapsible && !collapsed && (
+                <div
+                  className="section-header"
+                  onClick={() => toggleSection(section.section)}
+                >
+                  <span className="section-label">{section.label}</span>
+                  <span className={`section-arrow ${expandedSections[section.section] ? 'expanded' : ''}`}>
+                    <FontAwesomeIcon icon={faChevronDown} />
+                  </span>
+                </div>
+              )}
+
+              <ul
+                className={`nav-items ${section.collapsible && !expandedSections[section.section] && !collapsed
+                    ? 'collapsed'
+                    : ''
+                  }`}
               >
-                <span className="section-label">{section.label}</span>
-                <span className={`section-arrow ${expandedSections[section.section] ? 'expanded' : ''}`}>
-                  <FontAwesomeIcon icon={faChevronDown} />
-                </span>
-              </div>
-            )}
-            
-            <ul
-              className={`nav-items ${
-                section.collapsible && !expandedSections[section.section] && !collapsed
-                  ? 'collapsed'
-                  : ''
-              }`}
-            >
-              {section.items
-                .filter((item) => item.roles.includes(user.role))
-                .map((item, itemIndex) => (
-                  <li key={itemIndex} className="nav-item">
-                    <Link
-                      to={item.path}
-                      className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
-                      title={collapsed ? item.label : ''}
-                    >
-                      {item.icon && (
-                        <span className="nav-icon">
-                          <FontAwesomeIcon icon={item.icon} />
-                        </span>
-                      )}
-                      {!collapsed && <span className="nav-label">{item.label}</span>}
-                      {isActive(item.path) && <span className="active-indicator" />}
-                    </Link>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        ))}
-      </nav>
+                {section.items
+                  .filter((item) => item.roles.includes(user.role))
+                  .map((item, itemIndex) => (
+                    <li key={itemIndex} className="nav-item">
+                      <Link
+                        to={item.path}
+                        className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
+                        title={collapsed ? item.label : ''}
+                      >
+                        {item.icon && (
+                          <span className="nav-icon">
+                            <FontAwesomeIcon icon={item.icon} />
+                          </span>
+                        )}
+                        {!collapsed && <span className="nav-label">{item.label}</span>}
+                        {isActive(item.path) && <span className="active-indicator" />}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
 
-      {/* Footer with Logout and Toggle */}
-      <div className="sidebar-footer">
-        <button className="logout-btn" onClick={handleLogout} title={collapsed ? 'Logout' : ''}>
-          {collapsed && <span className="logout-icon">🚪</span>}
-          {!collapsed && <span>Logout</span>}
-        </button>
-        <button
-          className="sidebar-toggle"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleCollapse();
-          }}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          type="button"
-        >
-          {collapsed ? '→' : '←'}
-        </button>
+        {/* Footer with Logout and Toggle */}
+        <div className="sidebar-footer">
+          <button className="logout-btn" onClick={handleLogout} title={collapsed ? 'Logout' : ''}>
+            {collapsed && <span className="logout-icon">🚪</span>}
+            {!collapsed && <span>Logout</span>}
+          </button>
+          <button
+            className="sidebar-toggle"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleCollapse();
+            }}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            type="button"
+          >
+            {collapsed ? '→' : '←'}
+          </button>
+        </div>
       </div>
-    </div>
     </>
   );
 };

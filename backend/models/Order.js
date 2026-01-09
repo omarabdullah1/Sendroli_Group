@@ -5,7 +5,7 @@ const orderSchema = new mongoose.Schema(
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Client',
-      required: function() {
+      required: function () {
         // Client is required only if invoice is not provided
         return !this.invoice;
       },
@@ -47,10 +47,15 @@ const orderSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    // Reference to material (for pricing)
+    // Reference to material (for pricing) - OLD, keeping for backward compatibility
     material: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Material',
+    },
+    // Reference to product (new way)
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
     },
     totalPrice: {
       type: Number,
@@ -99,24 +104,60 @@ const orderSchema = new mongoose.Schema(
 orderSchema.pre('save', async function (next) {
   try {
     // Calculate order size in meters based on height only (repeats * sheetHeight)
-      if (this.repeats && this.sheetHeight !== undefined && this.sheetHeight !== null) {
-        // Convert strings to numbers safely if needed
-        const r = Number(this.repeats) || 0;
-        const h = Number(this.sheetHeight) || 0;
-        this.orderSize = r * h;
-        console.log('🔧 ORDER MODEL SIZE CALC (pre-save):', { repeats: r, sheetHeight: h, orderSize: this.orderSize });
-      }
-    
+    if (this.repeats && this.sheetHeight !== undefined && this.sheetHeight !== null) {
+      // Convert strings to numbers safely if needed
+      const r = Number(this.repeats) || 0;
+      const h = Number(this.sheetHeight) || 0;
+      this.orderSize = r * h;
+      console.log('🔧 ORDER MODEL SIZE CALC (pre-save):', { repeats: r, sheetHeight: h, orderSize: this.orderSize });
+    }
+
     // If material is selected, calculate total price as selling price per meter * order size
     // Only recalculate if totalPrice is not already set (preserve price set by controller)
-    if (this.material && !this.totalPrice) {
+    // If product is selected, set price from product
+    if (this.product && !this.totalPrice) {
+      const Product = mongoose.model('Product');
+      const product = await Product.findById(this.product);
+
+      if (product) {
+        this.type = product.name;
+        this.totalPrice = product.sellingPrice; // Product has fixed price usually, or could be per unit if needed.
+        // If we want to support quantity/orderSize with products:
+        // For now assuming product price is fixed per unit (orderSize 1) or if orderSize > 0 multiply?
+        // Let's assume for now Product Price is the base price.
+        // If the user wants "3 banners", and Banner is a Product with price 100.
+        // Then totalPrice = 100 * repeats (if repeats used for quantity) or just 100.
+
+        // Let's stick to the prompt: "every product have price". 
+        // If Order has 'repeats', we might want to multiply. 
+        // But for now, let's just use the product selling price as the base.
+        // If orderSize is calculated (m2), maybe Product price is total?
+        // Prompt says: "product is made of a multi material every product have price".
+        // This suggests the product itself has a specific price.
+
+        // Use Product Selling Price
+        this.totalPrice = product.sellingPrice;
+
+        // If repeats > 1, maybe multiply? 
+        if (this.repeats && this.repeats > 1) {
+          this.totalPrice = product.sellingPrice * this.repeats;
+        }
+
+        console.log('🔧 ORDER MODEL PRICE CALCULATION (Product):', {
+          productName: product.name,
+          sellingPrice: product.sellingPrice,
+          repeats: this.repeats,
+          totalPrice: this.totalPrice
+        });
+      }
+    } else if (this.material && !this.totalPrice) {
       const Material = mongoose.model('Material');
       const material = await Material.findById(this.material);
       if (material) {
         // Set type from material name
         this.type = material.name;
-        
-          // Calculate total price as selling price per meter * order size (meters)
+
+        // Calculate total price as selling price per meter * order size (meters)
         if (material.sellingPrice) {
           if (this.orderSize && this.orderSize > 0) {
             this.totalPrice = material.sellingPrice * this.orderSize;
@@ -150,10 +191,10 @@ orderSchema.pre('save', async function (next) {
         });
       }
     }
-    
+
     // Calculate remaining amount
     this.remainingAmount = this.totalPrice - (this.deposit || 0);
-    
+
     next();
   } catch (error) {
     next(error);
@@ -166,7 +207,7 @@ orderSchema.pre('findOneAndUpdate', async function (next) {
     const update = this.getUpdate();
     if (update.$set) {
       const { totalPrice, deposit, repeats, sheetWidth, sheetHeight, material } = update.$set;
-      
+
       // Calculate order size based on repeats and sheetHeight only
       let calculatedOrderSize = null;
 
@@ -190,7 +231,7 @@ orderSchema.pre('findOneAndUpdate', async function (next) {
           calculatedOrderSize = existingOrder.orderSize;
         }
       }
-      
+
       // If material changed or size changed, recalculate price from material selling price * order size
       if (material !== undefined || (calculatedOrderSize !== null && material === undefined)) {
         const materialId = material !== undefined ? material : (existingOrder ? existingOrder.material : null);
@@ -210,7 +251,7 @@ orderSchema.pre('findOneAndUpdate', async function (next) {
           }
         }
       }
-      
+
       // Calculate remaining amount if price or deposit changed
       const finalPrice = update.$set.totalPrice !== undefined ? update.$set.totalPrice : (existingOrder ? existingOrder.totalPrice : undefined);
       const dep = deposit !== undefined ? deposit : (existingOrder ? existingOrder.deposit : undefined);
@@ -232,7 +273,7 @@ orderSchema.pre('findOneAndUpdate', async function (next) {
 
 // After save, update invoice totals if order is part of an invoice
 // Also track material usage when order is marked as "done"
-orderSchema.post('save', async function(doc) {
+orderSchema.post('save', async function (doc) {
   if (doc.invoice) {
     const Invoice = mongoose.model('Invoice');
     const invoice = await Invoice.findById(doc.invoice);
@@ -240,22 +281,22 @@ orderSchema.post('save', async function(doc) {
       await invoice.recalculateTotals();
     }
   }
-  
+
   // Track material usage when order is completed (status changes to "done")
   if (doc.orderState === 'done' && doc.material && doc.orderSize) {
     try {
       const Material = mongoose.model('Material');
       const Inventory = mongoose.model('Inventory');
-      
+
       const material = await Material.findById(doc.material);
       if (material) {
         const previousStock = material.currentStock;
-          const usedQuantity = doc.orderSize; // Order size in meters
-        
+        const usedQuantity = doc.orderSize; // Order size in meters
+
         // Decrease material stock
         material.currentStock = Math.max(0, previousStock - usedQuantity);
         await material.save();
-        
+
         // Create inventory record for material usage (orderSize in meters)
         await Inventory.create({
           material: doc.material,
@@ -267,7 +308,7 @@ orderSchema.post('save', async function(doc) {
           notes: `Order size: ${usedQuantity.toFixed(2)} m`,
           countedBy: doc.createdBy
         });
-        
+
         console.log('Material stock decreased:', {
           material: material.name,
           previousStock,
@@ -283,7 +324,7 @@ orderSchema.post('save', async function(doc) {
 
 // After update, update invoice totals if order is part of an invoice
 // Also track material usage when order status changes to "done"
-orderSchema.post('findOneAndUpdate', async function(doc) {
+orderSchema.post('findOneAndUpdate', async function (doc) {
   if (doc && doc.invoice) {
     const Invoice = mongoose.model('Invoice');
     const invoice = await Invoice.findById(doc.invoice);
@@ -291,7 +332,7 @@ orderSchema.post('findOneAndUpdate', async function(doc) {
       await invoice.recalculateTotals();
     }
   }
-  
+
   // Track material usage when order status changes to "done"
   if (doc && doc.orderState === 'done' && doc.material && doc.orderSize) {
     try {
@@ -301,20 +342,20 @@ orderSchema.post('findOneAndUpdate', async function(doc) {
         type: 'usage',
         notes: { $regex: `Order ID: ${doc._id}` }
       });
-      
+
       // Only decrease stock if not already recorded
       if (!existingUsageRecord) {
         const Material = mongoose.model('Material');
         const material = await Material.findById(doc.material);
-        
+
         if (material) {
           const previousStock = material.currentStock;
-            const usedQuantity = doc.orderSize; // Order size in meters
-          
+          const usedQuantity = doc.orderSize; // Order size in meters
+
           // Decrease material stock
           material.currentStock = Math.max(0, previousStock - usedQuantity);
           await material.save();
-          
+
           // Create inventory record for material usage (orderSize in meters)
           await Inventory.create({
             material: doc.material,
@@ -326,7 +367,7 @@ orderSchema.post('findOneAndUpdate', async function(doc) {
             notes: `Order size: ${usedQuantity.toFixed(2)} m | Order ID: ${doc._id}`,
             countedBy: doc.updatedBy || doc.createdBy
           });
-          
+
           console.log('Material stock decreased (update):', {
             material: material.name,
             previousStock,
@@ -342,7 +383,7 @@ orderSchema.post('findOneAndUpdate', async function(doc) {
 });
 
 // After delete, update invoice totals if order was part of an invoice
-orderSchema.post('findOneAndDelete', async function(doc) {
+orderSchema.post('findOneAndDelete', async function (doc) {
   if (doc && doc.invoice) {
     const Invoice = mongoose.model('Invoice');
     const invoice = await Invoice.findById(doc.invoice);

@@ -31,6 +31,7 @@ const Orders = () => {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [modalInitialOrder, setModalInitialOrder] = useState(null);
   const [materials, setMaterials] = useState([]);
+  const [products, setProducts] = useState([]);
   const [showDesignModal, setShowDesignModal] = useState(false);
   const [designOrder, setDesignOrder] = useState(null);
   const [designFormData, setDesignFormData] = useState({
@@ -52,6 +53,7 @@ const Orders = () => {
 
   useEffect(() => {
     loadMaterials();
+    loadProducts();
   }, []);
 
   useEffect(() => {
@@ -119,6 +121,16 @@ const Orders = () => {
         console.error('Failed to load materials:', err);
       }
       setMaterials([]);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const response = await productService.getAll();
+      setProducts(response.data || []);
+    } catch (err) {
+      console.error('Failed to load products:', err);
+      setProducts([]);
     }
   };
 
@@ -384,6 +396,7 @@ const Orders = () => {
               }}
               initialOrder={modalInitialOrder}
               materials={materials}
+              products={products}
               clients={clients}
               user={user}
               onSave={handleSaveOrder}
