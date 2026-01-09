@@ -224,7 +224,7 @@ const Products = () => {
                         <tbody>
                             {filteredProducts.length > 0 ? (
                                 filteredProducts.map(product => (
-                                    <tr key={product.id}>
+                                    <tr key={product._id}>
                                         <td>
                                             <div className="product-name">{product.name}</div>
                                             <div className="product-desc">{product.description}</div>
@@ -254,7 +254,7 @@ const Products = () => {
                                             </button>
                                             <button
                                                 className="btn-icon delete"
-                                                onClick={() => handleDelete(product.id)}
+                                                onClick={() => handleDelete(product._id)}
                                                 title="Delete"
                                             >
                                                 <FontAwesomeIcon icon={faTrash} />
@@ -346,7 +346,7 @@ const Products = () => {
                                         >
                                             <option value="">Select Material</option>
                                             {materials.map(m => (
-                                                <option key={m.id} value={m.id}>
+                                                <option key={m._id} value={m._id}>
                                                     {m.name} ({m.currentStock} {m.unit})
                                                 </option>
                                             ))}
