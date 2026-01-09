@@ -2,6 +2,7 @@ import {
   faArrowUp,
   faBell,
   faBox,
+  faBoxOpen,
   faChartBar,
   faChartLine,
   faChartPie,
@@ -210,8 +211,8 @@ const Sidebar = () => {
 
               <ul
                 className={`nav-items ${section.collapsible && !expandedSections[section.section] && !collapsed
-                    ? 'collapsed'
-                    : ''
+                  ? 'collapsed'
+                  : ''
                   }`}
               >
                 {section.items
