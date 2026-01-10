@@ -7,6 +7,10 @@ RUN chmod +x /start.sh
 
 COPY ./nginx.conf /etc/nginx/nginx.conf
 COPY ./ssl /etc/nginx/ssl
-COPY ./logs /var/log/nginx
+
+# Create logs directory
+RUN mkdir -p /var/log/nginx && \
+    touch /var/log/nginx/access.log && \
+    touch /var/log/nginx/error.log
 
 CMD ["/start.sh"]
