@@ -19,9 +19,16 @@ COPY . .
 # Install curl for health checks
 RUN apk add --no-cache curl
 
-# We rely on the default 'node' non-root user provided by the official Node image here.
-# The base image includes a 'node' user, so avoid creating custom users to prevent mismatch.
+# Create the node user if it doesn't exist
+# We also use the uid/gid 1000 to match standard practices
+RUN deluser --remove-home node \
+    && addgroup -g 1000 node \
+    && adduser -u 1000 -G node -s /bin/sh -D node
+
+# Ensure the user has ownership of the app directory
 RUN chown -R node:node /app
+
+# Switch to the node user
 USER node
 
 # Expose the port the app runs on
