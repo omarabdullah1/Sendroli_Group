@@ -15,6 +15,27 @@
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <title>Sendroli Factory Management System</title>
+    <script>
+      // CRITICAL DEBUGGING: Global Error Handler
+      window.onerror = function(msg, url, line, col, error) {
+        var div = document.createElement('div');
+        div.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; z-index:99999; background:white; color:red; padding:20px; font-family:monospace; overflow:auto; white-space:pre-wrap;';
+        div.innerHTML = '<h1>CRITICAL ERROR (window.onerror)</h1>' +
+          '<h3>' + msg + '</h3>' +
+          '<p>' + url + ':' + line + ':' + col + '</p>' +
+          (error && error.stack ? '<pre>' + error.stack + '</pre>' : '');
+        document.body.appendChild(div);
+        return false;
+      };
+      
+      window.onunhandledrejection = function(event) {
+        var div = document.createElement('div');
+        div.style.cssText = 'position:fixed; top:50%; left:0; width:100%; height:50%; z-index:99999; background:#fff0f0; color:darkred; padding:20px; font-family:monospace; overflow:auto; white-space:pre-wrap; border-top: 5px solid red;';
+        div.innerHTML = '<h1>UNHANDLED REJECTION</h1>' +
+          '<pre>' + (event.reason ? (event.reason.stack || event.reason) : 'Unknown reason') + '</pre>';
+        document.body.appendChild(div);
+      };
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

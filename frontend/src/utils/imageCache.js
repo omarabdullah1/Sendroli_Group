@@ -26,7 +26,16 @@ class ImageCache {
     return new Promise((resolve, reject) => {
       const img = new Image();
       
+      // Timeout to prevent stuck loading
+      const timeoutId = setTimeout(() => {
+        this.preloadQueue.delete(url);
+        console.warn(`Image load timed out: ${url}`);
+        // Resolve successfully (with null) so the app proceeds
+        resolve(null);
+      }, 3000); // 3 seconds max wait time
+
       img.onload = () => {
+        clearTimeout(timeoutId);
         this.cache.set(url, {
           loaded: true,
           element: img,
@@ -37,8 +46,11 @@ class ImageCache {
       };
 
       img.onerror = () => {
+        clearTimeout(timeoutId);
         this.preloadQueue.delete(url);
-        reject(new Error(`Failed to load image: ${url}`));
+        // Don't fail the build/app, just warn
+        console.warn(`Failed to load image: ${url}`);
+        resolve(null);
       };
 
       img.src = url;
