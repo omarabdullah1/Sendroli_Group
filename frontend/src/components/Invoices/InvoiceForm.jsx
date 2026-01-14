@@ -21,10 +21,11 @@ const InvoiceForm = () => {
   const [error, setError] = useState('');
   const [clients, setClients] = useState([]);
   const [materials, setMaterials] = useState([]);
+  const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [invoiceClientName, setInvoiceClientName] = useState('');
   const [invoiceTotals, setInvoiceTotals] = useState(null); // null means not loaded yet
-  
+
   // Invoice form state
   const [formData, setFormData] = useState({
     client: '',
@@ -55,10 +56,11 @@ const InvoiceForm = () => {
   useEffect(() => {
     loadClients();
     loadMaterials();
+    loadProducts();
     if (isEditMode) {
       loadInvoice();
     }
-    
+
     // Cleanup function to clear timeouts
     return () => {
       if (window.invoiceUpdateTimeout) {
@@ -82,7 +84,7 @@ const InvoiceForm = () => {
       setMaterialsLoading(true);
       // Get all materials with a high limit to get all materials
       const response = await materialService.getAll({ limit: 10000 });
-      
+
       // Handle different API response structures
       let data = [];
       if (!response) {
@@ -104,6 +106,17 @@ const InvoiceForm = () => {
       console.error('Failed to load materials:', err);
     } finally {
       setMaterialsLoading(false);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const response = await productService.getAll();
+      // Backend returns { success: true, count: X, data: [...products] }
+      setProducts(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error('Failed to load products:', err);
+      setProducts([]);
     }
   };
 
@@ -241,7 +254,7 @@ const InvoiceForm = () => {
     setOrders((prev) => prev.filter((o) => o._id !== order._id));
   };
 
-  
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -273,12 +286,12 @@ const InvoiceForm = () => {
       } else {
         const response = await invoiceService.createInvoice(invoiceData);
         invoiceId = response.data._id;
-        
+
         // Create all orders with invoice reference
         for (const order of orders) {
           // Extract material ID if it's an object
           const materialId = order.material?._id || order.material || null;
-          
+
           const orderData = {
             client: formData.client, // Include invoice client ID
             clientName: order.clientName,
@@ -293,7 +306,7 @@ const InvoiceForm = () => {
             designLink: order.designLink || '',
             invoice: invoiceId,
           };
-          
+
           console.log('Creating order with data:', {
             material: materialId,
             sheetWidth: orderData.sheetWidth,
@@ -301,7 +314,7 @@ const InvoiceForm = () => {
             repeats: orderData.repeats,
             totalPrice: orderData.totalPrice
           });
-          
+
           await orderService.createOrder(orderData);
         }
       }
@@ -334,7 +347,7 @@ const InvoiceForm = () => {
         {/* Invoice Header Section */}
         <div className="form-section">
           <h2>Invoice Details</h2>
-          
+
           <div className="form-row">
             <div className="form-group">
               <label>Client *</label>
@@ -423,78 +436,78 @@ const InvoiceForm = () => {
               </div>
               <div className="table-container orders-table-container" ref={tableRef}>
                 <table className="orders-table">
-                <thead>
-                  <tr>
-                    <th>Client</th>
-                    <th>Material</th>
-                    <th>Size (m)</th>
-                    <th>Repeats</th>
-                    <th>Order Size</th>
-                    <th>Price</th>
-                    <th>Deposit</th>
-                    <th>Remaining</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => {
-                    const orderPrice = parseFloat(order.totalPrice) || 0;
-                    const orderDeposit = parseFloat(order.deposit) || 0;
-                    const remaining = order.remainingAmount !== undefined 
-                      ? order.remainingAmount 
-                      : (orderPrice - orderDeposit);
-                    return (
-                      <tr key={order._id}>
-                        <td>{order.clientName || order.clientSnapshot?.name || 'N/A'}</td>
-                        <td>{order.material?.name || order.type || 'N/A'}</td>
-                        <td>{order.sheetWidth} × {order.sheetHeight}</td>
-                        <td>{order.repeats}</td>
-                        <td>{order.orderSize?.toFixed(2) || '0.00'}</td>
-                        <td>{orderPrice.toFixed(2)} EGP</td>
-                        <td>{orderDeposit.toFixed(2)} EGP</td>
-                        <td>{remaining.toFixed(2)} EGP</td>
-                        <td>
-                          <span className={`status-badge status-${order.orderState}`}>
-                            {order.orderState}
-                          </span>
-                        </td>
-                        <td className="actions">
-                          {/* Designers and admin can edit orders */}
-                          {['designer', 'admin'].includes(user?.role) && (
-                            <button
-                              type="button"
-                              onClick={() => openEditOrderForm(order)}
-                              className="btn-sm btn-edit"
-                            >
-                              Edit
-                            </button>
-                          )}
-                          {/* Only admin can delete orders */}
-                          {user?.role === 'admin' && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteOrder(order)}
-                              className="btn-sm btn-delete"
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                  <thead>
+                    <tr>
+                      <th>Client</th>
+                      <th>Material</th>
+                      <th>Size (m)</th>
+                      <th>Repeats</th>
+                      <th>Order Size</th>
+                      <th>Price</th>
+                      <th>Deposit</th>
+                      <th>Remaining</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.map((order) => {
+                      const orderPrice = parseFloat(order.totalPrice) || 0;
+                      const orderDeposit = parseFloat(order.deposit) || 0;
+                      const remaining = order.remainingAmount !== undefined
+                        ? order.remainingAmount
+                        : (orderPrice - orderDeposit);
+                      return (
+                        <tr key={order._id}>
+                          <td>{order.clientName || order.clientSnapshot?.name || 'N/A'}</td>
+                          <td>{order.material?.name || order.type || 'N/A'}</td>
+                          <td>{order.sheetWidth} × {order.sheetHeight}</td>
+                          <td>{order.repeats}</td>
+                          <td>{order.orderSize?.toFixed(2) || '0.00'}</td>
+                          <td>{orderPrice.toFixed(2)} EGP</td>
+                          <td>{orderDeposit.toFixed(2)} EGP</td>
+                          <td>{remaining.toFixed(2)} EGP</td>
+                          <td>
+                            <span className={`status-badge status-${order.orderState}`}>
+                              {order.orderState}
+                            </span>
+                          </td>
+                          <td className="actions">
+                            {/* Designers and admin can edit orders */}
+                            {['designer', 'admin'].includes(user?.role) && (
+                              <button
+                                type="button"
+                                onClick={() => openEditOrderForm(order)}
+                                className="btn-sm btn-edit"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {/* Only admin can delete orders */}
+                            {user?.role === 'admin' && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteOrder(order)}
+                                className="btn-sm btn-delete"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
           )}
         </div>
 
         {/* Invoice Summary Section */}
         <div className="form-section summary-section">
           <h2>Invoice Summary</h2>
-          
+
           {/* Financial controls - only admin can edit */}
           {user?.role === 'admin' ? (
             <div className="summary-controls">
@@ -626,6 +639,7 @@ const InvoiceForm = () => {
           onClose={() => setShowOrderForm(false)}
           initialOrder={orderForm}
           materials={materials}
+          products={products}
           clients={clients}
           user={user}
           onSave={handleSaveOrder}
