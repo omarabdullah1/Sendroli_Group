@@ -13,9 +13,11 @@ import {
   faFileInvoice,
   faGlobe,
   faIndustry,
+  faMobile,
   faPalette,
   faShoppingBag,
   faShoppingCart,
+  faTags,
   faUser,
   faUsers,
   faWarehouse
@@ -145,6 +147,23 @@ const Sidebar = () => {
 
     if (user.role === 'admin') {
       menu.push(settingsSection);
+    }
+
+    // Coveraty Store Section
+    const coveratySection = {
+      section: 'coveraty',
+      label: 'Coveraty Store',
+      icon: faMobile,
+      collapsible: true,
+      items: [
+        { path: '/coveraty/designs', label: 'Designs Manager', icon: faPalette, roles: ['admin', 'designer'] },
+        { path: '/coveraty/attributes', label: 'Attributes', icon: faTags, roles: ['admin'] },
+        { path: '/coveraty/orders', label: 'Store Orders', icon: faBox, roles: ['admin', 'worker', 'financial'] },
+      ],
+    };
+
+    if (user.role === 'admin' || user.role === 'designer' || user.role === 'worker' || user.role === 'financial') {
+      menu.push(coveratySection);
     }
 
     return menu;

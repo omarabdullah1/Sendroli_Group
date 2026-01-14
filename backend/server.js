@@ -206,6 +206,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/website', websiteRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/store', require('./routes/storeRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {

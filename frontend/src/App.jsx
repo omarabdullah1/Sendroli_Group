@@ -285,6 +285,32 @@ function App() {
                   }
                 />
 
+                {/* Coveraty Store Management */}
+                <Route
+                  path="/coveraty/designs"
+                  element={
+                    <PrivateRoute roles={['admin', 'designer']}>
+                      <DesignsManager />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coveraty/attributes"
+                  element={
+                    <PrivateRoute roles={['admin']}>
+                      <AttributesManager />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coveraty/orders"
+                  element={
+                    <PrivateRoute roles={['admin', 'worker', 'financial']}>
+                      <StoreOrders />
+                    </PrivateRoute>
+                  }
+                />
+
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Layout>
