@@ -6,6 +6,7 @@ import clientService from '../../services/clientService';
 import invoiceService from '../../services/invoiceService';
 import { materialService } from '../../services/materialService';
 import orderService from '../../services/orderService';
+import productService from '../../services/productService';
 import OrderModal from '../Orders/OrderModal';
 import './Invoices.css';
 
