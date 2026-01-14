@@ -53,10 +53,10 @@ const InvoiceForm = () => {
     designLink: '',
   });
 
+
   useEffect(() => {
     loadClients();
     loadMaterials();
-    loadProducts();
     if (isEditMode) {
       loadInvoice();
     }
@@ -68,6 +68,11 @@ const InvoiceForm = () => {
       }
     };
   }, [id]);
+
+  // Load products once on mount
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
   const loadClients = async () => {
     try {
