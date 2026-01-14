@@ -112,8 +112,12 @@ const InvoiceForm = () => {
   const loadProducts = async () => {
     try {
       const response = await productService.getAll();
+      console.log('Products API Response:', response);
+      console.log('Products data:', response.data);
       // Backend returns { success: true, count: X, data: [...products] }
-      setProducts(Array.isArray(response.data) ? response.data : []);
+      const productsArray = Array.isArray(response.data) ? response.data : [];
+      console.log('Setting products:', productsArray);
+      setProducts(productsArray);
     } catch (err) {
       console.error('Failed to load products:', err);
       setProducts([]);
