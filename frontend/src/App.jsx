@@ -24,6 +24,7 @@ import Materials from './pages/Materials.jsx';
 import MaterialWithdrawal from './pages/MaterialWithdrawal.jsx';
 import Notifications from './pages/Notifications.jsx';
 import Orders from './pages/Orders.jsx';
+import Products from './pages/Products.jsx';
 import Purchases from './pages/Purchases.jsx';
 import Suppliers from './pages/Suppliers.jsx';
 import Unauthorized from './pages/Unauthorized.jsx';

@@ -11,7 +11,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import materialService from '../services/materialService';
+import { materialService } from '../services/materialService';
 import productService from '../services/productService';
 // Reuse existing styles or create new ones? Let's check if we can reuse generic styles or scoped css.
 // Using inline styles for simplicity given time constraints, or better, stick to design system tokens if possible.
