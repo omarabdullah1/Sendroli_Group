@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import clientService from '../services/clientService';
 import { materialService } from '../services/materialService';
 import orderService from '../services/orderService';
+import productService from '../services/productService';
 import { formatDateTime } from '../utils/dateUtils';
 import './Orders.css';
 
@@ -127,7 +128,8 @@ const Orders = () => {
   const loadProducts = async () => {
     try {
       const response = await productService.getAll();
-      setProducts(response.data || []);
+      // Backend returns { success: true, count: X, data: [...products] }
+      setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Failed to load products:', err);
       setProducts([]);
