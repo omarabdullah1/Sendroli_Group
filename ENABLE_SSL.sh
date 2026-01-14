@@ -1,39 +1,47 @@
 #!/bin/bash
 
 # Configuration
-STORE_DOMAIN="store.sendroligroup.cloud"
 MAIN_DOMAIN="sendroligroup.cloud"
+WWW_DOMAIN="www.sendroligroup.cloud"
+STORE_DOMAIN="store.sendroligroup.cloud"
 EMAIL="admin@sendroligroup.cloud"
 
 echo "======================================================="
-echo "   SETTING UP SSL FOR $STORE_DOMAIN"
+echo "   SETTING UP SSL FOR ALL DOMAINS"
+echo "   ($MAIN_DOMAIN, $WWW_DOMAIN, $STORE_DOMAIN)"
 echo "======================================================="
 
 # 1. Stop Nginx Container to free port 80
 echo "--> Stopping Docker Nginx..."
 docker stop sendroli-nginx 2>/dev/null || true
 
-# 2. Request Certificate (Standalone Mode)
+# 2. Request Certificate (Standalone Mode - Multi Domain)
 echo "--> Requesting SSL Certificate..."
-# We try to get certs for BOTH domains if possible, or just STORE.
-# Let's request for STORE first as requested.
-certbot certonly --standalone -d $STORE_DOMAIN --non-interactive --agree-tos -m $EMAIL --keep-until-expiring
+# Request one cert covering all 3 domains
+certbot certonly --standalone \
+  -d $MAIN_DOMAIN -d $WWW_DOMAIN -d $STORE_DOMAIN \
+  --non-interactive --agree-tos -m $EMAIL \
+  --expand --keep-until-expiring
 
-if [ ! -d "/etc/letsencrypt/live/$STORE_DOMAIN" ]; then
-    echo "❌ Error: Certificate generation failed!"
-    echo "Please check if your DNS A record points to this server."
-    # Restart nginx so site isn't down
-    docker start sendroli-nginx
-    exit 1
+# Check success (directory might be named after the first domain)
+CERT_PATH="/etc/letsencrypt/live/$MAIN_DOMAIN"
+if [ ! -d "$CERT_PATH" ]; then
+    # Fallback check if it was named differently (e.g. store domain first previously)
+    if [ -d "/etc/letsencrypt/live/$STORE_DOMAIN" ]; then
+        CERT_PATH="/etc/letsencrypt/live/$STORE_DOMAIN"
+    else
+        echo "❌ Error: Certificate generation failed!"
+        echo "Check DNS settings for all domains."
+        docker start sendroli-nginx
+        exit 1
+    fi
 fi
 
-echo "✅ Certificate obtained successfully."
+echo "✅ Certificate obtained successfully at $CERT_PATH"
 
 # 3. Update docker-compose.prod.yml to mount certificates
-echo "--> Updating Docker Compose to mount certificates..."
-# We use sed to insert the volume if not exists, or just rewrite the file is safer to ensure correctness.
-# I'll rewrite it to be sure.
-
+echo "--> Updating Docker Compose..."
+# (Same content as before, ensuring cert volumes are mounted)
 cat > docker-compose.prod.yml << 'COMPOSE_EOF'
 version: '3.8'
 
@@ -124,6 +132,11 @@ networks:
 COMPOSE_EOF
 
 # 4. Generate Nginx Config with SSL
+# We need to know WHICH folder the certs are in. 
+# We'll assume $CERT_PATH from above logic. Since we are inside the script, we can construct the string properly.
+# But we can't easily pass the bash variable into the cat << EOF block directly if we want dynamic path unless we escape properly.
+# Simplest way: Symlink/Copy or just use the variable in the heredoc (since it interprets vars).
+
 echo "--> Configure Nginx with SSL..."
 
 cat > nginx/nginx.conf << NGINX_EOF
@@ -145,20 +158,21 @@ http {
     upstream frontend { server sendroli-frontend:80; }
     upstream store { server sendroli-store-frontend:80; }
 
-    # 1. Store Subdomain - HTTP -> HTTPS
+    # ==========================
+    # 1. STORE SUBDOMAIN
+    # ==========================
     server {
         listen 80;
         server_name $STORE_DOMAIN;
         return 301 https://\$host\$request_uri;
     }
 
-    # 2. Store Subdomain - HTTPS
     server {
         listen 443 ssl;
         server_name $STORE_DOMAIN;
 
-        ssl_certificate /etc/letsencrypt/live/$STORE_DOMAIN/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/$STORE_DOMAIN/privkey.pem;
+        ssl_certificate $CERT_PATH/fullchain.pem;
+        ssl_certificate_key $CERT_PATH/privkey.pem;
 
         location / {
             proxy_pass http://store;
@@ -177,16 +191,28 @@ http {
         }
     }
 
-    # 3. Main Dashboard (HTTP) - Assuming no cert for main yet
+    # ==========================
+    # 2. MAIN DOMAIN & WWW
+    # ==========================
     server {
         listen 80;
-        server_name _;
-        
+        server_name $MAIN_DOMAIN $WWW_DOMAIN _;
+        return 301 https://\$host\$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name $MAIN_DOMAIN $WWW_DOMAIN _;
+
+        ssl_certificate $CERT_PATH/fullchain.pem;
+        ssl_certificate_key $CERT_PATH/privkey.pem;
+
         location / {
             proxy_pass http://frontend;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
         }
 
         location /api/ {
@@ -194,6 +220,7 @@ http {
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
         }
     }
 }
@@ -205,5 +232,6 @@ docker-compose -f docker-compose.prod.yml up -d --remove-orphans --force-recreat
 
 echo "======================================================="
 echo "   SSL SETUP COMPLETE!"
+echo "   Main:  https://$MAIN_DOMAIN"
 echo "   Store: https://$STORE_DOMAIN"
 echo "======================================================="
