@@ -25,7 +25,7 @@ class ImageCache {
 
     return new Promise((resolve, reject) => {
       const img = new Image();
-      
+
       // Timeout to prevent stuck loading
       const timeoutId = setTimeout(() => {
         this.preloadQueue.delete(url);
@@ -91,9 +91,12 @@ class ImageCache {
 // Create singleton instance
 const imageCache = new ImageCache();
 
-// Cleanup every 5 minutes
+// Cleanup every 30 minutes (reduced frequency from 5 minutes)
+// Only cleanup if cache has items to reduce unnecessary processing
 setInterval(() => {
-  imageCache.cleanup();
-}, 5 * 60 * 1000);
+  if (imageCache.size() > 0) {
+    imageCache.cleanup();
+  }
+}, 30 * 60 * 1000); // 30 minutes = 1800000ms
 
 export default imageCache;

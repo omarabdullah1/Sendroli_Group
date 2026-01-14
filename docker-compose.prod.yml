@@ -18,6 +18,15 @@ services:
       - sendroli-network
     volumes:
       - ./backend/logs:/app/logs
+    # Resource limits to prevent CPU/memory exhaustion
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'      # Limit to 1 CPU core
+          memory: 1G       # Limit to 1GB RAM
+        reservations:
+          cpus: '0.25'     # Reserve 0.25 CPU cores
+          memory: 256M     # Reserve 256MB RAM
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s

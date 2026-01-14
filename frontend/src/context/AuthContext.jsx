@@ -23,24 +23,24 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const sessionValidation = await authService.validateSession();
-      
+
       // Check if session version has changed (indicating force logout)
       const storedUser = authService.getCurrentUser();
-      if (storedUser && storedUser.sessionInfo && 
-          sessionValidation.data.sessionVersion !== storedUser.sessionInfo.sessionVersion) {
+      if (storedUser && storedUser.sessionInfo &&
+        sessionValidation.data.sessionVersion !== storedUser.sessionInfo.sessionVersion) {
         console.log('Session version mismatch - force logout detected');
         handleForceLogout('Your session has been terminated from another device');
         return;
       }
-      
+
       // Update last activity
       console.log('Session validated successfully');
     } catch (error) {
       const errorCode = error.response?.data?.code;
       const errorMessage = error.response?.data?.message;
-      
-      if (errorCode === 'DEVICE_CONFLICT' || errorCode === 'SESSION_TERMINATED' || 
-          errorCode === 'DEVICE_MISMATCH' || errorCode === 'INVALID_SESSION') {
+
+      if (errorCode === 'DEVICE_CONFLICT' || errorCode === 'SESSION_TERMINATED' ||
+        errorCode === 'DEVICE_MISMATCH' || errorCode === 'INVALID_SESSION') {
         setDeviceConflictError({
           message: errorMessage,
           code: errorCode,
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
     authService.clearStoredAuth();
     setUser(null);
     setDeviceConflictError(reason);
-    
+
     // Clear session check interval
     if (sessionCheckIntervalRef.current) {
       clearInterval(sessionCheckIntervalRef.current);
@@ -74,9 +74,15 @@ export const AuthProvider = ({ children }) => {
     if (sessionCheckIntervalRef.current) {
       clearInterval(sessionCheckIntervalRef.current);
     }
-    
-    // Check session every 10 seconds for faster force logout detection
-    sessionCheckIntervalRef.current = setInterval(checkSessionValidity, 10000);
+
+    // Check session every 5 minutes (reduced from 10 seconds for better performance)
+    // Session expiry is typically 24h, so 5min is sufficient
+    sessionCheckIntervalRef.current = setInterval(() => {
+      // Only validate if tab is visible
+      if (!document.hidden) {
+        checkSessionValidity();
+      }
+    }, 300000); // 5 minutes = 300000ms
   };
 
   // Stop session monitoring
@@ -104,12 +110,21 @@ export const AuthProvider = ({ children }) => {
       }
       setLoading(false);
     };
-    
+
     initAuth();
+
+    // Add visibility change listener to validate session when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        checkSessionValidity();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Cleanup on unmount
     return () => {
       stopSessionMonitoring();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -120,7 +135,7 @@ export const AuthProvider = ({ children }) => {
       console.log('📡 AuthContext: calling authService.login');
       const response = await authService.login(username, password, force);
       console.log('📡 AuthContext: authService.login returned:', response);
-      
+
       // Extract user object from response
       const userObject = response.user || response.data?.user || response.data;
       console.log('👤 AuthContext: Setting user:', userObject);
@@ -133,7 +148,7 @@ export const AuthProvider = ({ children }) => {
       // Handle session conflict errors during login
       const errorCode = error.response?.data?.code;
       const errorMessage = error.response?.data?.message;
-      
+
       // Handle both new ACTIVE_SESSION and legacy DEVICE_CONFLICT codes
       if (errorCode === 'ACTIVE_SESSION' || errorCode === 'DEVICE_CONFLICT') {
         const sessionInfo = error.response?.data?.sessionInfo;

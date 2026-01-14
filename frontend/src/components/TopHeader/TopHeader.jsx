@@ -123,15 +123,18 @@ const TopHeader = () => {
     }
   }, [user]);
 
-  // Initial fetch and polling
+  // Initial fetch and polling with visibility detection
   useEffect(() => {
     if (user) {
       fetchNotifications();
 
-      // Poll for unread count every 30 seconds
+      // Poll for unread count every 3 minutes (reduced from 30 seconds)
       notificationPollIntervalRef.current = setInterval(() => {
-        fetchUnreadCount();
-      }, 30000);
+        // Only poll if tab is visible
+        if (!document.hidden) {
+          fetchUnreadCount();
+        }
+      }, 180000); // 3 minutes = 180000ms
     }
 
     return () => {
@@ -140,6 +143,19 @@ const TopHeader = () => {
       }
     };
   }, [user, fetchNotifications, fetchUnreadCount]);
+
+  // Pause/resume polling based on tab visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        // Tab became visible, fetch latest notifications
+        fetchUnreadCount();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user, fetchUnreadCount]);
 
   // Cleanup on unmount
   useEffect(() => {
