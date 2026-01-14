@@ -19,7 +19,7 @@ import './Orders.css';
  */
 
 const OrderModal = ({ show, onClose, initialOrder = {}, onSave, user = {}, materials = [], products = [], clients = [] }) => {
-  const [itemType, setItemType] = useState(initialOrder.product ? 'product' : 'material'); // 'material' or 'product'
+  const [itemType, setItemType] = useState(initialOrder.product ? 'product' : (initialOrder.material ? 'material' : 'product')); // Default to 'product'
 
   const [formData, setFormData] = useState({
     client: initialOrder.client || initialOrder.client?._id || '',
@@ -39,8 +39,8 @@ const OrderModal = ({ show, onClose, initialOrder = {}, onSave, user = {}, mater
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Determine item type based on initial order
-    const newItemType = initialOrder.product ? 'product' : 'material';
+    // Determine item type based on initial order, default to 'product'
+    const newItemType = initialOrder.product ? 'product' : (initialOrder.material ? 'material' : 'product');
     setItemType(newItemType);
 
     setFormData(prev => ({
