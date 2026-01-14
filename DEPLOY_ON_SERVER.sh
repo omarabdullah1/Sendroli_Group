@@ -58,6 +58,10 @@ http {
         server sendroli-frontend:80;
     }
 
+    upstream store {
+        server sendroli-store-frontend:80;
+    }
+
     server {
         listen 80;
         server_name _;
@@ -120,6 +124,33 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
     }
+
+    server {
+        listen 80;
+        server_name store.*;
+
+        location / {
+            proxy_pass http://store;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api/ {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
 }
 NGINX_EOF
 
@@ -166,6 +197,17 @@ services:
     networks:
       - sendroli-network
 
+  store-frontend:
+    build:
+      context: ./store-frontend
+      dockerfile: Dockerfile
+    container_name: sendroli-store-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    networks:
+      - sendroli-network
+
   mongodb:
     image: mongo:6.0
     container_name: sendroli-mongodb
@@ -195,6 +237,7 @@ services:
     depends_on:
       - backend
       - frontend
+      - store-frontend
     networks:
       - sendroli-network
 
@@ -247,6 +290,9 @@ docker logs --tail 20 sendroli-backend
 echo ""
 echo "--- Frontend Logs ---"
 docker logs --tail 20 sendroli-frontend
+echo ""
+echo "--- Store Frontend Logs ---"
+docker logs --tail 20 sendroli-store-frontend
 echo ""
 echo "--- Nginx Logs ---"
 docker logs --tail 20 sendroli-nginx
