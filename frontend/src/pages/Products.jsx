@@ -13,12 +13,10 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { materialService } from '../services/materialService';
 import productService from '../services/productService';
-// Reuse existing styles or create new ones? Let's check if we can reuse generic styles or scoped css.
-// Using inline styles for simplicity given time constraints, or better, stick to design system tokens if possible.
 import '../styles/designSystem.css';
 
 const Products = () => {
-    const { user } = useAuth(); // for permission checks if needed
+    const { user } = useAuth();
     const { addNotification } = useNotification();
 
     const [products, setProducts] = useState([]);
@@ -27,12 +25,12 @@ const Products = () => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentProduct, setCurrentProduct] = useState(null); // null = create mode
+    const [currentProduct, setCurrentProduct] = useState(null);
     const [formData, setFormData] = useState({
         name: '',
         description: '',
         sellingPrice: '',
-        materials: [], // [{ material: id, quantity: 1 }]
+        materials: [],
         category: 'General'
     });
 
@@ -45,11 +43,13 @@ const Products = () => {
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            const data = await productService.getAll();
-            setProducts(data.data || []);
+            const response = await productService.getAll();
+            // Backend returns { success: true, count: X, data: [...products] }
+            setProducts(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error('Error fetching products:', error);
             addNotification('Failed to load products', 'error');
+            setProducts([]);
         } finally {
             setLoading(false);
         }
@@ -57,10 +57,13 @@ const Products = () => {
 
     const fetchMaterials = async () => {
         try {
-            const data = await materialService.getAll();
-            setMaterials(data.data || []);
+            const response = await materialService.getAll();
+            // Handle nested data structure from materials API
+            const materialsData = response.data?.data?.materials || response.data?.materials || response.data || [];
+            setMaterials(Array.isArray(materialsData) ? materialsData : []);
         } catch (error) {
             console.error('Error fetching materials:', error);
+            setMaterials([]);
         }
     };
 
@@ -185,90 +188,176 @@ const Products = () => {
     return (
         <div className="page-container">
             <div className="page-header">
-                <div className="header-title">
-                    <FontAwesomeIcon icon={faBoxOpen} className="header-icon" />
-                    <h1>Products</h1>
+                <div className="header-content">
+                    <div className="header-title">
+                        <FontAwesomeIcon icon={faBoxOpen} style={{ marginRight: '12px', color: 'var(--theme-primary)' }} />
+                        <div>
+                            <h1>Products Management</h1>
+                            <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                Manage your products and their material compositions
+                            </p>
+                        </div>
+                    </div>
+                    {(user?.role === 'admin' || user?.role === 'designer') && (
+                        <button className="btn btn-primary" onClick={() => openModal()}>
+                            <FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} />
+                            Add Product
+                        </button>
+                    )}
                 </div>
-                <button className="btn-primary" onClick={() => openModal()}>
-                    <FontAwesomeIcon icon={faPlus} />
-                    Add Product
-                </button>
             </div>
 
-            <div className="search-bar">
-                <div className="search-input-wrapper">
-                    <FontAwesomeIcon icon={faSearch} className="search-icon" />
+            <div className="search-bar" style={{ marginBottom: 'var(--space-6)' }}>
+                <div className="search-input-wrapper" style={{ position: 'relative', maxWidth: '500px' }}>
+                    <FontAwesomeIcon
+                        icon={faSearch}
+                        style={{
+                            position: 'absolute',
+                            left: '12px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: 'var(--text-secondary)'
+                        }}
+                    />
                     <input
                         type="text"
                         placeholder="Search products..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '12px 12px 12px 40px',
+                            border: '1px solid var(--border-medium)',
+                            borderRadius: 'var(--radius-md)',
+                            fontSize: '1rem',
+                            transition: 'all var(--transition-fast)'
+                        }}
                     />
                 </div>
             </div>
 
             {loading ? (
-                <div className="loading-spinner">Loading...</div>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: 'var(--space-16)',
+                    fontSize: 'var(--text-lg)',
+                    color: 'var(--text-secondary)'
+                }}>
+                    Loading products...
+                </div>
             ) : (
-                <div className="table-container">
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Category</th>
-                                <th>Price</th>
-                                <th>Composition</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredProducts.length > 0 ? (
-                                filteredProducts.map(product => (
-                                    <tr key={product._id}>
-                                        <td>
-                                            <div className="product-name">{product.name}</div>
-                                            <div className="product-desc">{product.description}</div>
-                                        </td>
-                                        <td>{product.category}</td>
-                                        <td className="price-cell">{product.sellingPrice} EGP</td>
-                                        <td>
-                                            <div className="materials-list-mini">
-                                                {product.materials && product.materials.length > 0 ? (
-                                                    product.materials.map((m, idx) => (
-                                                        <div key={idx} className="material-tag">
-                                                            {m.material?.name || 'Unknown'} (x{m.quantity})
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-muted">No materials</span>
+                <div className="table-wrapper">
+                    <div className="scroll-indicator">
+                        ← Scroll horizontally to view all columns →
+                    </div>
+                    <div className="table-container">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Composition</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredProducts.length > 0 ? (
+                                    filteredProducts.map(product => (
+                                        <tr key={product._id}>
+                                            <td>
+                                                <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
+                                                    {product.name}
+                                                </div>
+                                                {product.description && (
+                                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                                        {product.description}
+                                                    </div>
                                                 )}
-                                            </div>
-                                        </td>
-                                        <td className="actions-cell">
-                                            <button
-                                                className="btn-icon edit"
-                                                onClick={() => openModal(product)}
-                                                title="Edit"
-                                            >
-                                                <FontAwesomeIcon icon={faEdit} />
-                                            </button>
-                                            <button
-                                                className="btn-icon delete"
-                                                onClick={() => handleDelete(product._id)}
-                                                title="Delete"
-                                            >
-                                                <FontAwesomeIcon icon={faTrash} />
-                                            </button>
+                                            </td>
+                                            <td>{product.category}</td>
+                                            <td style={{ fontWeight: '600', color: 'var(--theme-primary)' }}>
+                                                {product.sellingPrice} EGP
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                    {product.materials && product.materials.length > 0 ? (
+                                                        product.materials.map((m, idx) => (
+                                                            <span
+                                                                key={idx}
+                                                                style={{
+                                                                    background: 'var(--theme-bg-light)',
+                                                                    padding: '4px 8px',
+                                                                    borderRadius: 'var(--radius-sm)',
+                                                                    fontSize: '0.75rem',
+                                                                    border: '1px solid var(--border-light)',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}
+                                                            >
+                                                                {m.material?.name || 'Unknown'} (x{m.quantity})
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                                                            No materials
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {(user?.role === 'admin' || user?.role === 'designer') && (
+                                                        <button
+                                                            className="btn-icon edit"
+                                                            onClick={() => openModal(product)}
+                                                            title="Edit"
+                                                            style={{
+                                                                padding: '8px 12px',
+                                                                background: 'var(--theme-primary-lighter)',
+                                                                color: 'var(--theme-primary-dark)',
+                                                                border: 'none',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                cursor: 'pointer',
+                                                                transition: 'all var(--transition-fast)'
+                                                            }}
+                                                        >
+                                                            <FontAwesomeIcon icon={faEdit} />
+                                                        </button>
+                                                    )}
+                                                    {user?.role === 'admin' && (
+                                                        <button
+                                                            className="btn-icon delete"
+                                                            onClick={() => handleDelete(product._id)}
+                                                            title="Delete"
+                                                            style={{
+                                                                padding: '8px 12px',
+                                                                background: '#fee2e2',
+                                                                color: 'var(--error)',
+                                                                border: 'none',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                cursor: 'pointer',
+                                                                transition: 'all var(--transition-fast)'
+                                                            }}
+                                                        >
+                                                            <FontAwesomeIcon icon={faTrash} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" style={{ textAlign: 'center', padding: 'var(--space-16)', color: 'var(--text-secondary)' }}>
+                                            No products found
                                         </td>
                                     </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="5" className="empty-state">No products found</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 
@@ -278,35 +367,77 @@ const Products = () => {
                     <div className="modal-content product-modal">
                         <div className="modal-header">
                             <h2>{currentProduct ? 'Edit Product' : 'New Product'}</h2>
-                            <button className="btn-close" onClick={closeModal}>
+                            <button
+                                className="btn-secondary"
+                                onClick={closeModal}
+                                style={{
+                                    padding: '8px 12px',
+                                    minWidth: 'auto'
+                                }}
+                            >
                                 <FontAwesomeIcon icon={faTimes} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="modal-form">
-                            <div className="form-group">
-                                <label>Product Name <span className="required">*</span></label>
+                        <form onSubmit={handleSubmit} style={{ padding: 'var(--space-6)' }}>
+                            <div style={{ marginBottom: 'var(--space-4)' }}>
+                                <label style={{
+                                    display: 'block',
+                                    marginBottom: 'var(--space-2)',
+                                    fontWeight: '500',
+                                    fontSize: 'var(--text-sm)'
+                                }}>
+                                    Product Name <span style={{ color: 'var(--error)' }}>*</span>
+                                </label>
                                 <input
                                     type="text"
                                     name="name"
                                     value={formData.name}
                                     onChange={handleInputChange}
                                     required
+                                    style={{
+                                        width: '100%',
+                                        padding: 'var(--space-3)',
+                                        border: '1px solid var(--border-medium)',
+                                        borderRadius: 'var(--radius-md)',
+                                        fontSize: 'var(--text-base)'
+                                    }}
                                 />
                             </div>
 
-                            <div className="form-row">
-                                <div className="form-group half">
-                                    <label>Category</label>
+                            <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{
+                                        display: 'block',
+                                        marginBottom: 'var(--space-2)',
+                                        fontWeight: '500',
+                                        fontSize: 'var(--text-sm)'
+                                    }}>
+                                        Category
+                                    </label>
                                     <input
                                         type="text"
                                         name="category"
                                         value={formData.category}
                                         onChange={handleInputChange}
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--space-3)',
+                                            border: '1px solid var(--border-medium)',
+                                            borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--text-base)'
+                                        }}
                                     />
                                 </div>
-                                <div className="form-group half">
-                                    <label>Selling Price (EGP) <span className="required">*</span></label>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{
+                                        display: 'block',
+                                        marginBottom: 'var(--space-2)',
+                                        fontWeight: '500',
+                                        fontSize: 'var(--text-sm)'
+                                    }}>
+                                        Selling Price (EGP) <span style={{ color: 'var(--error)' }}>*</span>
+                                    </label>
                                     <input
                                         type="number"
                                         name="sellingPrice"
@@ -315,34 +446,89 @@ const Products = () => {
                                         min="0"
                                         step="0.01"
                                         required
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--space-3)',
+                                            border: '1px solid var(--border-medium)',
+                                            borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--text-base)'
+                                        }}
                                     />
                                 </div>
                             </div>
 
-                            <div className="form-group">
-                                <label>Description</label>
+                            <div style={{ marginBottom: 'var(--space-4)' }}>
+                                <label style={{
+                                    display: 'block',
+                                    marginBottom: 'var(--space-2)',
+                                    fontWeight: '500',
+                                    fontSize: 'var(--text-sm)'
+                                }}>
+                                    Description
+                                </label>
                                 <textarea
                                     name="description"
                                     value={formData.description}
                                     onChange={handleInputChange}
                                     rows="2"
+                                    style={{
+                                        width: '100%',
+                                        padding: 'var(--space-3)',
+                                        border: '1px solid var(--border-medium)',
+                                        borderRadius: 'var(--radius-md)',
+                                        fontSize: 'var(--text-base)',
+                                        fontFamily: 'inherit',
+                                        resize: 'vertical'
+                                    }}
                                 />
                             </div>
 
-                            <div className="materials-section">
-                                <div className="section-header">
-                                    <label>Material Composition</label>
-                                    <button type="button" className="btn-sm btn-secondary" onClick={addMaterialRow}>
-                                        <FontAwesomeIcon icon={faPlus} /> Add Material
+                            <div style={{
+                                marginTop: 'var(--space-6)',
+                                paddingTop: 'var(--space-4)',
+                                borderTop: '1px solid var(--border-light)'
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    marginBottom: 'var(--space-4)'
+                                }}>
+                                    <label style={{ fontWeight: '500', fontSize: 'var(--text-base)' }}>
+                                        Material Composition
+                                    </label>
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={addMaterialRow}
+                                        style={{ fontSize: 'var(--text-sm)' }}
+                                    >
+                                        <FontAwesomeIcon icon={faPlus} style={{ marginRight: '6px' }} />
+                                        Add Material
                                     </button>
                                 </div>
 
                                 {formData.materials.map((item, index) => (
-                                    <div key={index} className="material-row">
+                                    <div
+                                        key={index}
+                                        style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '2fr 1fr 40px',
+                                            gap: '10px',
+                                            marginBottom: '8px',
+                                            alignItems: 'center'
+                                        }}
+                                    >
                                         <select
                                             value={item.material}
                                             onChange={(e) => handleMaterialChange(index, 'material', e.target.value)}
                                             required
+                                            style={{
+                                                padding: 'var(--space-3)',
+                                                border: '1px solid var(--border-medium)',
+                                                borderRadius: 'var(--radius-md)',
+                                                fontSize: 'var(--text-base)'
+                                            }}
                                         >
                                             <option value="">Select Material</option>
                                             {materials.map(m => (
@@ -360,12 +546,28 @@ const Products = () => {
                                             min="0.1"
                                             step="0.1"
                                             required
+                                            style={{
+                                                padding: 'var(--space-3)',
+                                                border: '1px solid var(--border-medium)',
+                                                borderRadius: 'var(--radius-md)',
+                                                fontSize: 'var(--text-base)'
+                                            }}
                                         />
 
                                         <button
                                             type="button"
-                                            className="btn-icon delete"
                                             onClick={() => removeMaterialRow(index)}
+                                            style={{
+                                                padding: '8px',
+                                                background: '#fee2e2',
+                                                color: 'var(--error)',
+                                                border: 'none',
+                                                borderRadius: 'var(--radius-md)',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
                                         >
                                             <FontAwesomeIcon icon={faTimes} />
                                         </button>
@@ -373,29 +575,19 @@ const Products = () => {
                                 ))}
                             </div>
 
-                            <div className="modal-footer">
-                                <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
-                                <button type="submit" className="btn-primary">
-                                    <FontAwesomeIcon icon={faSave} /> Save Product
+                            <div className="modal-footer" style={{ marginTop: 'var(--space-6)' }}>
+                                <button type="button" className="btn btn-secondary" onClick={closeModal}>
+                                    Cancel
+                                </button>
+                                <button type="submit" className="btn btn-primary">
+                                    <FontAwesomeIcon icon={faSave} style={{ marginRight: '8px' }} />
+                                    Save Product
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
-
-            {/* Basic Styles for Modal (if not covered by global CSS) */}
-            <style>{`
-        .product-modal { max-width: 600px; width: 90%; }
-        .product-desc { font-size: 0.85rem; color: #666; margin-top: 4px; }
-        .materials-list-mini { display: flex; flex-wrap: wrap; gap: 4px; }
-        .material-tag { background: #f0f4f8; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; border: 1px solid #e1e4e8; }
-        .materials-section { margin-top: 1rem; border-top: 1px solid #eee; padding-top: 1rem; }
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-        .material-row { display: grid; grid-template-columns: 2fr 1fr 40px; gap: 10px; margin-bottom: 8px; align-items: center; }
-        .form-row { display: flex; gap: 15px; }
-        .half { flex: 1; }
-      `}</style>
         </div>
     );
 };
