@@ -16,7 +16,10 @@ import ClientPortal from './pages/ClientPortal.jsx';
 import ClientReports from './pages/ClientReports.jsx';
 import Clients from './pages/Clients.jsx';
 import AttributesManager from './pages/coveraty/AttributesManager.jsx';
+import CategoriesManager from './pages/coveraty/CategoriesManager.jsx';
 import DesignsManager from './pages/coveraty/DesignsManager.jsx';
+import ShippingManager from './pages/coveraty/ShippingManager.jsx';
+import StoreCustomers from './pages/coveraty/StoreCustomers.jsx';
 import StoreOrders from './pages/coveraty/StoreOrders.jsx';
 import FinancialReport from './pages/FinancialReport.jsx';
 import FinancialStats from './pages/FinancialStats.jsx';
@@ -302,6 +305,30 @@ function App() {
                   element={
                     <PrivateRoute roles={['admin']}>
                       <AttributesManager />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coveraty/categories"
+                  element={
+                    <PrivateRoute roles={['admin']}>
+                      <CategoriesManager />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coveraty/shipping"
+                  element={
+                    <PrivateRoute roles={['admin']}>
+                      <ShippingManager />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coveraty/customers"
+                  element={
+                    <PrivateRoute roles={['admin', 'financial']}>
+                      <StoreCustomers />
                     </PrivateRoute>
                   }
                 />

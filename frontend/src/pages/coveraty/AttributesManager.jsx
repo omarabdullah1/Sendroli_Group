@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
-import { useNotification } from '../../context/NotificationContext'; // Assuming context exists
-import { createBrand, createModel, getBrands, getModels } from '../../services/storeService';
+import React, { useState, useEffect } from 'react';
+import { getBrands, createBrand, updateBrand, deleteBrand, getModels, createModel, updateModel, deleteModel } from '../../services/storeService';
+import { useNotification } from '../../context/NotificationContext';
+import { FiPlus, FiTrash2, FiSmartphone, FiBox, FiUpload, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
 
 const AttributesManager = () => {
-    const [activeTab, setActiveTab] = useState('brands');
+    // State
     const [brands, setBrands] = useState([]);
     const [models, setModels] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const { showNotification } = useNotification();
+    const [activeTab, setActiveTab] = useState('brands');
+
+    // Modals
+    const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+    const [isModelModalOpen, setIsModelModalOpen] = useState(false);
+    const [editingBrand, setEditingBrand] = useState(null);
+    const [editingModel, setEditingModel] = useState(null);
 
     // Forms
-    const [brandName, setBrandName] = useState('');
-    const [brandLogo, setBrandLogo] = useState(''); // Text URL for now, or file upload logic if needed
+    const [brandForm, setBrandForm] = useState({ name: '', logo: null });
+    const [modelForm, setModelForm] = useState({ name: '', brand: '' });
 
-    const [modelName, setModelName] = useState('');
-    const [selectedBrand, setSelectedBrand] = useState('');
+    const { addNotification } = useNotification();
 
     useEffect(() => {
         fetchBrands();
@@ -25,148 +31,165 @@ const AttributesManager = () => {
         try {
             const res = await getBrands();
             setBrands(res.data);
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (error) { console.error(error); }
     };
 
     const fetchModels = async () => {
         try {
             const res = await getModels();
             setModels(res.data);
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (error) { console.error(error); }
     };
 
-    const handleAddBrand = async (e) => {
+    // --- BRAND HANDLERS ---
+    const handleBrandSubmit = async (e) => {
         e.preventDefault();
-        if (!brandName) return;
+        const data = new FormData();
+        data.append('name', brandForm.name);
+        if (brandForm.logo) data.append('logo', brandForm.logo);
+
         try {
-            setLoading(true);
-            await createBrand({ name: brandName, logo: brandLogo });
-            showNotification('Brand added successfully', 'success');
-            setBrandName('');
-            setBrandLogo('');
+            if (editingBrand) {
+                await updateBrand(editingBrand._id, data);
+                addNotification('Brand updated successfully', 'success');
+            } else {
+                await createBrand(data);
+                addNotification('Brand created successfully', 'success');
+            }
+            setIsBrandModalOpen(false);
+            setEditingBrand(null);
+            setBrandForm({ name: '', logo: null });
             fetchBrands();
-        } catch (err) {
-            showNotification(err.response?.data?.message || 'Error adding brand', 'error');
-        } finally {
-            setLoading(false);
+        } catch (error) {
+            addNotification('Error saving brand', 'error');
         }
     };
 
-    const handleAddModel = async (e) => {
+    const handleBrandDelete = async (id) => {
+        if (window.confirm('Delete this brand?')) {
+            try {
+                await deleteBrand(id);
+                fetchBrands();
+                addNotification('Brand deleted', 'success');
+            } catch (error) {
+                addNotification('Error deleting brand', 'error');
+            }
+        }
+    };
+
+    // --- MODEL HANDLERS ---
+    const handleModelSubmit = async (e) => {
         e.preventDefault();
-        if (!modelName || !selectedBrand) return;
         try {
-            setLoading(true);
-            await createModel({ name: modelName, brand: selectedBrand });
-            showNotification('Model added successfully', 'success');
-            setModelName('');
+            if (editingModel) {
+                await updateModel(editingModel._id, modelForm);
+                addNotification('Model updated successfully', 'success');
+            } else {
+                await createModel(modelForm);
+                addNotification('Model created successfully', 'success');
+            }
+            setIsModelModalOpen(false);
+            setEditingModel(null);
+            setModelForm({ name: '', brand: '' });
             fetchModels();
-        } catch (err) {
-            showNotification(err.response?.data?.message || 'Error adding model', 'error');
-        } finally {
-            setLoading(false);
+        } catch (error) {
+            addNotification('Error saving model', 'error');
+        }
+    };
+
+    const handleModelDelete = async (id) => {
+        if (window.confirm('Delete this model?')) {
+            try {
+                await deleteModel(id);
+                fetchModels();
+                addNotification('Model deleted', 'success');
+            } catch (error) {
+                addNotification('Error deleting model', 'error');
+            }
         }
     };
 
     return (
         <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6 text-gray-800">Attributes Manager</h1>
+            <h1 className="text-2xl font-bold text-gray-800 mb-6">Attributes Manager</h1>
 
             {/* Tabs */}
-            <div className="flex border-b mb-6">
+            <div className="flex border-b border-gray-200 mb-6">
                 <button
-                    className={`px-4 py-2 font-medium ${activeTab === 'brands' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
                     onClick={() => setActiveTab('brands')}
+                    className={`pb-3 px-6 font-medium transition-all relative ${activeTab === 'brands' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                    Brands
+                    <div className="flex items-center gap-2">
+                        <FiBox /> Brands
+                    </div>
+                    {activeTab === 'brands' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
                 </button>
                 <button
-                    className={`px-4 py-2 font-medium ${activeTab === 'models' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
                     onClick={() => setActiveTab('models')}
+                    className={`pb-3 px-6 font-medium transition-all relative ${activeTab === 'models' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                    Models
+                    <div className="flex items-center gap-2">
+                        <FiSmartphone /> Models
+                    </div>
+                    {activeTab === 'models' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
                 </button>
             </div>
 
-            {/* Brands Section */}
+            {/* BRANDS TAB */}
             {activeTab === 'brands' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Add Brand Form */}
-                    <div className="bg-white p-6 rounded-lg shadow-sm border">
-                        <h2 className="text-lg font-semibold mb-4">Add New Brand</h2>
-                        <form onSubmit={handleAddBrand}>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Brand Name</label>
-                                <input
-                                    type="text"
-                                    value={brandName}
-                                    onChange={(e) => setBrandName(e.target.value)}
-                                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="e.g. Samsung"
-                                    required
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL (Optional)</label>
-                                <input
-                                    type="text"
-                                    value={brandLogo}
-                                    onChange={(e) => setBrandLogo(e.target.value)}
-                                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="https://..."
-                                />
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
-                            >
-                                {loading ? 'Adding...' : 'Add Brand'}
-                            </button>
-                        </form>
+                <div>
+                    <div className="flex justify-end mb-4">
+                        <button
+                            onClick={() => {
+                                setEditingBrand(null);
+                                setBrandForm({ name: '', logo: null });
+                                setIsBrandModalOpen(true);
+                            }}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                        >
+                            <FiPlus /> Add Brand
+                        </button>
                     </div>
 
-                    {/* Brands List */}
-                    <div className="bg-white p-6 rounded-lg shadow-sm border">
-                        <h2 className="text-lg font-semibold mb-4">Existing Brands ({brands.length})</h2>
-                        <div className="max-h-96 overflow-y-auto">
-                            {brands.length === 0 ? (
-                                <p className="text-gray-500">No brands found.</p>
-                            ) : (
-                                <ul className="divide-y">
-                                    {brands.map((brand) => (
-                                        <li key={brand._id} className="py-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                {brand.logo ? (
-                                                    <img src={brand.logo} alt={brand.name} className="w-8 h-8 object-contain" />
-                                                ) : (
-                                                    <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">Img</div>
-                                                )}
-                                                <span className="font-medium text-gray-800">{brand.name}</span>
-                                            </div>
-                                            {/* <button className="text-red-500 hover:text-red-700">
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button> */}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {brands.map((brand) => (
+                            <div key={brand._id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100">
+                                        {brand.logo ? (
+                                            <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <FiBox className="text-gray-300" />
+                                        )}
+                                    </div>
+                                    <span className="font-semibold text-gray-700">{brand.name}</span>
+                                </div>
+                                <div className="flex gap-1">
+                                    <button
+                                        onClick={() => {
+                                            setEditingBrand(brand);
+                                            setBrandForm({ name: brand.name, logo: null });
+                                            setIsBrandModalOpen(true);
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                                    >
+                                        <FiEdit2 size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleBrandDelete(brand._id)}
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                    >
+                                        <FiTrash2 size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {/* Models Section */}
+            {/* MODELS TAB */}
             {activeTab === 'models' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Add Model Form */}
-                    <div className="bg-white p-6 rounded-lg shadow-sm border">
-                        <h2 className="text-lg font-semibold mb-4">Add New Model</h2>
-                        <form onSubmit={handleAddModel}>
                             <div className="mb-4">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Brand</label>
                                 <select
@@ -200,10 +223,10 @@ const AttributesManager = () => {
                                 {loading ? 'Adding...' : 'Add Model'}
                             </button>
                         </form>
-                    </div>
+                    </div >
 
-                    {/* Models List */}
-                    <div className="bg-white p-6 rounded-lg shadow-sm border">
+    {/* Models List */ }
+    < div className = "bg-white p-6 rounded-lg shadow-sm border" >
                         <h2 className="text-lg font-semibold mb-4">Existing Models ({models.length})</h2>
                         <div className="max-h-96 overflow-y-auto">
                             {models.length === 0 ? (
@@ -223,10 +246,10 @@ const AttributesManager = () => {
                                 </ul>
                             )}
                         </div>
-                    </div>
-                </div>
+                    </div >
+                </div >
             )}
-        </div>
+        </div >
     );
 };
 

@@ -13,11 +13,9 @@ import {
   faFileInvoice,
   faGlobe,
   faIndustry,
-  faMobile,
   faPalette,
   faShoppingBag,
   faShoppingCart,
-  faTags,
   faUser,
   faUsers,
   faWarehouse
@@ -153,13 +151,16 @@ const Sidebar = () => {
     const coveratySection = {
       section: 'coveraty',
       label: 'Coveraty Store',
-      icon: faMobile,
+      icon: <FiShoppingBag size={20} />,
       collapsible: true,
       items: [
-        { path: '/coveraty/designs', label: 'Designs Manager', icon: faPalette, roles: ['admin', 'designer'] },
-        { path: '/coveraty/attributes', label: 'Attributes', icon: faTags, roles: ['admin'] },
-        { path: '/coveraty/orders', label: 'Store Orders', icon: faBox, roles: ['admin', 'worker', 'financial'] },
-      ],
+        { path: '/coveraty/orders', label: 'Store Orders', icon: <FiClipboard />, roles: ['admin', 'worker', 'financial'] },
+        { path: '/coveraty/designs', label: 'Designs Manager', icon: <FiLayout />, roles: ['admin', 'designer'] },
+        { path: '/coveraty/categories', label: 'Categories', icon: <FiGrid />, roles: ['admin'] },
+        { path: '/coveraty/attributes', label: 'Attributes', icon: <FiLayers />, roles: ['admin', 'designer'] },
+        { path: '/coveraty/shipping', label: 'Shipping', icon: <FiTruck />, roles: ['admin'] },
+        { path: '/coveraty/customers', label: 'Customers', icon: <FiUsersIcon />, roles: ['admin', 'financial'] },
+      ]
     };
 
     if (user.role === 'admin' || user.role === 'designer' || user.role === 'worker' || user.role === 'financial') {

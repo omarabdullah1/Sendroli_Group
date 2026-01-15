@@ -3,6 +3,7 @@ const CovModel = require('../models/store/CovModel');
 const CovCategory = require('../models/store/CovCategory');
 const CovProduct = require('../models/store/CovProduct');
 const CovOrder = require('../models/store/CovOrder');
+const CovShipping = require('../models/store/CovShipping');
 
 // --- BRANDS ---
 exports.getBrands = async (req, res) => {
@@ -16,11 +17,38 @@ exports.getBrands = async (req, res) => {
 
 exports.createBrand = async (req, res) => {
     try {
-        const brand = new CovBrand(req.body);
+        const brandData = { ...req.body };
+        if (req.file) {
+            brandData.logo = `/uploads/${req.file.filename}`;
+        }
+        const brand = new CovBrand(brandData);
         await brand.save();
         res.status(201).json(brand);
     } catch (err) {
         res.status(400).json({ message: err.message });
+    }
+};
+
+exports.updateBrand = async (req, res) => {
+    try {
+        const updates = { ...req.body };
+        if (req.file) {
+            updates.logo = `/uploads/${req.file.filename}`;
+        }
+        const brand = await CovBrand.findByIdAndUpdate(req.params.id, updates, { new: true });
+        res.json(brand);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+exports.deleteBrand = async (req, res) => {
+    try {
+        // Soft delete
+        await CovBrand.findByIdAndUpdate(req.params.id, { isActive: false });
+        res.json({ message: 'Brand deleted' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 };
 
@@ -48,6 +76,25 @@ exports.createModel = async (req, res) => {
     }
 };
 
+exports.updateModel = async (req, res) => {
+    try {
+        const model = await CovModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json(model);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+exports.deleteModel = async (req, res) => {
+    try {
+        await CovModel.findByIdAndUpdate(req.params.id, { isActive: false });
+        res.json({ message: 'Model deleted' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+
 // --- CATEGORIES ---
 exports.getCategories = async (req, res) => {
     try {
@@ -67,6 +114,89 @@ exports.createCategory = async (req, res) => {
         res.status(400).json({ message: err.message });
     }
 };
+
+exports.updateCategory = async (req, res) => {
+    try {
+        const category = await CovCategory.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json(category);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+exports.deleteCategory = async (req, res) => {
+    try {
+        await CovCategory.findByIdAndUpdate(req.params.id, { isActive: false });
+        res.json({ message: 'Category deleted' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// --- SHIPPING ---
+exports.getShipping = async (req, res) => {
+    try {
+        const shipping = await CovShipping.find({ isActive: true }).sort('city');
+        res.json(shipping);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.createShipping = async (req, res) => {
+    try {
+        const shipping = new CovShipping(req.body);
+        await shipping.save();
+        res.status(201).json(shipping);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+exports.updateShipping = async (req, res) => {
+    try {
+        const shipping = await CovShipping.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json(shipping);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+exports.deleteShipping = async (req, res) => {
+    try {
+        await CovShipping.findByIdAndUpdate(req.params.id, { isActive: false });
+        res.json({ message: 'Shipping zone deleted' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// --- CUSTOMERS ---
+exports.getStoreCustomers = async (req, res) => {
+    try {
+        // Aggregate unique customers from orders
+        const customers = await CovOrder.aggregate([
+            {
+                $group: {
+                    _id: "$phone",
+                    fullName: { $first: "$fullName" },
+                    phone: { $first: "$phone" },
+                    secondaryPhone: { $first: "$secondaryPhone" },
+                    address: { $first: "$address" },
+                    city: { $first: "$city" },
+                    totalOrders: { $sum: 1 },
+                    lastOrderDate: { $max: "$createdAt" },
+                    totalSpent: { $sum: "$total" }
+                }
+            },
+            { $sort: { lastOrderDate: -1 } }
+        ]);
+        res.json(customers);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
 
 // --- PRODUCTS (DESIGNS) ---
 exports.getProducts = async (req, res) => {
