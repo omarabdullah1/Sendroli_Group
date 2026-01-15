@@ -12,9 +12,14 @@ const CategoriesManager = () => {
 
     const { addNotification } = useNotification();
 
+
     useEffect(() => {
+        console.log('CategoriesManager mounted');
+        console.log('createCategory type:', typeof createCategory);
+        console.log('addNotification type:', typeof addNotification);
         fetchCategories();
     }, []);
+
 
     const fetchCategories = async () => {
         try {
@@ -29,12 +34,16 @@ const CategoriesManager = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        console.log('Submitting form...', { editingCategory, formData });
         try {
             if (editingCategory) {
+                console.log('Updating category...');
                 await updateCategory(editingCategory._id, formData);
                 addNotification('Category updated successfully', 'success');
             } else {
+                console.log('Creating category...', typeof createCategory);
                 await createCategory(formData);
+                console.log('Category created!');
                 addNotification('Category created successfully', 'success');
             }
             setIsModalOpen(false);
@@ -42,7 +51,12 @@ const CategoriesManager = () => {
             setFormData({ name: '' });
             fetchCategories();
         } catch (error) {
-            addNotification('Error saving category', 'error');
+            console.error('Error in handleSubmit:', error);
+            if (typeof addNotification === 'function') {
+                addNotification('Error saving category', 'error');
+            } else {
+                console.error('addNotification is not a function!');
+            }
         }
     };
 
