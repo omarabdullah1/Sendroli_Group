@@ -21,6 +21,8 @@ import {
   faWarehouse
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FiClipboard, FiGrid, FiLayers, FiLayout, FiShoppingBag, FiTruck, FiUsers } from 'react-icons/fi';
+
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -147,7 +149,7 @@ const Sidebar = () => {
       menu.push(settingsSection);
     }
 
-    import { FiShoppingBag, FiClipboard, FiLayout, FiGrid, FiLayers, FiTruck, FiUsers } from 'react-icons/fi';
+
 
     // Coveraty Store Section
     const coveratySection = {
