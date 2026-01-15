@@ -68,14 +68,18 @@ app.use(helmet({
 }));
 
 // Serve static files from uploads directory with CORS headers
+// Serve static files from uploads directory with CORS headers
 const path = require('path');
-app.use('/uploads', (req, res, next) => {
+const serveUploads = (req, res, next) => {
   // Add CORS headers for static files
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
-}, express.static(path.join(__dirname, 'uploads')));
+};
+
+app.use('/uploads', serveUploads, express.static(path.join(__dirname, 'uploads')));
+app.use('/api/uploads', serveUploads, express.static(path.join(__dirname, 'uploads')));
 
 // Body parser middleware (but not for multipart/form-data which multer handles)
 app.use(express.json({ limit: '10mb' })); // Limit payload size for security
