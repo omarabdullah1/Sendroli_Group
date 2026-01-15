@@ -10,9 +10,6 @@ console.log('🔧 Environment:', import.meta.env.MODE);
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
   withCredentials: true, // enable if you use cookies for auth
 });
 
@@ -45,10 +42,10 @@ api.interceptors.response.use(
       const currentPath = window.location.pathname;
       const publicRoutes = ['/', '/login', '/unauthorized'];
       const isPublicRoute = publicRoutes.includes(currentPath);
-      
+
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      
+
       // Only redirect to login if we're on a protected route
       if (!isPublicRoute && currentPath !== '/login') {
         window.location.href = '/login';
