@@ -147,6 +147,8 @@ const Sidebar = () => {
       menu.push(settingsSection);
     }
 
+    import { FiShoppingBag, FiClipboard, FiLayout, FiGrid, FiLayers, FiTruck, FiUsers } from 'react-icons/fi';
+
     // Coveraty Store Section
     const coveratySection = {
       section: 'coveraty',
@@ -159,7 +161,7 @@ const Sidebar = () => {
         { path: '/coveraty/categories', label: 'Categories', icon: <FiGrid />, roles: ['admin'] },
         { path: '/coveraty/attributes', label: 'Attributes', icon: <FiLayers />, roles: ['admin', 'designer'] },
         { path: '/coveraty/shipping', label: 'Shipping', icon: <FiTruck />, roles: ['admin'] },
-        { path: '/coveraty/customers', label: 'Customers', icon: <FiUsersIcon />, roles: ['admin', 'financial'] },
+        { path: '/coveraty/customers', label: 'Customers', icon: <FiUsers />, roles: ['admin', 'financial'] },
       ]
     };
 
