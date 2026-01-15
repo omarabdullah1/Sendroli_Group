@@ -4,7 +4,7 @@ const fs = require('fs');
 
 // Ensure uploads directory exists (only in development)
 const uploadsDir = path.join(__dirname, '../uploads');
-if (process.env.NODE_ENV !== 'production' && !fs.existsSync(uploadsDir)) {
+if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
