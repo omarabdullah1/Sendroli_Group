@@ -37,6 +37,9 @@ services:
     build: 
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://sendroligroup.cloud/api
+        VITE_VAPID_PUBLIC_KEY: ${VITE_VAPID_PUBLIC_KEY}
     container_name: sendroli-frontend
     restart: unless-stopped
     ports:
