@@ -147,6 +147,7 @@ app.use(cors({
       origin.includes('localhost') ||
       origin.includes('72.62.38.191') ||
       origin.includes('sendroligroup.cloud') ||
+      origin.includes('store.sendroligroup.cloud') ||
       allowedOrigins.includes(origin)
     )) {
       console.log(`✅ CORS allowed for origin: ${origin}`);
