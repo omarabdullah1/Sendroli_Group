@@ -230,6 +230,11 @@ exports.getProducts = async (req, res) => {
 
 exports.createProduct = async (req, res) => {
     try {
+        console.log('📝 createProduct Request:');
+        console.log('Headers Content-Type:', req.headers['content-type']);
+        console.log('req.file:', req.file);
+        console.log('req.body:', req.body);
+
         let productData = { ...req.body };
 
         // Parse allowedModels if it comes as a stringified JSON or single string

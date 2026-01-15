@@ -9,20 +9,18 @@ if (process.env.NODE_ENV !== 'production' && !fs.existsSync(uploadsDir)) {
 }
 
 // Configure storage based on environment
-const storage = process.env.NODE_ENV === 'production' 
-  ? multer.memoryStorage() // Use memory storage in production (Vercel)
-  : multer.diskStorage({
-      destination: (req, file, cb) => {
-        cb(null, uploadsDir);
-      },
-      filename: (req, file, cb) => {
-        // Generate unique filename: timestamp-random-originalname
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        const name = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, '-');
-        cb(null, `${name}-${uniqueSuffix}${ext}`);
-      }
-    });
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename: timestamp-random-originalname
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const name = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, '-');
+    cb(null, `${name}-${uniqueSuffix}${ext}`);
+  }
+});
 
 // File filter - only allow images
 const fileFilter = (req, file, cb) => {
