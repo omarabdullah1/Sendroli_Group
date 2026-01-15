@@ -96,6 +96,7 @@ exports.deleteModel = async (req, res) => {
 
 
 // --- CATEGORIES ---
+// --- CATEGORIES ---
 exports.getCategories = async (req, res) => {
     try {
         const categories = await CovCategory.find({ isActive: true }).sort('name');
@@ -107,7 +108,11 @@ exports.getCategories = async (req, res) => {
 
 exports.createCategory = async (req, res) => {
     try {
-        const category = new CovCategory(req.body);
+        const categoryData = { ...req.body };
+        if (req.file) {
+            categoryData.coverImage = `/uploads/${req.file.filename}`;
+        }
+        const category = new CovCategory(categoryData);
         await category.save();
         res.status(201).json(category);
     } catch (err) {
@@ -117,7 +122,11 @@ exports.createCategory = async (req, res) => {
 
 exports.updateCategory = async (req, res) => {
     try {
-        const category = await CovCategory.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const updates = { ...req.body };
+        if (req.file) {
+            updates.coverImage = `/uploads/${req.file.filename}`;
+        }
+        const category = await CovCategory.findByIdAndUpdate(req.params.id, updates, { new: true });
         res.json(category);
     } catch (err) {
         res.status(400).json({ message: err.message });
@@ -221,27 +230,49 @@ exports.getProducts = async (req, res) => {
 
 exports.createProduct = async (req, res) => {
     try {
-        const productData = { ...req.body };
+        let productData = { ...req.body };
+
+        // Parse allowedModels if it comes as a stringified JSON or single string
+        if (productData.allowedModels) {
+            if (typeof productData.allowedModels === 'string') {
+                try {
+                    // Try parsing as JSON (e.g. "['id1', 'id2']")
+                    const parsed = JSON.parse(productData.allowedModels);
+                    if (Array.isArray(parsed)) {
+                        productData.allowedModels = parsed;
+                    } else {
+                        // If single ID string
+                        productData.allowedModels = [productData.allowedModels];
+                    }
+                } catch (e) {
+                    // If not JSON, assume comma separated or single ID
+                    if (productData.allowedModels.includes(',')) {
+                        productData.allowedModels = productData.allowedModels.split(',').map(s => s.trim());
+                    } else {
+                        productData.allowedModels = [productData.allowedModels];
+                    }
+                }
+            }
+        }
 
         // Handle Image Upload
         if (req.file) {
-            // In production (Vercel), memory storage is used, so file is in buffer
-            // But for VPS/DiskStorage, filename is available
-            if (req.file.filename) {
-                productData.image = `/uploads/${req.file.filename}`;
-            } else {
-                // Fallback or specific logic for memory storage (e.g. upload to cloud)
-                // For now assuming VPS usage with disk storage
-                return res.status(400).json({ message: 'Image upload failed (Memory storage not implemented for VPS flow)' });
+            productData.image = `/uploads/${req.file.filename}`;
+        } else {
+            // Remove 'image' from body if it's empty object or invalid, to trigger "required" error unless valid URL provided
+            if (typeof productData.image === 'object' && Object.keys(productData.image).length === 0) {
+                delete productData.image;
             }
-        } else if (!productData.image) {
-            return res.status(400).json({ message: 'Image is required' });
+            if (!productData.image) {
+                return res.status(400).json({ message: 'Image is required' });
+            }
         }
 
         const product = new CovProduct(productData);
         await product.save();
         res.status(201).json(product);
     } catch (err) {
+        console.error("Create Product Error:", err);
         res.status(400).json({ message: err.message });
     }
 };

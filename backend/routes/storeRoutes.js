@@ -16,9 +16,10 @@ router.put('/models/:id', storeController.updateModel);
 router.delete('/models/:id', storeController.deleteModel);
 
 // --- CATEGORIES ---
+// --- CATEGORIES ---
 router.get('/categories', storeController.getCategories);
-router.post('/categories', storeController.createCategory);
-router.put('/categories/:id', storeController.updateCategory);
+router.post('/categories', upload.single('coverImage'), storeController.createCategory);
+router.put('/categories/:id', upload.single('coverImage'), storeController.updateCategory);
 router.delete('/categories/:id', storeController.deleteCategory);
 
 // --- SHIPPING ---
