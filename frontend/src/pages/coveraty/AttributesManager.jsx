@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import React, { useState, useEffect } from 'react';
-import { getBrands, createBrand, updateBrand, deleteBrand, getModels, createModel, updateModel, deleteModel } from '../../services/storeService';
+import { FiBox, FiEdit2, FiPlus, FiSmartphone, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
 import { useNotification } from '../../context/NotificationContext';
-import { FiPlus, FiTrash2, FiSmartphone, FiBox, FiUpload, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
+import { createBrand, createModel, deleteBrand, deleteModel, getBrands, getModels, updateBrand, updateModel } from '../../services/storeService';
 
 const AttributesManager = () => {
     // State
@@ -190,66 +189,138 @@ const AttributesManager = () => {
 
             {/* MODELS TAB */}
             {activeTab === 'models' && (
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Select Brand</label>
-                                <select
-                                    value={selectedBrand}
-                                    onChange={(e) => setSelectedBrand(e.target.value)}
-                                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                <div>
+                    <div className="flex justify-end mb-4">
+                        <button
+                            onClick={() => {
+                                setEditingModel(null);
+                                setModelForm({ name: '', brand: '' });
+                                setIsModelModalOpen(true);
+                            }}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                        >
+                            <FiPlus /> Add Model
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {models.map((model) => (
+                            <div key={model._id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-semibold text-gray-700">{model.name}</h4>
+                                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block mt-1">
+                                        {model.brand?.name || 'Unknown Brand'}
+                                    </span>
+                                </div>
+                                <div className="flex gap-1">
+                                    <button
+                                        onClick={() => {
+                                            setEditingModel(model);
+                                            setModelForm({ name: model.name, brand: model.brand?._id || '' });
+                                            setIsModelModalOpen(true);
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                                    >
+                                        <FiEdit2 size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleModelDelete(model._id)}
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                    >
+                                        <FiTrash2 size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* BRAND MODAL */}
+            {isBrandModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-sm">
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                            <h3 className="font-semibold text-gray-800">{editingBrand ? 'Edit Brand' : 'Add Brand'}</h3>
+                            <button onClick={() => setIsBrandModalOpen(false)}><FiX /></button>
+                        </div>
+                        <form onSubmit={handleBrandSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Brand Name</label>
+                                <input
+                                    type="text"
                                     required
+                                    value={brandForm.name}
+                                    onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })}
+                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Logo Image</label>
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors relative">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => setBrandForm({ ...brandForm, logo: e.target.files[0] })}
+                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                    />
+                                    <div className="flex flex-col items-center gap-2 text-gray-400">
+                                        <FiUpload size={24} />
+                                        <span className="text-xs">{brandForm.logo ? brandForm.logo.name : 'Click to upload logo'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2 mt-4">
+                                <button type="button" onClick={() => setIsBrandModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODEL MODAL */}
+            {isModelModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-sm">
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                            <h3 className="font-semibold text-gray-800">{editingModel ? 'Edit Model' : 'Add Model'}</h3>
+                            <button onClick={() => setIsModelModalOpen(false)}><FiX /></button>
+                        </div>
+                        <form onSubmit={handleModelSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Model Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={modelForm.name}
+                                    onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })}
+                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                                <select
+                                    required
+                                    value={modelForm.brand}
+                                    onChange={(e) => setModelForm({ ...modelForm, brand: e.target.value })}
+                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                                 >
-                                    <option value="">-- Select Brand --</option>
-                                    {brands.map((b) => (
+                                    <option value="">Select Brand</option>
+                                    {brands.map(b => (
                                         <option key={b._id} value={b._id}>{b.name}</option>
                                     ))}
                                 </select>
                             </div>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Model Name</label>
-                                <input
-                                    type="text"
-                                    value={modelName}
-                                    onChange={(e) => setModelName(e.target.value)}
-                                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="e.g. S24 Ultra"
-                                    required
-                                />
+                            <div className="flex justify-end gap-2 mt-4">
+                                <button type="button" onClick={() => setIsModelModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
                             </div>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
-                            >
-                                {loading ? 'Adding...' : 'Add Model'}
-                            </button>
                         </form>
-                    </div >
-
-    {/* Models List */ }
-    < div className = "bg-white p-6 rounded-lg shadow-sm border" >
-                        <h2 className="text-lg font-semibold mb-4">Existing Models ({models.length})</h2>
-                        <div className="max-h-96 overflow-y-auto">
-                            {models.length === 0 ? (
-                                <p className="text-gray-500">No models found.</p>
-                            ) : (
-                                <ul className="divide-y">
-                                    {models.map((model) => (
-                                        <li key={model._id} className="py-3 flex items-center justify-between">
-                                            <div>
-                                                <span className="font-medium text-gray-800">{model.name}</span>
-                                                <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                                    {model.brand?.name || 'Unknown Brand'}
-                                                </span>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                    </div >
-                </div >
+                    </div>
+                </div>
             )}
-        </div >
+        </div>
     );
 };
 
