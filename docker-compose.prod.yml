@@ -58,6 +58,8 @@ services:
     build:
       context: ./store-frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://sendroligroup.cloud/api
     container_name: sendroli-store-frontend
     restart: unless-stopped
     ports:
